@@ -405,10 +405,14 @@ const BehaviorTimeTab = (() => {
     const labels = weeks.map(w => `W${w.week}`);
 
     // 考試週 bar 為 null（不顯示柱狀）
+    // BUG-TIME-QUIZ-1 FIX: 欄位缺失時保留 null 讓 Chart.js 跳過，
+    // 避免 _num(null)→0 導致柱狀恆為 0 高度。
     const passAttempts = weeks.map(w =>
-      w.is_exam_week ? null : _num(w.pass_group_avg_attempts ?? null));
+      w.is_exam_week ? null
+        : (w.pass_group_avg_attempts != null ? _num(w.pass_group_avg_attempts) : null));
     const failAttempts = weeks.map(w =>
-      w.is_exam_week ? null : _num(w.fail_group_avg_attempts ?? null));
+      w.is_exam_week ? null
+        : (w.fail_group_avg_attempts != null ? _num(w.fail_group_avg_attempts) : null));
     const weekPassRate = weeks.map(w =>
       w.is_exam_week ? null
         : (w.overall_pass_rate != null ? +(_num(w.overall_pass_rate) * 100).toFixed(1) : null));
