@@ -379,18 +379,29 @@ const BehaviorTimeTab = (() => {
   }
 
   function _weeksForFilter() {
+    // BUG-TIME-QUIZ-2/3 FIX:
+    // by_semester[sem].weeks 只有 avg_attempts，缺 pass/fail 分組欄位且無 segments。
+    // 一律從頂層 weeks 出發，以 segment key 合併後重建 pass_group / fail_group 欄位。
     const baseWeeks = _quizData?.weeks || [];
-    const semData = _filterSemester !== "all"
-      ? _quizData?.by_semester?.[_filterSemester] || _quizData?.by_semester?.[_normalizeSem(_filterSemester)]
-      : null;
-    const sourceWeeks = semData?.weeks || baseWeeks;
-    const key = _segmentKey();
-    // BUG-TIME-QUIZ-2 FIX: segments[key] 只含 avg_attempts，缺少頂層的
-    // pass_group_avg_attempts / fail_group_avg_attempts。
-    // 以頂層 w 為基底，再用 segment 覆蓋，確保分組欄位不被抹除。
-    return sourceWeeks.map(w => {
-      const seg = w.segments?.[key] || w.segments?.[`all|${_filterCluster}|${_filterPass}`];
-      return seg ? { ...w, ...seg } : w;
+    const sem  = _filterSemester === "all" ? "all" : _normalizeSem(_filterSemester);
+    const key  = `${sem}|all|${_filterPass}`;
+    const pKey = `${sem}|all|pass`;
+    const fKey = `${sem}|all|fail`;
+    return baseWeeks.map(w => {
+      const segs = w.segments || {};
+      const seg  = segs[key];
+      const base = seg ? { ...w, ...seg } : w;
+      let passGroupAvg = null;
+      let failGroupAvg = null;
+      if (_filterPass === "all") {
+        passGroupAvg = segs[pKey]?.avg_attempts ?? null;
+        failGroupAvg = segs[fKey]?.avg_attempts ?? null;
+      } else if (_filterPass === "pass") {
+        passGroupAvg = base.avg_attempts ?? null;
+      } else {
+        failGroupAvg = base.avg_attempts ?? null;
+      }
+      return { ...base, pass_group_avg_attempts: passGroupAvg, fail_group_avg_attempts: failGroupAvg };
     });
   }
 
