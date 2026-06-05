@@ -385,7 +385,13 @@ const BehaviorTimeTab = (() => {
       : null;
     const sourceWeeks = semData?.weeks || baseWeeks;
     const key = _segmentKey();
-    return sourceWeeks.map(w => w.segments?.[key] || w.segments?.[`all|${_filterCluster}|${_filterPass}`] || w);
+    // BUG-TIME-QUIZ-2 FIX: segments[key] 只含 avg_attempts，缺少頂層的
+    // pass_group_avg_attempts / fail_group_avg_attempts。
+    // 以頂層 w 為基底，再用 segment 覆蓋，確保分組欄位不被抹除。
+    return sourceWeeks.map(w => {
+      const seg = w.segments?.[key] || w.segments?.[`all|${_filterCluster}|${_filterPass}`];
+      return seg ? { ...w, ...seg } : w;
+    });
   }
 
   function renderWeeklyQuiz(canvasId) {
@@ -405,8 +411,7 @@ const BehaviorTimeTab = (() => {
     const labels = weeks.map(w => `W${w.week}`);
 
     // 考試週 bar 為 null（不顯示柱狀）
-    // BUG-TIME-QUIZ-1 FIX: 欄位缺失時保留 null 讓 Chart.js 跳過，
-    // 避免 _num(null)→0 導致柱狀恆為 0 高度。
+    // BUG-TIME-QUIZ-1 FIX: 欄位缺失時保留 null，避免 _num(null)→0
     const passAttempts = weeks.map(w =>
       w.is_exam_week ? null
         : (w.pass_group_avg_attempts != null ? _num(w.pass_group_avg_attempts) : null));
