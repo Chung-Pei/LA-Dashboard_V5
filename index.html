@@ -2271,10 +2271,71 @@ body.light .behavior-range-badge {
             </button>
           </div>
           <!-- D3 SVG 容器 -->
-          <div id="lsaGraphWrap" style="position:relative;height:320px;width:100%;min-height:220px"></div>
+          <div id="lsaGraphWrap" style="position:relative;height:480px;width:100%;min-height:320px"></div>
           <!-- 圖例說明 -->
           <div id="lsaLegend" style="margin-top:10px;font-size:0.78rem;color:var(--text-dim,#888)"></div>
         </div>
+
+        <!-- ── 解讀說明卡片 ── -->
+        <div class="chart-card" style="margin-top:12px">
+          <div class="chart-title" style="--accent-color:var(--accent2)">
+            <span class="dot"></span>怎麼看這張圖？— 白話解讀
+          </div>
+
+          <!-- 怎麼看 -->
+          <div style="margin-bottom:14px">
+            <div style="font-size:.8rem;font-weight:600;color:var(--text,#dde3f5);margin-bottom:6px">📖 圖形元素說明</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.78rem;color:var(--text-mid,#9aa0b8)">
+              <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
+                <span style="color:var(--accent,#3498db);font-weight:600">🔵 圓圈（M / Q）</span><br>
+                代表一種學習行為。圓圈大小 ∝ 該行為<strong style="color:var(--text,#dde3f5)">出現總次數</strong>。
+              </div>
+              <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
+                <span style="color:var(--accent,#3498db);font-weight:600">🔄 自環（節點上方的弧形箭頭）</span><br>
+                M→M 或 Q→Q：做完某行為後，<strong style="color:var(--text,#dde3f5)">緊接著仍是同一行為</strong>。弧線的箭頭指回同個圓圈，代表連續專注。
+              </div>
+              <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
+                <span style="color:var(--accent,#3498db);font-weight:600">➡ 箭頭（M ↔ Q）</span><br>
+                兩種行為之間的切換。箭頭越粗 = Z 值越大 = 偏離隨機預期越遠。
+              </div>
+              <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
+                <span style="color:var(--accent,#3498db);font-weight:600">📊 Z 值標籤</span><br>
+                <strong style="color:var(--text,#dde3f5)">Z &gt; +1.96</strong>：顯著「偏好」此轉移。
+                <strong style="color:var(--text,#dde3f5)">Z &lt; −1.96</strong>：顯著「迴避」此轉移。
+              </div>
+            </div>
+          </div>
+
+          <!-- 實際資料白話解讀（由 JS 動態填入） -->
+          <div style="margin-bottom:14px">
+            <div style="font-size:.8rem;font-weight:600;color:var(--text,#dde3f5);margin-bottom:6px">💬 本班資料白話解讀</div>
+            <div id="lsaInterpretCard" style="font-size:.78rem;color:var(--text-mid,#9aa0b8);line-height:1.7">
+              <!-- 由 tab-behavior-lsa.js _updateInterpretCard() 填入 -->
+            </div>
+          </div>
+
+          <!-- 為何只有 M 和 Q -->
+          <details style="font-size:.77rem;color:var(--text-dim,#888);border-top:1px solid var(--border2,#2a2f45);padding-top:10px;margin-top:4px">
+            <summary style="cursor:pointer;color:var(--text-mid,#9aa0b8);font-weight:600;outline:none">
+              ℹ️ 為何只追蹤教材閱讀（M）和題庫作答（Q）兩種行為？
+            </summary>
+            <div style="margin-top:8px;padding:10px 12px;background:var(--surface2,#1c2030);border-radius:8px;line-height:1.7">
+              目前可解析的行為紀錄只有兩種，原因是<strong style="color:var(--text,#dde3f5)">本學期課程本身未開設相關教學活動</strong>，而非技術限制：
+              <ul style="margin:6px 0 6px 16px;padding:0">
+                <li><strong style="color:var(--text,#dde3f5)">教材閱讀（M）</strong>：來源 <code>reading_log</code>（教材閱讀紀錄）</li>
+                <li><strong style="color:var(--text,#dde3f5)">題庫作答（Q）</strong>：來源 <code>quiz</code>（測驗紀錄，篩選含「題庫」標題）</li>
+              </ul>
+              以下行為本學期無資料，已列入未來擴充，待課程開設後自動啟用：
+              <ul style="margin:6px 0 0 16px;padding:0;color:var(--text-dim,#888)">
+                <li>R（檢討解答）— 本學期無作答後解題活動</li>
+                <li>D（討論）— 本學期無課程討論活動</li>
+                <li>A（作業）— 本學期無作業繳交活動</li>
+                <li>Lag-2 分析 — 需更大樣本（期望頻率 ≥ 5）</li>
+              </ul>
+            </div>
+          </details>
+        </div><!-- /解讀卡片 -->
+
       </div><!-- /sub-lsa -->
 
     </div><!-- /#tab-behavior -->
@@ -2432,15 +2493,15 @@ body.light .behavior-range-badge {
 <script src="js/vendor/d3.min.js"></script>
 
 <!-- ══ 學習行為模組（依賴 main.js 全域變數）══ -->
-<script defer src="js/chart-registry.js?v=202606051715"></script>
-<script defer src="js/behavior-loader.js?v=202606051715"></script>
-<script defer src="js/tab-behavior-radar.js?v=202606051715"></script>
-<script defer src="js/tab-behavior-correlation.js?v=202606051715"></script>
-<script defer src="js/tab-behavior-time.js?v=202606051715"></script>
-<script defer src="js/tab-behavior-lsa.js?v=202606052200"></script>
+<script defer src="js/chart-registry.js?v=202606071642"></script>
+<script defer src="js/behavior-loader.js?v=202606071642"></script>
+<script defer src="js/tab-behavior-radar.js?v=202606071642"></script>
+<script defer src="js/tab-behavior-correlation.js?v=202606071642"></script>
+<script defer src="js/tab-behavior-time.js?v=202606071642"></script>
+<script defer src="js/tab-behavior-lsa.js?v=202606071642"></script>
 
 <!-- ══ 行為初始化 + 高風險報告（依賴 behavior 模組）══ -->
-<script defer src="js/behavior-init.js?v=202606051715"></script>
-<script defer src="js/at-risk-report.js?v=202606051715"></script>
+<script defer src="js/behavior-init.js?v=202606071642"></script>
+<script defer src="js/at-risk-report.js?v=202606071642"></script>
 </body>
 </html>
