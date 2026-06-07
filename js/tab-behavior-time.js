@@ -382,20 +382,37 @@ const BehaviorTimeTab = (() => {
     // BUG-TIME-QUIZ-2/3 FIX:
     // by_semester[sem].weeks 只有 avg_attempts，缺 pass/fail 分組欄位且無 segments。
     // 一律從頂層 weeks 出發，以 segment key 合併後重建 pass_group / fail_group 欄位。
+    //
+    // BUG-TIME-QUIZ-4 FIX:
+    // cluster 維度原本被 hardcode 為 "all"，導致切換分群時 segment key 不變，圖形相同。
+    // 修正：key 中加入 _filterCluster；若 quiz segments 無此 cluster 維度，
+    // 則 fallback 至 sem|all|pass 的舊 key，確保有 cluster 資料時正確顯示，
+    // 無 cluster 資料時行為與舊版一致（降級而非顯示錯誤資料）。
     const baseWeeks = _quizData?.weeks || [];
-    const sem  = _filterSemester === "all" ? "all" : _normalizeSem(_filterSemester);
-    const key  = `${sem}|all|${_filterPass}`;
-    const pKey = `${sem}|all|pass`;
-    const fKey = `${sem}|all|fail`;
+    const sem     = _filterSemester === "all" ? "all" : _normalizeSem(_filterSemester);
+    const cluster = _filterCluster;
+
+    // 精確 key（含 cluster）
+    const key  = `${sem}|${cluster}|${_filterPass}`;
+    const pKey = `${sem}|${cluster}|pass`;
+    const fKey = `${sem}|${cluster}|fail`;
+    // fallback key（cluster=all，與舊版相同）
+    const fallbackKey  = `${sem}|all|${_filterPass}`;
+    const fallbackPKey = `${sem}|all|pass`;
+    const fallbackFKey = `${sem}|all|fail`;
+
     return baseWeeks.map(w => {
       const segs = w.segments || {};
-      const seg  = segs[key];
+
+      // 優先用含 cluster 的精確 key；若無則 fallback 至 all
+      const seg  = segs[key]  ?? segs[fallbackKey];
       const base = seg ? { ...w, ...seg } : w;
+
       let passGroupAvg = null;
       let failGroupAvg = null;
       if (_filterPass === "all") {
-        passGroupAvg = segs[pKey]?.avg_attempts ?? null;
-        failGroupAvg = segs[fKey]?.avg_attempts ?? null;
+        passGroupAvg = (segs[pKey] ?? segs[fallbackPKey])?.avg_attempts ?? null;
+        failGroupAvg = (segs[fKey] ?? segs[fallbackFKey])?.avg_attempts ?? null;
       } else if (_filterPass === "pass") {
         passGroupAvg = base.avg_attempts ?? null;
       } else {
@@ -408,6 +425,29 @@ const BehaviorTimeTab = (() => {
   function renderWeeklyQuiz(canvasId) {
     const canvas = document.getElementById(canvasId);
     if (!canvas || !_quizData) return;
+
+    // BUG-TIME-QUIZ-4 FIX: 偵測 quiz segments 是否含 cluster 維度
+    // 若無，在圖表容器上方顯示提示，避免使用者誤認圖形已依分群篩選
+    const clusterHintId = `${canvasId}_clusterHint`;
+    let hintEl = document.getElementById(clusterHintId);
+    if (_filterCluster !== "all") {
+      const sem = _filterSemester === "all" ? "all" : _normalizeSem(_filterSemester);
+      const clusterKey = `${sem}|${_filterCluster}|all`;
+      const hasClusterSeg = (_quizData?.weeks || []).some(w => clusterKey in (w.segments || {}));
+      if (!hasClusterSeg) {
+        if (!hintEl) {
+          hintEl = document.createElement("div");
+          hintEl.id = clusterHintId;
+          hintEl.style.cssText = "font-size:.76rem;color:rgba(241,196,15,.85);margin-bottom:4px;padding:3px 8px;border-radius:6px;background:rgba(241,196,15,.08);border:1px solid rgba(241,196,15,.2)";
+          canvas.parentNode?.insertBefore(hintEl, canvas);
+        }
+        hintEl.textContent = `⚠ 題庫作答資料尚未按分群細分，目前顯示為所有分群的合併結果（${_filterCluster} 篩選中）`;
+      } else if (hintEl) {
+        hintEl.remove();
+      }
+    } else if (hintEl) {
+      hintEl.remove();
+    }
 
     const rawWeeks = _weeksForFilter();
     const weekMap = new Map(rawWeeks.map(w => [Number(w.week), w]));
