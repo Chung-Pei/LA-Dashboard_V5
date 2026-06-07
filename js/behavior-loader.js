@@ -16,7 +16,7 @@ const BehaviorLoader = (() => {
   // ── LRU 快取（BUG-1 修正）────────────────────────────────
   const MAX_CACHE = 4;          // 最多快取 4 個 JSON key
   const _lruCache = new Map();  // 保證插入順序（ES2015+）
-  const DATA_VERSION = "202606051531"; // [Schema 3.0] 升級快取版本
+  const DATA_VERSION = "202606071653"; // [Schema 3.0] 升級快取版本
 
   function _withCacheBust(url) {
     const sep = url.includes("?") ? "&" : "?";

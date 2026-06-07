@@ -2,12 +2,12 @@
 // sw.js — 學習數據分析儀表板 Service Worker
 // 策略：App Shell (Cache First) + data/*.json (Network First)
 //       帶 ?v= 版本參數的 JS → Cache First（版本號即 cache key）
-//       index.html → Stale-While-Revalidate（快取先回、背景更新）
+//       index.html → Network First（避免先吐舊 index.html）
 // 更新：2026-05-24 效能優化：JS 模組改 Cache First
 // ══════════════════════════════════════════════════════════
 
-const CACHE_VERSION = 'la-dash-v6-20260602a';
-const DATA_CACHE    = 'la-dash-data-v6-20260602a';
+const CACHE_VERSION = 'la-dash-v6-202606071653';
+const DATA_CACHE    = 'la-dash-data-v6-202606071653';
 
 // App Shell：靜態資源，安裝時全部快取
 // ⚠ CDN 資源釘定版本號，確保快取與 HTML 引用一致
@@ -32,14 +32,14 @@ const APP_SHELL = [
   './js/filter-engine.js',
   // 主應用邏輯
   './js/main.js',
-  // 學習行為模組（版本釘定 ?v=20260527）
-  './js/chart-registry.js?v=20260527',
-  './js/behavior-loader.js?v=20260527',
-  './js/tab-behavior-radar.js?v=20260527',
-  './js/tab-behavior-correlation.js?v=20260527',
-  './js/tab-behavior-time.js?v=20260527',
-  './js/behavior-init.js?v=20260527',
-  './js/at-risk-report.js?v=20260527',
+  // 學習行為模組（版本釘定 ?v=202606071653）
+  './js/chart-registry.js?v=202606071653',
+  './js/behavior-loader.js?v=202606071653',
+  './js/tab-behavior-radar.js?v=202606071653',
+  './js/tab-behavior-correlation.js?v=202606071653',
+  './js/tab-behavior-time.js?v=202606071653',
+  './js/behavior-init.js?v=202606071653',
+  './js/at-risk-report.js?v=202606071653',
   // CDN 備援（版本釘定）
   CHARTJS_URL,
 ];
@@ -79,9 +79,9 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // HTML 導覽頁 → Stale-While-Revalidate（先吐快取、背景更新，消除白屏等待）
+  // HTML 導覽頁 → Network First，避免重新載入時先拿到舊 index.html
   if (request.mode === 'navigate' || url.pathname.endsWith('.html')) {
-    event.respondWith(staleWhileRevalidate(request));
+    event.respondWith(networkFirst(request));
     return;
   }
 
