@@ -24,6 +24,15 @@ const BehaviorLsaTab = (() => {
   const NODE_COLOR   = "rgba(52,152,219,0.30)";
   const NODE_STROKE  = "rgba(52,152,219,0.9)";
 
+  // ── badge 文字寬度：CJK ≈ 11px，ASCII/數字/符號 ≈ 6.5px ────────
+  function _textPx(str) {
+    let w = 0;
+    for (const ch of str) {
+      w += /[　-鿿＀-￯一-鿿]/.test(ch) ? 11 : 6.5;
+    }
+    return w;
+  }
+
   // ── marker 建立輔助（提升至 module 層，避免每次渲染重複定義）──────
   function _mkMarker(defs, id, color, mSize) {
     defs.append("marker")
@@ -459,7 +468,7 @@ const BehaviorLsaTab = (() => {
         const meaning = l.z < 0 ? "顯著迴避" : "顯著偏好";
         const line1 = `${l.source.id}→${l.target.id} 後切換${tName}`;
         const line2 = `Z=${l.z >= 0 ? "+" : ""}${l.z.toFixed(1)}  ${meaning} ✦`;
-        const bw    = Math.max(130, Math.max(line1.length, line2.length) * 10 + 20);
+        const bw    = Math.max(110, Math.max(_textPx(line1), _textPx(line2)) + 24);
         const bh    = 48;
 
         edgeG.append("rect")
@@ -537,7 +546,7 @@ const BehaviorLsaTab = (() => {
         const line1 = `${nd.id}→${nd.id} 連續${behaviorName}`;
         // 第2行：Z值 + 顯著標記
         const line2 = `Z=${l.z >= 0 ? "+" : ""}${l.z.toFixed(1)}  顯著偏好 ✦`;
-        const bw    = Math.max(130, Math.max(line1.length, line2.length) * 10 + 20);
+        const bw    = Math.max(110, Math.max(_textPx(line1), _textPx(line2)) + 24);
         const bh    = 48;
 
         const topX = 0.125*sx + 0.375*cp1x + 0.375*cp2x + 0.125*ex;
