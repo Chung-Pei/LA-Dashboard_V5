@@ -265,7 +265,9 @@ const BehaviorLsaTab = (() => {
   function _render() {
     const wrap = document.getElementById("lsaGraphWrap");
     if (!wrap) return;
-    _renderToContainer(wrap, wrap.clientWidth || 560, wrap.clientHeight || 480);
+    const W = wrap.clientWidth  || 560;
+    const H = Math.round(W * 0.55);  // 寬高比 ~16:9，讓 getBBox 有足夠空間計算
+    _renderToContainer(wrap, W, H);
 
     // 若放大 overlay 開著，同步更新 overlay 內的圖形
     const overlayContainer = document.getElementById("lsaExpandSvgContainer");
@@ -575,6 +577,39 @@ const BehaviorLsaTab = (() => {
       g.append("title")
         .text(`${nd.id}：${nd.label}\n出現次數：${nd.total.toLocaleString()}`);
     });
+
+    // ── 內容自適應：重算 viewBox 消除上下空白 ────────────────────
+    // 在所有元素繪製完成後，透過 getBBox() 取得實際內容範圍
+    // 加 PAD px 上下左右留白，讓圖形緊密貼合內容
+    try {
+      const PAD = 20;
+      const gAll = svg.node().querySelectorAll("path,rect,circle,text");
+      let minY = Infinity, maxY = -Infinity;
+      let minX = Infinity, maxX = -Infinity;
+      gAll.forEach(el => {
+        try {
+          const b = el.getBBox();
+          if (b.width === 0 && b.height === 0) return;
+          if (b.y < minY) minY = b.y;
+          if (b.y + b.height > maxY) maxY = b.y + b.height;
+          if (b.x < minX) minX = b.x;
+          if (b.x + b.width > maxX) maxX = b.x + b.width;
+        } catch (_) {}
+      });
+      if (isFinite(minY) && isFinite(maxY)) {
+        const vx = Math.max(0, minX - PAD);
+        const vy = Math.max(0, minY - PAD);
+        const vw = Math.min(W, maxX + PAD) - vx;
+        const vh = maxY + PAD - vy;
+        svg.attr("viewBox", `${vx} ${vy} ${vw} ${vh}`);
+        // 主容器依內容高度自動縮放
+        if (isMain) {
+          const aspectH = Math.round(container.clientWidth * vh / vw);
+          const clampedH = Math.max(200, Math.min(700, aspectH));
+          container.style.height = clampedH + "px";
+        }
+      }
+    } catch (_) {}
 
     // ── 圖例 + 解讀卡片（只在主容器更新）────────────────────────
     if (isMain) {
