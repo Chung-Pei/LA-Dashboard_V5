@@ -1245,6 +1245,13 @@ body.light .behavior-range-badge {
 }
 .filter-collapse-bar .collapse-icon { font-size: 12px; }
 .filter-bar.collapsed { display: none !important; }
+/* LSA 圖形捲動容器 — WebKit 細橫桿 */
+#lsaGraphWrap > div::-webkit-scrollbar { height: 5px; }
+#lsaGraphWrap > div::-webkit-scrollbar-track { background: transparent; }
+#lsaGraphWrap > div::-webkit-scrollbar-thumb { background: rgba(52,152,219,0.35); border-radius: 4px; }
+#lsaExpandSvgContainer::-webkit-scrollbar { height: 5px; width: 5px; }
+#lsaExpandSvgContainer::-webkit-scrollbar-track { background: transparent; }
+#lsaExpandSvgContainer::-webkit-scrollbar-thumb { background: rgba(52,152,219,0.4); border-radius: 4px; }
 </style>
 <!-- 核心篩選邏輯模組 -->
 <!--
