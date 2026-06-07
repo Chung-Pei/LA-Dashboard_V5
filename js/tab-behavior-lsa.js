@@ -66,11 +66,13 @@ const BehaviorLsaTab = (() => {
       const wrap = document.getElementById("lsaGraphWrap");
       if (wrap && typeof ResizeObserver !== "undefined") {
         if (_ro) _ro.disconnect();
+        let _roTimer = null;
         _ro = new ResizeObserver(() => {
           const pane = document.getElementById("sub-lsa");
           if (!pane || pane.style.display === "none") return;
           if (!wrap || wrap.clientWidth < 10) return;
-          _render();
+          clearTimeout(_roTimer);
+          _roTimer = setTimeout(_render, 120);  // debounce 120ms
         });
         _ro.observe(wrap);
       }
@@ -190,33 +192,52 @@ const BehaviorLsaTab = (() => {
       const overlay = document.createElement("div");
       overlay.id = "lsaExpandOverlay";
       Object.assign(overlay.style, {
-        position: "fixed", inset: "0", zIndex: "9998",
+        position: "fixed",
+        top: "0", left: "0", right: "0", bottom: "0",
+        zIndex: "9998",
         background: "rgba(10,13,22,0.95)",
         display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
-        padding: "52px 24px 24px", boxSizing: "border-box",
+        // iOS safe-area：上方預留狀態列 + env()；下方預留 Home Indicator
+        paddingTop:    "max(52px, calc(env(safe-area-inset-top,0px) + 52px))",
+        paddingBottom: "max(24px, calc(env(safe-area-inset-bottom,0px) + 16px))",
+        paddingLeft:   "max(16px, env(safe-area-inset-left,0px))",
+        paddingRight:  "max(16px, env(safe-area-inset-right,0px))",
+        boxSizing: "border-box",
       });
 
       const closeBtn = document.createElement("button");
       closeBtn.textContent = "✕ 關閉";
       Object.assign(closeBtn.style, {
-        position: "absolute", top: "14px", right: "20px",
+        position: "absolute",
+        // iOS safe-area：關閉按鈕頂部避開狀態列
+        top:  "max(16px, calc(env(safe-area-inset-top,0px) + 10px))",
+        right: "max(16px, calc(env(safe-area-inset-right,0px) + 8px))",
         background: "var(--surface2,#1c2030)",
         border: "1px solid var(--border2,#2a2f45)",
         borderRadius: "20px", color: "var(--text,#dde3f5)",
-        padding: "6px 18px", cursor: "pointer",
+        padding: "8px 20px", cursor: "pointer",
         fontSize: ".85rem",
+        zIndex: "1",          // 確保在 svgContainer 之上
+        WebkitTapHighlightColor: "transparent",
+        touchAction: "manipulation",
       });
       closeBtn.addEventListener("click", () => overlay.remove());
 
       const svgContainer = document.createElement("div");
-      svgContainer.id = "lsaExpandSvgContainer";  // 供 _render() 同步更新用
+      svgContainer.id = "lsaExpandSvgContainer";
       Object.assign(svgContainer.style, {
-        width: "100%", flex: "1",
-        display: "flex", alignItems: "center", justifyContent: "center",
+        width:     "100%",
+        flex:      "1",
         minHeight: "0",
-        background: "var(--surface,#13161f)",
+        overflowX: "auto",           // 橫向捲動
+        overflowY: "auto",
+        WebkitOverflowScrolling: "touch",
+        background:   "var(--surface,#13161f)",
         borderRadius: "10px",
+        // 捲動提示細橫線
+        scrollbarWidth: "thin",
+        scrollbarColor: "rgba(52,152,219,0.4) transparent",
       });
 
       overlay.appendChild(closeBtn);
@@ -227,7 +248,7 @@ const BehaviorLsaTab = (() => {
       // 等 overlay 進 DOM 後取得真實尺寸再渲染
       requestAnimationFrame(() => {
         const W = Math.max(600, svgContainer.clientWidth  || window.innerWidth  * 0.9);
-        const H = Math.max(400, svgContainer.clientHeight || window.innerHeight * 0.75);
+        const H = Math.round(W * 0.55);  // 與主渲染一致，後由 viewBox 裁切
         _renderToContainer(svgContainer, W, H);
       });
     });
@@ -265,16 +286,17 @@ const BehaviorLsaTab = (() => {
   function _render() {
     const wrap = document.getElementById("lsaGraphWrap");
     if (!wrap) return;
-    const W = wrap.clientWidth  || 560;
-    const H = Math.round(W * 0.55);  // 寬高比 ~16:9，讓 getBBox 有足夠空間計算
+    // 最小畫布寬 480px，確保手機窄螢幕時圖形不被壓縮（外層捲動）
+    const W = Math.max(wrap.clientWidth || 480, 480);
+    const H = Math.round(W * 0.55);
     _renderToContainer(wrap, W, H);
 
     // 若放大 overlay 開著，同步更新 overlay 內的圖形
     const overlayContainer = document.getElementById("lsaExpandSvgContainer");
     if (overlayContainer) {
-      const W = Math.max(600, overlayContainer.clientWidth  || window.innerWidth  * 0.9);
-      const H = Math.max(400, overlayContainer.clientHeight || window.innerHeight * 0.75);
-      _renderToContainer(overlayContainer, W, H);
+      const oW = Math.max(600, overlayContainer.clientWidth  || window.innerWidth  * 0.9);
+      const oH = Math.round(oW * 0.55);
+      _renderToContainer(overlayContainer, oW, oH);
     }
   }
 
@@ -283,7 +305,7 @@ const BehaviorLsaTab = (() => {
     if (!_lsaData) { _renderEmpty("資料尚未載入"); return; }
 
     const groupData = _lsaData.groups?.[_group];
-    if (!groupData) { _renderEmpty(`找不到群組 ${_group} 的資料`); return; }
+    if (!groupData) { _renderEmpty(`找不到群組 ${_safeText(_group)} 的資料`); return; }
 
     const n = groupData.n_sequences ?? 0;
     // 快取主容器參照，供後續 isMain 判斷複用
@@ -297,13 +319,25 @@ const BehaviorLsaTab = (() => {
 
     container.innerHTML = "";
 
+    // ── 捲動包裝層：確保窄螢幕可左右捲，不壓縮圖形 ──────────────
+    const scrollWrap = document.createElement("div");
+    Object.assign(scrollWrap.style, {
+      width:     "100%",
+      overflowX: "auto",
+      overflowY: "visible",  // Y 方向保持 visible，讓自環 badge 往上突出不被截
+      WebkitOverflowScrolling: "touch",
+      boxSizing: "border-box",
+    });
+    container.appendChild(scrollWrap);
+
     let svg;
     try {
-      svg = d3.select(container).append("svg")
-        .attr("width",  "100%")
-        .attr("height", "100%")
+      svg = d3.select(scrollWrap).append("svg")
+        .attr("width",  W)          // 固定畫布寬，不隨容器縮放
+        .attr("height", H)
         .attr("viewBox", `0 0 ${W} ${H}`)
         .attr("preserveAspectRatio", "xMidYMid meet")
+        .style("display", "block")  // 消除 inline 底部空隙
         .style("font-family", "sans-serif");
     } catch (e) {
       if (isMain) _renderEmpty("D3.js 載入失敗，請確認網路連線。");
@@ -312,21 +346,20 @@ const BehaviorLsaTab = (() => {
 
     // ── marker ─────────────────────────────────────────────────────
     const defs = svg.append("defs");
-    _mkMarker(defs, "arrow-sig",        SIG_COLOR,               5);
-    _mkMarker(defs, "arrow-insig",      "rgba(120,130,160,0.6)", 4);
-    _mkMarker(defs, "arrow-self-sig",   SIG_COLOR,               5);
-    _mkMarker(defs, "arrow-self-insig", "rgba(120,130,160,0.6)", 4);
+    _mkMarker(defs, "arrow-sig",   SIG_COLOR,               5);
+    _mkMarker(defs, "arrow-insig", "rgba(120,130,160,0.6)", 4);
+    // arrow-self-sig / arrow-self-insig 與 arrow-sig / arrow-insig 完全相同，統一使用
 
     // ── 節點 ──────────────────────────────────────────────────────
     const behaviors = _lsaData.behaviors ?? ["M", "Q"];
     const totals    = groupData.behavior_totals ?? {};
-    const nodes = behaviors.map((b, i) => ({
+    const nodes = behaviors.map(b => ({
       id:    b,
       label: BEHAVIOR_LABELS[b] || b,
       total: totals[b] ?? 0,
       r:     NODE_BASE_R + Math.sqrt(totals[b] ?? 0) * NODE_SCALE,
-      x:     W * (0.25 + i * 0.5),
-      y:     H * 0.5,
+      x:     0,  // 由下方固定幾何佈局設定
+      y:     0,
     }));
 
     // ── 邊 ────────────────────────────────────────────────────────
@@ -348,24 +381,27 @@ const BehaviorLsaTab = (() => {
       }
     }
 
-    const nodeById = new Map(nodes.map(nd => [nd.id, nd]));
-    links.forEach(l => {
-      l.source = nodeById.get(l.source) ?? l.source;
-      l.target = nodeById.get(l.target) ?? l.target;
+    // ── 固定幾何佈局（取代 force simulation，避免節點 Y 飄移造成空白）──
+    // 節點水平均分，Y 固定在基線 200，後續由 viewBox 精確裁切
+    const NODE_Y   = 200;
+    // Badge 最寬約 160px，兩側節點各 r≈40，中間 badge 需至少 180px 淨距
+    // NODE_GAP = 節點中心距，最小需 40+90+40+90+40 = badge+r+padding = ~380px
+    const NODE_R_MAX = Math.max(...nodes.map(nd => nd.r));
+    const NODE_GAP = Math.max(W * 0.58, NODE_R_MAX * 2 + 260);
+    nodes.forEach((nd, i) => {
+      const rawX = W / 2 + (i === 0 ? -NODE_GAP / 2 : NODE_GAP / 2);
+      nd.x = Math.max(nd.r + 4, Math.min(W - nd.r - 4, rawX));  // 防止超出畫布
+      nd.y = NODE_Y;
     });
 
-    const nonSelf = links.filter(l => !l.isSelf);
-    const sim = d3.forceSimulation(nodes)
-      .force("link",      d3.forceLink(nonSelf).id(d => d.id).distance(W * 0.45).strength(0.7))
-      .force("charge",    d3.forceManyBody().strength(-120))
-      .force("center",    d3.forceCenter(W / 2, H / 2))
-      .force("collision", d3.forceCollide().radius(d => d.r + 28))
-      .stop();
-    for (let i = 0; i < 300; i++) sim.tick();
-    nodes.forEach(nd => {
-      nd.x = Math.max(nd.r + 12, Math.min(W - nd.r - 12, nd.x));
-      nd.y = Math.max(nd.r + 12, Math.min(H - nd.r - 12, nd.y));
+    const nodeById = new Map(nodes.map(nd => [nd.id, nd]));
+    links.forEach(l => {
+      l.source = nodeById.get(l.source);  // undefined → 過濾掉
+      l.target = nodeById.get(l.target);
     });
+    // 過濾掉找不到對應節點的邊（防止 undefined.x 造成 NaN）
+    const validLinks = links.filter(l => l.source && l.target);
+    const nonSelf    = validLinks.filter(l => !l.isSelf);
 
     // ── 邊線 ──────────────────────────────────────────────────────
     const edgeG = svg.append("g").attr("class", "lsa-edges");
@@ -423,8 +459,8 @@ const BehaviorLsaTab = (() => {
         const meaning = l.z < 0 ? "顯著迴避" : "顯著偏好";
         const line1 = `${l.source.id}→${l.target.id} 後切換${tName}`;
         const line2 = `Z=${l.z >= 0 ? "+" : ""}${l.z.toFixed(1)}  ${meaning} ✦`;
-        const bw    = Math.max(100, Math.max(line1.length, line2.length) * 7.25 + 20);
-        const bh    = 48;  // 38 × 1.25
+        const bw    = Math.max(130, Math.max(line1.length, line2.length) * 10 + 20);
+        const bh    = 48;
 
         edgeG.append("rect")
           .attr("x", lx - bw / 2).attr("y", ly - bh / 2)
@@ -463,7 +499,7 @@ const BehaviorLsaTab = (() => {
     const loopAngle = 40 * Math.PI / 180;  // 端點從節點中心偏40°
     const loopH     = 60;                   // 控制點高出節點邊緣距離
 
-    links.filter(l => l.isSelf).forEach(l => {
+    validLinks.filter(l => l.isSelf).forEach(l => {
       const nd    = l.source;
       if (!nd) return;
       const isTop = behaviors.indexOf(nd.id) === 0;
@@ -486,7 +522,7 @@ const BehaviorLsaTab = (() => {
         cp2x = ex - 20;              cp2y = cp1y;
       }
 
-      const mId = l.sig ? "url(#arrow-self-sig)" : "url(#arrow-self-insig)";
+      const mId = l.sig ? "url(#arrow-sig)" : "url(#arrow-insig)";
       edgeG.append("path")
         .attr("d", `M${sx},${sy} C${cp1x},${cp1y} ${cp2x},${cp2y} ${ex},${ey}`)
         .attr("fill",         "none")
@@ -501,8 +537,8 @@ const BehaviorLsaTab = (() => {
         const line1 = `${nd.id}→${nd.id} 連續${behaviorName}`;
         // 第2行：Z值 + 顯著標記
         const line2 = `Z=${l.z >= 0 ? "+" : ""}${l.z.toFixed(1)}  顯著偏好 ✦`;
-        const bw    = Math.max(100, Math.max(line1.length, line2.length) * 7.25 + 20);
-        const bh    = 48;  // 兩行高度 × 1.25
+        const bw    = Math.max(130, Math.max(line1.length, line2.length) * 10 + 20);
+        const bh    = 48;
 
         const topX = 0.125*sx + 0.375*cp1x + 0.375*cp2x + 0.125*ex;
         const topY = 0.125*sy + 0.375*cp1y + 0.375*cp2y + 0.125*ey;
@@ -578,36 +614,33 @@ const BehaviorLsaTab = (() => {
         .text(`${nd.id}：${nd.label}\n出現次數：${nd.total.toLocaleString()}`);
     });
 
-    // ── 內容自適應：重算 viewBox 消除上下空白 ────────────────────
-    // 在所有元素繪製完成後，透過 getBBox() 取得實際內容範圍
-    // 加 PAD px 上下左右留白，讓圖形緊密貼合內容
+    // ── 內容自適應：只裁切 Y 軸消除上下空白，X 軸保持 0~W 不動（避免偏移）──
     try {
-      const PAD = 20;
+      const PAD_Y = 24;
       const gAll = svg.node().querySelectorAll("path,rect,circle,text");
       let minY = Infinity, maxY = -Infinity;
-      let minX = Infinity, maxX = -Infinity;
       gAll.forEach(el => {
         try {
           const b = el.getBBox();
           if (b.width === 0 && b.height === 0) return;
           if (b.y < minY) minY = b.y;
           if (b.y + b.height > maxY) maxY = b.y + b.height;
-          if (b.x < minX) minX = b.x;
-          if (b.x + b.width > maxX) maxX = b.x + b.width;
         } catch (_) {}
       });
-      if (isFinite(minY) && isFinite(maxY)) {
-        const vx = Math.max(0, minX - PAD);
-        const vy = Math.max(0, minY - PAD);
-        const vw = Math.min(W, maxX + PAD) - vx;
-        const vh = maxY + PAD - vy;
-        svg.attr("viewBox", `${vx} ${vy} ${vw} ${vh}`);
-        // 主容器依內容高度自動縮放
-        if (isMain) {
-          const aspectH = Math.round(container.clientWidth * vh / vw);
-          const clampedH = Math.max(200, Math.min(700, aspectH));
-          container.style.height = clampedH + "px";
-        }
+      if (isFinite(minY) && isFinite(maxY) && (maxY - minY) > 10) {
+        // getBBox 有效（非 hidden tab 返回全零的情況）
+        const vy = Math.max(0, minY - PAD_Y);
+        const vh = maxY + PAD_Y - vy;
+        svg.attr("viewBox", `0 ${vy} ${W} ${vh}`);
+        const svgH = Math.max(180, Math.min(700, vh));
+        svg.attr("height", svgH);
+        if (isMain) container.style.height = svgH + "px";
+      } else {
+        // getBBox 失效（tab 隱藏中）：用計算值設定合理高度
+        const fallbackH = NODE_Y + NODE_R_MAX + 120;  // 節點基線 + 下方弧 + 餘白
+        svg.attr("viewBox", `0 0 ${W} ${fallbackH}`);
+        svg.attr("height", fallbackH);
+        if (isMain) container.style.height = fallbackH + "px";
       }
     } catch (_) {}
 
@@ -660,14 +693,17 @@ const BehaviorLsaTab = (() => {
     // 及格 vs 不及格比較（只在 all 組顯示）
     let compareHtml = "";
     if (group === "all" && _lsaData?.groups) {
-      const zPass = Math.abs(_lsaData.groups.pass?.z_score?.["M→M"] ?? 0).toFixed(1);
-      const zFail = Math.abs(_lsaData.groups.fail?.z_score?.["M→M"] ?? 0).toFixed(1);
+      const _zPassRaw = Math.abs(_lsaData.groups.pass?.z_score?.["M→M"] ?? 0);
+      const _zFailRaw = Math.abs(_lsaData.groups.fail?.z_score?.["M→M"] ?? 0);
+      const zPass = _zPassRaw.toFixed(1);
+      const zFail = _zFailRaw.toFixed(1);
+      const zDiff = (_zPassRaw - _zFailRaw).toFixed(1);
       compareHtml = `
         <div style="margin-top:10px;padding:10px 12px;background:var(--surface2,#1c2030);border-radius:8px">
           <div style="font-weight:600;color:var(--text,#dde3f5);margin-bottom:4px">📌 及格 vs 不及格比較</div>
           及格組「連續專注」Z = <strong style="color:var(--accent,#3498db)">${zPass}</strong>，
           不及格組 Z = <strong style="color:#e67e22">${zFail}</strong>。<br>
-          Z 值差距（${(parseFloat(zPass) - parseFloat(zFail)).toFixed(1)}）反映：
+          Z 值差距（${zDiff}）反映：
           及格組的<strong style="color:var(--text,#dde3f5)">連續專注行為更為穩定集中</strong>，
           不及格組行為序列相對分散，切換頻率較高。
         </div>`;
