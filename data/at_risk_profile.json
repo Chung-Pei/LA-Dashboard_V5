@@ -13,12 +13,12 @@
   "default_semester": "114(2)",
   "course_id": "1141111900055011A0",
   "course_name": "微生物及免疫學",
-  "generated_at": "2026-06-05T12:53:27.819957",
+  "generated_at": "2026-06-07T16:52:35.528134",
   "all_semesters": {
     "semester": "all",
     "course_id": "1141111900055011A0",
     "course_name": "微生物及免疫學",
-    "generated_at": "2026-06-05T12:53:27.788897",
+    "generated_at": "2026-06-07T16:52:35.515433",
     "cohort_summary": {
       "total_students": 2697,
       "pass_count": 2075,
@@ -74,10 +74,7 @@
       "zero_week_distribution": {
         "fail_group_mode": 0,
         "pass_group_mode": 0,
-        "critical_weeks": [
-          11,
-          10
-        ]
+        "critical_weeks": []
       },
       "low_completion_flags": [
         {
@@ -95,58 +92,7 @@
       ]
     },
     "temporal_decay": {
-      "available": true,
-      "midterm_week_num": 1,
-      "consecutive_zero_weeks": {
-        "fail_group_median": 17.0,
-        "pass_group_median": 17.0
-      },
-      "post_midterm_decay_rate": {
-        "fail_group_median_pct": 0.0,
-        "pass_group_median_pct": 0.0
-      },
-      "weekly_activity_series": {
-        "fail_group": {
-          "Week 1": 4235.4,
-          "Week 2": 11.2,
-          "Week 3": 46.9,
-          "Week 4": 13.7,
-          "Week 5": 20.4,
-          "Week 6": 67.7,
-          "Week 7": 32.4,
-          "Week 8": 60.3,
-          "Week 9": 60.1,
-          "Week 10": 12.0,
-          "Week 11": 22.8,
-          "Week 12": 29.1,
-          "Week 13": 12.6,
-          "Week 14": 26.8,
-          "Week 15": 45.0,
-          "Week 16": 71.6,
-          "Week 17": 77.2,
-          "Week 18": 93.9
-        },
-        "pass_group": {
-          "Week 1": 4174.7,
-          "Week 2": 16.9,
-          "Week 3": 34.5,
-          "Week 4": 19.9,
-          "Week 5": 25.8,
-          "Week 6": 32.0,
-          "Week 7": 62.4,
-          "Week 8": 73.4,
-          "Week 9": 23.2,
-          "Week 10": 12.1,
-          "Week 11": 17.1,
-          "Week 12": 18.4,
-          "Week 13": 25.2,
-          "Week 14": 73.0,
-          "Week 15": 18.2,
-          "Week 16": 76.6,
-          "Week 17": 97.8,
-          "Week 18": 31.6
-        }
-      }
+      "available": false
     },
     "prescriptive_summary": [
       {
@@ -162,13 +108,6 @@
         "trigger_condition": "gap_percentage <= -40.0%",
         "finding": "不及格群體門檻解鎖教材（整理筆記/補充教材/動畫）完成率比及格組低 50.0%，顯示知識內化過程可能提早中斷。",
         "action": "建議將 SUP 類教材設計為分段式（每 2 週一個里程碑），並在完成率低於 30% 時觸發自動提醒。"
-      },
-      {
-        "severity": "warning",
-        "metric": "consecutive_zero_weeks",
-        "trigger_condition": "fail_group_median >= 2",
-        "finding": "不及格學生連續零活動週數中位數達 17.0 週，及格組為 17.0 週。",
-        "action": "建議設定「超過 2 週無學習活動」自動通知機制，並於關鍵週（如期中考後第 1 週）由教師主動聯繫學生。"
       }
     ]
   },
@@ -177,7 +116,7 @@
       "semester": "111(1)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-05T12:53:27.742003",
+      "generated_at": "2026-06-07T16:52:35.489861",
       "cohort_summary": {
         "total_students": 443,
         "pass_count": 410,
@@ -233,10 +172,7 @@
         "zero_week_distribution": {
           "fail_group_mode": 0,
           "pass_group_mode": 0,
-          "critical_weeks": [
-            2,
-            3
-          ]
+          "critical_weeks": []
         },
         "low_completion_flags": [
           {
@@ -254,58 +190,7 @@
         ]
       },
       "temporal_decay": {
-        "available": true,
-        "midterm_week_num": 1,
-        "consecutive_zero_weeks": {
-          "fail_group_median": 17.0,
-          "pass_group_median": 17.0
-        },
-        "post_midterm_decay_rate": {
-          "fail_group_median_pct": 0.0,
-          "pass_group_median_pct": 0.0
-        },
-        "weekly_activity_series": {
-          "fail_group": {
-            "Week 1": 5582.3,
-            "Week 2": 0.0,
-            "Week 3": 0.0,
-            "Week 4": 0.0,
-            "Week 5": 0.0,
-            "Week 6": 0.0,
-            "Week 7": 0.0,
-            "Week 8": 0.0,
-            "Week 9": 0.0,
-            "Week 10": 0.0,
-            "Week 11": 0.0,
-            "Week 12": 0.0,
-            "Week 13": 0.0,
-            "Week 14": 0.0,
-            "Week 15": 0.0,
-            "Week 16": 0.0,
-            "Week 17": 0.0,
-            "Week 18": 0.0
-          },
-          "pass_group": {
-            "Week 1": 4334.8,
-            "Week 2": 0.0,
-            "Week 3": 0.0,
-            "Week 4": 0.0,
-            "Week 5": 0.0,
-            "Week 6": 0.0,
-            "Week 7": 0.0,
-            "Week 8": 0.0,
-            "Week 9": 0.0,
-            "Week 10": 0.0,
-            "Week 11": 0.0,
-            "Week 12": 0.0,
-            "Week 13": 0.0,
-            "Week 14": 0.0,
-            "Week 15": 0.0,
-            "Week 16": 0.0,
-            "Week 17": 0.0,
-            "Week 18": 0.0
-          }
-        }
+        "available": false
       },
       "prescriptive_summary": [
         {
@@ -314,13 +199,6 @@
           "trigger_condition": "ratio_in_fail_group >= 0.40",
           "finding": "43% 的不及格學生輔導資源完成率低於 20%，遠高於及格組的 52%。",
           "action": "建議下學期開學第一週即宣導輔導資源使用方式，並於第 4 週前設定強制完成里程碑。"
-        },
-        {
-          "severity": "warning",
-          "metric": "consecutive_zero_weeks",
-          "trigger_condition": "fail_group_median >= 2",
-          "finding": "不及格學生連續零活動週數中位數達 17.0 週，及格組為 17.0 週。",
-          "action": "建議設定「超過 2 週無學習活動」自動通知機制，並於關鍵週（如期中考後第 1 週）由教師主動聯繫學生。"
         }
       ]
     },
@@ -328,7 +206,7 @@
       "semester": "111(2)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-05T12:53:27.750091",
+      "generated_at": "2026-06-07T16:52:35.494187",
       "cohort_summary": {
         "total_students": 193,
         "pass_count": 161,
@@ -384,10 +262,7 @@
         "zero_week_distribution": {
           "fail_group_mode": 0,
           "pass_group_mode": 0,
-          "critical_weeks": [
-            2,
-            3
-          ]
+          "critical_weeks": []
         },
         "low_completion_flags": [
           {
@@ -411,58 +286,7 @@
         ]
       },
       "temporal_decay": {
-        "available": true,
-        "midterm_week_num": 1,
-        "consecutive_zero_weeks": {
-          "fail_group_median": 17.0,
-          "pass_group_median": 17.0
-        },
-        "post_midterm_decay_rate": {
-          "fail_group_median_pct": 0.0,
-          "pass_group_median_pct": 0.0
-        },
-        "weekly_activity_series": {
-          "fail_group": {
-            "Week 1": 2123.0,
-            "Week 2": 0.0,
-            "Week 3": 0.0,
-            "Week 4": 0.0,
-            "Week 5": 0.0,
-            "Week 6": 0.0,
-            "Week 7": 0.0,
-            "Week 8": 0.0,
-            "Week 9": 0.0,
-            "Week 10": 0.0,
-            "Week 11": 0.0,
-            "Week 12": 0.0,
-            "Week 13": 0.0,
-            "Week 14": 0.0,
-            "Week 15": 0.0,
-            "Week 16": 0.0,
-            "Week 17": 0.0,
-            "Week 18": 0.0
-          },
-          "pass_group": {
-            "Week 1": 3298.3,
-            "Week 2": 0.0,
-            "Week 3": 0.0,
-            "Week 4": 0.0,
-            "Week 5": 0.0,
-            "Week 6": 0.0,
-            "Week 7": 0.0,
-            "Week 8": 0.0,
-            "Week 9": 0.0,
-            "Week 10": 0.0,
-            "Week 11": 0.0,
-            "Week 12": 0.0,
-            "Week 13": 0.0,
-            "Week 14": 0.0,
-            "Week 15": 0.0,
-            "Week 16": 0.0,
-            "Week 17": 0.0,
-            "Week 18": 0.0
-          }
-        }
+        "available": false
       },
       "prescriptive_summary": [
         {
@@ -471,13 +295,6 @@
           "trigger_condition": "ratio_in_fail_group >= 0.40",
           "finding": "74% 的不及格學生輔導資源完成率低於 20%，遠高於及格組的 63%。",
           "action": "建議下學期開學第一週即宣導輔導資源使用方式，並於第 4 週前設定強制完成里程碑。"
-        },
-        {
-          "severity": "warning",
-          "metric": "consecutive_zero_weeks",
-          "trigger_condition": "fail_group_median >= 2",
-          "finding": "不及格學生連續零活動週數中位數達 17.0 週，及格組為 17.0 週。",
-          "action": "建議設定「超過 2 週無學習活動」自動通知機制，並於關鍵週（如期中考後第 1 週）由教師主動聯繫學生。"
         }
       ]
     },
@@ -485,7 +302,7 @@
       "semester": "112(1)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-05T12:53:27.754520",
+      "generated_at": "2026-06-07T16:52:35.496898",
       "cohort_summary": {
         "total_students": 460,
         "pass_count": 408,
@@ -541,10 +358,7 @@
         "zero_week_distribution": {
           "fail_group_mode": 0,
           "pass_group_mode": 0,
-          "critical_weeks": [
-            2,
-            3
-          ]
+          "critical_weeks": []
         },
         "low_completion_flags": [
           {
@@ -562,58 +376,7 @@
         ]
       },
       "temporal_decay": {
-        "available": true,
-        "midterm_week_num": 1,
-        "consecutive_zero_weeks": {
-          "fail_group_median": 17.0,
-          "pass_group_median": 17.0
-        },
-        "post_midterm_decay_rate": {
-          "fail_group_median_pct": 0.0,
-          "pass_group_median_pct": 0.0
-        },
-        "weekly_activity_series": {
-          "fail_group": {
-            "Week 1": 9545.5,
-            "Week 2": 0.0,
-            "Week 3": 0.0,
-            "Week 4": 0.0,
-            "Week 5": 0.0,
-            "Week 6": 0.0,
-            "Week 7": 0.0,
-            "Week 8": 0.0,
-            "Week 9": 0.0,
-            "Week 10": 0.0,
-            "Week 11": 0.0,
-            "Week 12": 0.0,
-            "Week 13": 0.0,
-            "Week 14": 0.0,
-            "Week 15": 0.0,
-            "Week 16": 0.0,
-            "Week 17": 0.0,
-            "Week 18": 0.0
-          },
-          "pass_group": {
-            "Week 1": 5696.1,
-            "Week 2": 0.0,
-            "Week 3": 0.0,
-            "Week 4": 0.0,
-            "Week 5": 0.0,
-            "Week 6": 0.0,
-            "Week 7": 0.0,
-            "Week 8": 0.0,
-            "Week 9": 0.0,
-            "Week 10": 0.0,
-            "Week 11": 0.0,
-            "Week 12": 0.0,
-            "Week 13": 0.0,
-            "Week 14": 0.0,
-            "Week 15": 0.0,
-            "Week 16": 5.1,
-            "Week 17": 1.6,
-            "Week 18": 0.2
-          }
-        }
+        "available": false
       },
       "prescriptive_summary": [
         {
@@ -629,13 +392,6 @@
           "trigger_condition": "gap_percentage <= -40.0%",
           "finding": "不及格群體門檻解鎖教材（整理筆記/補充教材/動畫）完成率比及格組低 72.0%，顯示知識內化過程可能提早中斷。",
           "action": "建議將 SUP 類教材設計為分段式（每 2 週一個里程碑），並在完成率低於 30% 時觸發自動提醒。"
-        },
-        {
-          "severity": "warning",
-          "metric": "consecutive_zero_weeks",
-          "trigger_condition": "fail_group_median >= 2",
-          "finding": "不及格學生連續零活動週數中位數達 17.0 週，及格組為 17.0 週。",
-          "action": "建議設定「超過 2 週無學習活動」自動通知機制，並於關鍵週（如期中考後第 1 週）由教師主動聯繫學生。"
         }
       ]
     },
@@ -643,7 +399,7 @@
       "semester": "112(2)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-05T12:53:27.761612",
+      "generated_at": "2026-06-07T16:52:35.500578",
       "cohort_summary": {
         "total_students": 202,
         "pass_count": 165,
@@ -699,10 +455,7 @@
         "zero_week_distribution": {
           "fail_group_mode": 0,
           "pass_group_mode": 0,
-          "critical_weeks": [
-            2,
-            3
-          ]
+          "critical_weeks": []
         },
         "low_completion_flags": [
           {
@@ -726,58 +479,7 @@
         ]
       },
       "temporal_decay": {
-        "available": true,
-        "midterm_week_num": 1,
-        "consecutive_zero_weeks": {
-          "fail_group_median": 17.0,
-          "pass_group_median": 17.0
-        },
-        "post_midterm_decay_rate": {
-          "fail_group_median_pct": 0.0,
-          "pass_group_median_pct": 0.0
-        },
-        "weekly_activity_series": {
-          "fail_group": {
-            "Week 1": 3117.7,
-            "Week 2": 0.0,
-            "Week 3": 0.0,
-            "Week 4": 0.0,
-            "Week 5": 0.0,
-            "Week 6": 0.0,
-            "Week 7": 0.0,
-            "Week 8": 0.0,
-            "Week 9": 0.0,
-            "Week 10": 0.0,
-            "Week 11": 0.0,
-            "Week 12": 0.0,
-            "Week 13": 0.0,
-            "Week 14": 0.0,
-            "Week 15": 0.0,
-            "Week 16": 0.0,
-            "Week 17": 0.0,
-            "Week 18": 0.0
-          },
-          "pass_group": {
-            "Week 1": 4302.0,
-            "Week 2": 0.0,
-            "Week 3": 0.0,
-            "Week 4": 0.0,
-            "Week 5": 0.0,
-            "Week 6": 0.0,
-            "Week 7": 0.0,
-            "Week 8": 0.0,
-            "Week 9": 0.0,
-            "Week 10": 0.0,
-            "Week 11": 0.0,
-            "Week 12": 0.0,
-            "Week 13": 0.0,
-            "Week 14": 0.0,
-            "Week 15": 0.0,
-            "Week 16": 0.0,
-            "Week 17": 0.0,
-            "Week 18": 0.0
-          }
-        }
+        "available": false
       },
       "prescriptive_summary": [
         {
@@ -793,13 +495,6 @@
           "trigger_condition": "gap_percentage <= -40.0%",
           "finding": "不及格群體門檻解鎖教材（整理筆記/補充教材/動畫）完成率比及格組低 74.7%，顯示知識內化過程可能提早中斷。",
           "action": "建議將 SUP 類教材設計為分段式（每 2 週一個里程碑），並在完成率低於 30% 時觸發自動提醒。"
-        },
-        {
-          "severity": "warning",
-          "metric": "consecutive_zero_weeks",
-          "trigger_condition": "fail_group_median >= 2",
-          "finding": "不及格學生連續零活動週數中位數達 17.0 週，及格組為 17.0 週。",
-          "action": "建議設定「超過 2 週無學習活動」自動通知機制，並於關鍵週（如期中考後第 1 週）由教師主動聯繫學生。"
         }
       ]
     },
@@ -807,7 +502,7 @@
       "semester": "113(1)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-05T12:53:27.766986",
+      "generated_at": "2026-06-07T16:52:35.503359",
       "cohort_summary": {
         "total_students": 449,
         "pass_count": 420,
@@ -863,82 +558,20 @@
         "zero_week_distribution": {
           "fail_group_mode": 0,
           "pass_group_mode": 0,
-          "critical_weeks": [
-            2,
-            3
-          ]
+          "critical_weeks": []
         },
         "low_completion_flags": []
       },
       "temporal_decay": {
-        "available": true,
-        "midterm_week_num": 1,
-        "consecutive_zero_weeks": {
-          "fail_group_median": 17.0,
-          "pass_group_median": 17.0
-        },
-        "post_midterm_decay_rate": {
-          "fail_group_median_pct": 0.0,
-          "pass_group_median_pct": 0.0
-        },
-        "weekly_activity_series": {
-          "fail_group": {
-            "Week 1": 10795.2,
-            "Week 2": 0.0,
-            "Week 3": 0.0,
-            "Week 4": 0.0,
-            "Week 5": 0.0,
-            "Week 6": 0.0,
-            "Week 7": 0.0,
-            "Week 8": 0.0,
-            "Week 9": 0.0,
-            "Week 10": 0.0,
-            "Week 11": 0.0,
-            "Week 12": 0.0,
-            "Week 13": 0.0,
-            "Week 14": 0.0,
-            "Week 15": 0.0,
-            "Week 16": 0.0,
-            "Week 17": 0.0,
-            "Week 18": 0.0
-          },
-          "pass_group": {
-            "Week 1": 4112.1,
-            "Week 2": 0.0,
-            "Week 3": 0.0,
-            "Week 4": 0.0,
-            "Week 5": 0.0,
-            "Week 6": 0.0,
-            "Week 7": 0.0,
-            "Week 8": 0.0,
-            "Week 9": 0.0,
-            "Week 10": 0.0,
-            "Week 11": 0.0,
-            "Week 12": 0.0,
-            "Week 13": 0.0,
-            "Week 14": 0.0,
-            "Week 15": 0.0,
-            "Week 16": 0.0,
-            "Week 17": 0.0,
-            "Week 18": 8.7
-          }
-        }
+        "available": false
       },
-      "prescriptive_summary": [
-        {
-          "severity": "warning",
-          "metric": "consecutive_zero_weeks",
-          "trigger_condition": "fail_group_median >= 2",
-          "finding": "不及格學生連續零活動週數中位數達 17.0 週，及格組為 17.0 週。",
-          "action": "建議設定「超過 2 週無學習活動」自動通知機制，並於關鍵週（如期中考後第 1 週）由教師主動聯繫學生。"
-        }
-      ]
+      "prescriptive_summary": []
     },
     "113(2)": {
       "semester": "113(2)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-05T12:53:27.773952",
+      "generated_at": "2026-06-07T16:52:35.506884",
       "cohort_summary": {
         "total_students": 198,
         "pass_count": 108,
@@ -994,10 +627,7 @@
         "zero_week_distribution": {
           "fail_group_mode": 0,
           "pass_group_mode": 0,
-          "critical_weeks": [
-            2,
-            3
-          ]
+          "critical_weeks": []
         },
         "low_completion_flags": [
           {
@@ -1021,58 +651,7 @@
         ]
       },
       "temporal_decay": {
-        "available": true,
-        "midterm_week_num": 1,
-        "consecutive_zero_weeks": {
-          "fail_group_median": 17.0,
-          "pass_group_median": 17.0
-        },
-        "post_midterm_decay_rate": {
-          "fail_group_median_pct": 0.0,
-          "pass_group_median_pct": 0.0
-        },
-        "weekly_activity_series": {
-          "fail_group": {
-            "Week 1": 2934.0,
-            "Week 2": 0.0,
-            "Week 3": 0.0,
-            "Week 4": 0.0,
-            "Week 5": 0.0,
-            "Week 6": 0.0,
-            "Week 7": 0.0,
-            "Week 8": 0.0,
-            "Week 9": 0.0,
-            "Week 10": 0.0,
-            "Week 11": 0.0,
-            "Week 12": 0.0,
-            "Week 13": 0.0,
-            "Week 14": 0.0,
-            "Week 15": 0.0,
-            "Week 16": 0.0,
-            "Week 17": 0.0,
-            "Week 18": 0.0
-          },
-          "pass_group": {
-            "Week 1": 9370.7,
-            "Week 2": 0.7,
-            "Week 3": 0.7,
-            "Week 4": 0.0,
-            "Week 5": 0.0,
-            "Week 6": 0.0,
-            "Week 7": 0.0,
-            "Week 8": 0.0,
-            "Week 9": 0.0,
-            "Week 10": 0.0,
-            "Week 11": 0.0,
-            "Week 12": 0.0,
-            "Week 13": 0.0,
-            "Week 14": 0.0,
-            "Week 15": 0.0,
-            "Week 16": 0.0,
-            "Week 17": 0.0,
-            "Week 18": 4.1
-          }
-        }
+        "available": false
       },
       "prescriptive_summary": [
         {
@@ -1081,13 +660,6 @@
           "trigger_condition": "ratio_in_fail_group >= 0.40",
           "finding": "64% 的不及格學生輔導資源完成率低於 20%，遠高於及格組的 67%。",
           "action": "建議下學期開學第一週即宣導輔導資源使用方式，並於第 4 週前設定強制完成里程碑。"
-        },
-        {
-          "severity": "warning",
-          "metric": "consecutive_zero_weeks",
-          "trigger_condition": "fail_group_median >= 2",
-          "finding": "不及格學生連續零活動週數中位數達 17.0 週，及格組為 17.0 週。",
-          "action": "建議設定「超過 2 週無學習活動」自動通知機制，並於關鍵週（如期中考後第 1 週）由教師主動聯繫學生。"
         }
       ]
     },
@@ -1095,7 +667,7 @@
       "semester": "114(1)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-05T12:53:27.779017",
+      "generated_at": "2026-06-07T16:52:35.509837",
       "cohort_summary": {
         "total_students": 504,
         "pass_count": 403,
@@ -1151,10 +723,7 @@
         "zero_week_distribution": {
           "fail_group_mode": 0,
           "pass_group_mode": 0,
-          "critical_weeks": [
-            11,
-            10
-          ]
+          "critical_weeks": []
         },
         "low_completion_flags": [
           {
@@ -1172,58 +741,7 @@
         ]
       },
       "temporal_decay": {
-        "available": true,
-        "midterm_week_num": 9,
-        "consecutive_zero_weeks": {
-          "fail_group_median": 7.0,
-          "pass_group_median": 6.0
-        },
-        "post_midterm_decay_rate": {
-          "fail_group_median_pct": -41.5,
-          "pass_group_median_pct": -40.2
-        },
-        "weekly_activity_series": {
-          "fail_group": {
-            "Week 1": 1172.1,
-            "Week 2": 38.6,
-            "Week 3": 161.1,
-            "Week 4": 47.0,
-            "Week 5": 70.0,
-            "Week 6": 232.5,
-            "Week 7": 111.5,
-            "Week 8": 207.2,
-            "Week 9": 206.6,
-            "Week 10": 41.1,
-            "Week 11": 78.5,
-            "Week 12": 100.1,
-            "Week 13": 43.3,
-            "Week 14": 92.2,
-            "Week 15": 154.6,
-            "Week 16": 245.9,
-            "Week 17": 265.1,
-            "Week 18": 322.5
-          },
-          "pass_group": {
-            "Week 1": 1442.1,
-            "Week 2": 86.9,
-            "Week 3": 177.5,
-            "Week 4": 102.3,
-            "Week 5": 132.9,
-            "Week 6": 164.7,
-            "Week 7": 321.5,
-            "Week 8": 377.8,
-            "Week 9": 119.4,
-            "Week 10": 62.1,
-            "Week 11": 88.1,
-            "Week 12": 94.9,
-            "Week 13": 129.6,
-            "Week 14": 375.9,
-            "Week 15": 93.7,
-            "Week 16": 389.0,
-            "Week 17": 501.8,
-            "Week 18": 152.3
-          }
-        }
+        "available": false
       },
       "prescriptive_summary": [
         {
@@ -1232,20 +750,6 @@
           "trigger_condition": "ratio_in_fail_group >= 0.40",
           "finding": "55% 的不及格學生輔導資源完成率低於 20%，遠高於及格組的 52%。",
           "action": "建議下學期開學第一週即宣導輔導資源使用方式，並於第 4 週前設定強制完成里程碑。"
-        },
-        {
-          "severity": "critical",
-          "metric": "post_midterm_decay_rate",
-          "trigger_condition": "fail_group_median_pct <= -35.0",
-          "finding": "不及格學生期中考後學習活動量衰退 41.5%，及格組僅衰退 40.2%。",
-          "action": "建議期中考成績公布後一週內發送個別學習提醒，對分數低於 60 分學生啟動一對一輔導追蹤。"
-        },
-        {
-          "severity": "warning",
-          "metric": "consecutive_zero_weeks",
-          "trigger_condition": "fail_group_median >= 2",
-          "finding": "不及格學生連續零活動週數中位數達 7.0 週，及格組為 6.0 週。",
-          "action": "建議設定「超過 2 週無學習活動」自動通知機制，並於關鍵週（如期中考後第 1 週）由教師主動聯繫學生。"
         }
       ]
     },
@@ -1253,7 +757,7 @@
       "semester": "114(2)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-05T12:53:27.787535",
+      "generated_at": "2026-06-07T16:52:35.514311",
       "cohort_summary": {
         "total_students": 248,
         "pass_count": 0,
