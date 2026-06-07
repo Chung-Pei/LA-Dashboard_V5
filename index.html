@@ -2271,7 +2271,7 @@ body.light .behavior-range-badge {
             </button>
           </div>
           <!-- D3 SVG 容器 -->
-          <div id="lsaGraphWrap" style="position:relative;height:480px;width:100%;min-height:320px"></div>
+          <div id="lsaGraphWrap" style="position:relative;height:600px;width:100%;min-height:400px"></div>
           <!-- 圖例說明 -->
           <div id="lsaLegend" style="margin-top:10px;font-size:0.78rem;color:var(--text-dim,#888)"></div>
         </div>
@@ -2320,16 +2320,16 @@ body.light .behavior-range-badge {
               ℹ️ 為何只追蹤教材閱讀（M）和題庫作答（Q）兩種行為？
             </summary>
             <div style="margin-top:8px;padding:10px 12px;background:var(--surface2,#1c2030);border-radius:8px;line-height:1.7">
-              目前可解析的行為紀錄只有兩種，原因是<strong style="color:var(--text,#dde3f5)">本學期課程本身未開設相關教學活動</strong>，而非技術限制：
+              目前可解析的行為紀錄只有兩種，原因是<strong style="color:var(--text,#dde3f5)">本課程本身未開設相關教學活動</strong>，而非技術限制：
               <ul style="margin:6px 0 6px 16px;padding:0">
                 <li><strong style="color:var(--text,#dde3f5)">教材閱讀（M）</strong>：來源 <code>reading_log</code>（教材閱讀紀錄）</li>
                 <li><strong style="color:var(--text,#dde3f5)">題庫作答（Q）</strong>：來源 <code>quiz</code>（測驗紀錄，篩選含「題庫」標題）</li>
               </ul>
-              以下行為本學期無資料，已列入未來擴充，待課程開設後自動啟用：
+              以下行為本課程無資料，已列入未來擴充，待課程開設後自動啟用：
               <ul style="margin:6px 0 0 16px;padding:0;color:var(--text-dim,#888)">
-                <li>R（檢討解答）— 本學期無作答後解題活動</li>
-                <li>D（討論）— 本學期無課程討論活動</li>
-                <li>A（作業）— 本學期無作業繳交活動</li>
+                <li>R（檢討解答）— 本課程無作答後解題活動</li>
+                <li>D（討論）— 本課程無課程討論活動</li>
+                <li>A（作業）— 本課程無作業繳交活動</li>
                 <li>Lag-2 分析 — 需更大樣本（期望頻率 ≥ 5）</li>
               </ul>
             </div>
@@ -2493,15 +2493,15 @@ body.light .behavior-range-badge {
 <script src="js/vendor/d3.min.js"></script>
 
 <!-- ══ 學習行為模組（依賴 main.js 全域變數）══ -->
-<script defer src="js/chart-registry.js?v=202606072023"></script>
-<script defer src="js/behavior-loader.js?v=202606072023"></script>
-<script defer src="js/tab-behavior-radar.js?v=202606072023"></script>
-<script defer src="js/tab-behavior-correlation.js?v=202606072023"></script>
-<script defer src="js/tab-behavior-time.js?v=202606072023"></script>
-<script defer src="js/tab-behavior-lsa.js?v=202606072023"></script>
+<script defer src="js/chart-registry.js?v=202606072043"></script>
+<script defer src="js/behavior-loader.js?v=202606072043"></script>
+<script defer src="js/tab-behavior-radar.js?v=202606072043"></script>
+<script defer src="js/tab-behavior-correlation.js?v=202606072043"></script>
+<script defer src="js/tab-behavior-time.js?v=202606072043"></script>
+<script defer src="js/tab-behavior-lsa.js?v=202606072043"></script>
 
 <!-- ══ 行為初始化 + 高風險報告（依賴 behavior 模組）══ -->
-<script defer src="js/behavior-init.js?v=202606072023"></script>
-<script defer src="js/at-risk-report.js?v=202606072023"></script>
+<script defer src="js/behavior-init.js?v=202606072043"></script>
+<script defer src="js/at-risk-report.js?v=202606072043"></script>
 </body>
 </html>
