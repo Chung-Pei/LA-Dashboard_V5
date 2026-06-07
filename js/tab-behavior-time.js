@@ -426,24 +426,40 @@ const BehaviorTimeTab = (() => {
     const canvas = document.getElementById(canvasId);
     if (!canvas || !_quizData) return;
 
-    // BUG-TIME-QUIZ-4 FIX: 偵測 quiz segments 是否含 cluster 維度
-    // 若無，在圖表容器上方顯示提示，避免使用者誤認圖形已依分群篩選
+    // BUG-TIME-QUIZ-4 FIX: 偵測 quiz segments 的 cluster 維度狀態，顯示正確提示
+    // 區分兩種情況：
+    //   A. all|{cluster}|all 不存在 → ETL 從未輸出 cluster 維度（舊版資料）→「資料未細分」
+    //   B. all|{cluster}|all 存在，但 sem|{cluster}|all 不存在 → 該學期此分群人數不足（MIN_SAMPLES 過濾）→「人數不足」
     const clusterHintId = `${canvasId}_clusterHint`;
     let hintEl = document.getElementById(clusterHintId);
     if (_filterCluster !== "all") {
       const sem = _filterSemester === "all" ? "all" : _normalizeSem(_filterSemester);
-      const clusterKey = `${sem}|${_filterCluster}|all`;
-      const hasClusterSeg = (_quizData?.weeks || []).some(w => clusterKey in (w.segments || {}));
-      if (!hasClusterSeg) {
+      const semClusterKey  = `${sem}|${_filterCluster}|all`;
+      const allClusterKey  = `all|${_filterCluster}|all`;
+      const weeks_         = _quizData?.weeks || [];
+      const hasAllSeg      = weeks_.some(w => allClusterKey  in (w.segments || {}));
+      const hasSemSeg      = weeks_.some(w => semClusterKey  in (w.segments || {}));
+
+      let hintMsg = null;
+      if (!hasAllSeg) {
+        // 情況 A：cluster 維度完全不存在（舊版 ETL，尚未細分）
+        hintMsg = `⚠ 題庫作答資料尚未按分群細分，目前顯示為所有分群的合併結果（${_filterCluster} 篩選中）`;
+      } else if (!hasSemSeg && _filterSemester !== "all") {
+        // 情況 B：全局有此分群資料，但選定學期的此分群人數不足，無法獨立分析
+        hintMsg = `ℹ 本學期 ${_filterCluster} 分群人數不足，無法單獨顯示，目前以全學期合併資料替代`;
+      }
+
+      if (hintMsg) {
         if (!hintEl) {
           hintEl = document.createElement("div");
           hintEl.id = clusterHintId;
           hintEl.style.cssText = "font-size:.76rem;color:rgba(241,196,15,.85);margin-bottom:4px;padding:3px 8px;border-radius:6px;background:rgba(241,196,15,.08);border:1px solid rgba(241,196,15,.2)";
           canvas.parentNode?.insertBefore(hintEl, canvas);
         }
-        hintEl.textContent = `⚠ 題庫作答資料尚未按分群細分，目前顯示為所有分群的合併結果（${_filterCluster} 篩選中）`;
+        hintEl.textContent = hintMsg;
       } else if (hintEl) {
         hintEl.remove();
+        hintEl = null;
       }
     } else if (hintEl) {
       hintEl.remove();

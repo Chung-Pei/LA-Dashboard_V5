@@ -41,6 +41,13 @@ const BehaviorLsaTab = (() => {
 
   // ── 初始化 ────────────────────────────────────────────────────
   async function init() {
+    // 按鈕事件無論資料是否存在都需綁定，必須在資料檢查前執行
+    _group = "all";
+    _syncGroupBtnStyles();
+    _bindGroupButtons();
+    _bindHelpButton();
+    _bindExpandButton();
+
     try {
       if (typeof d3 === "undefined") {
         throw new Error("D3.js 載入失敗，請確認網路連線後重新整理。");
@@ -54,11 +61,6 @@ const BehaviorLsaTab = (() => {
       }
 
       _lsaData = lsaRaw;
-      _group   = "all";
-      _syncGroupBtnStyles();
-      _bindGroupButtons();
-      _bindHelpButton();
-      _bindExpandButton();
       _render();
 
       const wrap = document.getElementById("lsaGraphWrap");
