@@ -16,13 +16,13 @@ const BehaviorLsaTab = (() => {
   let _ro      = null;
 
   const BEHAVIOR_LABELS = { M: "教材閱讀", Q: "題庫作答" };
-  const NODE_BASE_R  = 32;
+  const NODE_BASE_R  = 40;   // 32 × 1.25
   const NODE_SCALE   = 0.008;
   const EDGE_Z_SCALE = 0.55;
   const SIG_COLOR    = "var(--accent,#3498db)";
   const INSIG_COLOR  = "rgba(120,130,160,0.35)";
-  const NODE_COLOR   = "rgba(52,152,219,0.15)";
-  const NODE_STROKE  = "rgba(52,152,219,0.7)";
+  const NODE_COLOR   = "rgba(52,152,219,0.30)";
+  const NODE_STROKE  = "rgba(52,152,219,0.9)";
 
   // ── marker 建立輔助（提升至 module 層，避免每次渲染重複定義）──────
   function _mkMarker(defs, id, color, mSize) {
@@ -215,6 +215,8 @@ const BehaviorLsaTab = (() => {
         width: "100%", flex: "1",
         display: "flex", alignItems: "center", justifyContent: "center",
         minHeight: "0",
+        background: "var(--surface,#13161f)",
+        borderRadius: "10px",
       });
 
       overlay.appendChild(closeBtn);
@@ -419,8 +421,8 @@ const BehaviorLsaTab = (() => {
         const meaning = l.z < 0 ? "顯著迴避" : "顯著偏好";
         const line1 = `${l.source.id}→${l.target.id} 後切換${tName}`;
         const line2 = `Z=${l.z >= 0 ? "+" : ""}${l.z.toFixed(1)}  ${meaning} ✦`;
-        const bw    = Math.max(80, Math.max(line1.length, line2.length) * 5.8 + 16);
-        const bh    = 38;
+        const bw    = Math.max(100, Math.max(line1.length, line2.length) * 7.25 + 20);
+        const bh    = 48;  // 38 × 1.25
 
         edgeG.append("rect")
           .attr("x", lx - bw / 2).attr("y", ly - bh / 2)
@@ -432,19 +434,19 @@ const BehaviorLsaTab = (() => {
           .attr("opacity",      0.95);
 
         edgeG.append("text")
-          .attr("x", lx).attr("y", ly - 10)
+          .attr("x", lx).attr("y", ly - 12)
           .attr("dy", "0.35em")
           .attr("text-anchor",  "middle")
-          .attr("font-size",    9)
+          .attr("font-size",    11)
           .attr("font-weight",  "700")
           .attr("fill",         SIG_COLOR)
           .attr("pointer-events","none")
           .text(line1);
         edgeG.append("text")
-          .attr("x", lx).attr("y", ly + 10)
+          .attr("x", lx).attr("y", ly + 12)
           .attr("dy", "0.35em")
           .attr("text-anchor",  "middle")
-          .attr("font-size",    8)
+          .attr("font-size",    10)
           .attr("font-weight",  "400")
           .attr("fill",         "var(--text-mid,#9aa0b8)")
           .attr("pointer-events","none")
@@ -497,8 +499,8 @@ const BehaviorLsaTab = (() => {
         const line1 = `${nd.id}→${nd.id} 連續${behaviorName}`;
         // 第2行：Z值 + 顯著標記
         const line2 = `Z=${l.z >= 0 ? "+" : ""}${l.z.toFixed(1)}  顯著偏好 ✦`;
-        const bw    = Math.max(80, Math.max(line1.length, line2.length) * 5.8 + 16);
-        const bh    = 38;  // 兩行高度，各行 9px + 上下 padding 10px
+        const bw    = Math.max(100, Math.max(line1.length, line2.length) * 7.25 + 20);
+        const bh    = 48;  // 兩行高度 × 1.25
 
         const topX = 0.125*sx + 0.375*cp1x + 0.375*cp2x + 0.125*ex;
         const topY = 0.125*sy + 0.375*cp1y + 0.375*cp2y + 0.125*ey;
@@ -518,19 +520,19 @@ const BehaviorLsaTab = (() => {
 
         const bCx = badgeX + bw / 2;
         edgeG.append("text")
-          .attr("x", bCx).attr("y", badgeY - 10)
+          .attr("x", bCx).attr("y", badgeY - 12)
           .attr("dy", "0.35em")
           .attr("text-anchor",  "middle")
-          .attr("font-size",    9)
+          .attr("font-size",    11)
           .attr("font-weight",  "700")
           .attr("fill",         SIG_COLOR)
           .attr("pointer-events","none")
           .text(line1);
         edgeG.append("text")
-          .attr("x", bCx).attr("y", badgeY + 10)
+          .attr("x", bCx).attr("y", badgeY + 12)
           .attr("dy", "0.35em")
           .attr("text-anchor",  "middle")
-          .attr("font-size",    8)
+          .attr("font-size",    10)
           .attr("font-weight",  "400")
           .attr("fill",         "var(--text-mid,#9aa0b8)")
           .attr("pointer-events","none")
@@ -557,16 +559,16 @@ const BehaviorLsaTab = (() => {
         .attr("text-anchor", "middle")
         .attr("y", -7)
         .attr("dy", "0.35em")
-        .attr("font-size",   16)
+        .attr("font-size",   20)
         .attr("font-weight", "bold")
         .attr("fill",        "var(--text,#fff)")
         .text(nd.id);
 
       g.append("text")
         .attr("text-anchor", "middle")
-        .attr("y", 10)
+        .attr("y", 12)
         .attr("dy", "0.35em")
-        .attr("font-size",   10)
+        .attr("font-size",   13)
         .attr("fill",        "var(--text-mid,#ccc)")
         .text(nd.label);
 
