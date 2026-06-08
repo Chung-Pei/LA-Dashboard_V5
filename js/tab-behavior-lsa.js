@@ -202,18 +202,24 @@ const BehaviorLsaTab = (() => {
         background: "rgba(10,13,22,0.95)",
         display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
-        padding: "52px 24px 24px", boxSizing: "border-box",
+        // top padding must clear iOS status bar + button height (52px baseline + safe area)
+        padding: "calc(52px + env(safe-area-inset-top, 0px)) 24px calc(24px + env(safe-area-inset-bottom, 0px))",
+        boxSizing: "border-box",
       });
 
       const closeBtn = document.createElement("button");
       closeBtn.textContent = "✕ 關閉";
       Object.assign(closeBtn.style, {
-        position: "absolute", top: "14px", right: "20px",
+        position: "absolute",
+        // iOS PWA/standalone: respect Dynamic Island + status bar safe area
+        top: "calc(14px + env(safe-area-inset-top, 0px))",
+        right: "20px",
         background: "var(--surface2,#1c2030)",
         border: "1px solid var(--border2,#2a2f45)",
         borderRadius: "20px", color: "var(--text,#dde3f5)",
         padding: "6px 18px", cursor: "pointer",
         fontSize: ".85rem",
+        zIndex: "1",  // ensure above SVG content
       });
       closeBtn.addEventListener("click", () => overlay.remove());
 
@@ -344,7 +350,7 @@ const BehaviorLsaTab = (() => {
   function _render() {
     const wrap = document.getElementById("lsaGraphWrap");
     if (!wrap) return;
-    const W = wrap.clientWidth  || 560;
+    const W = Math.max(wrap.clientWidth, 480) || 560;  // mobile minimum 480 to fit 2-node + badges
     const H = Math.round(W * 0.55);  // 寬高比 ~16:9，讓 getBBox 有足夠空間計算
     _renderToContainer(wrap, W, H);
 
@@ -502,8 +508,10 @@ const BehaviorLsaTab = (() => {
         const meaning = l.z < 0 ? "顯著迴避" : "顯著偏好";
         const line1 = `${l.source.id}→${l.target.id} 後切換${tName}`;
         const line2 = `Z=${l.z >= 0 ? "+" : ""}${l.z.toFixed(1)}  ${meaning} ✦`;
-        const bw    = Math.max(100, Math.max(line1.length, line2.length) * 7.25 + 20);
-        const bh    = 48;  // 38 × 1.25
+        // CJK-aware width: non-ASCII chars ~14px, ASCII ~7px at font-size 11
+        const _bwE = s => { let w = 0; for (const c of s) w += c.codePointAt(0) > 0x7F ? 14 : 7; return w + 20; };
+        const bw  = Math.max(100, _bwE(line1), _bwE(line2));
+        const bh  = 48;  // 38 × 1.25
 
         edgeG.append("rect")
           .attr("x", lx - bw / 2).attr("y", ly - bh / 2)
@@ -580,8 +588,10 @@ const BehaviorLsaTab = (() => {
         const line1 = `${nd.id}→${nd.id} 連續${behaviorName}`;
         // 第2行：Z值 + 顯著標記
         const line2 = `Z=${l.z >= 0 ? "+" : ""}${l.z.toFixed(1)}  顯著偏好 ✦`;
-        const bw    = Math.max(100, Math.max(line1.length, line2.length) * 7.25 + 20);
-        const bh    = 48;  // 兩行高度 × 1.25
+        // CJK-aware width: non-ASCII chars ~14px, ASCII ~7px at font-size 11
+        const _bwS = s => { let w = 0; for (const c of s) w += c.codePointAt(0) > 0x7F ? 14 : 7; return w + 20; };
+        const bw  = Math.max(100, _bwS(line1), _bwS(line2));
+        const bh  = 48;  // 兩行高度 × 1.25
 
         const topX = 0.125*sx + 0.375*cp1x + 0.375*cp2x + 0.125*ex;
         const topY = 0.125*sy + 0.375*cp1y + 0.375*cp2y + 0.125*ey;
@@ -678,7 +688,7 @@ const BehaviorLsaTab = (() => {
       if (isFinite(minY) && isFinite(maxY)) {
         const vx = Math.max(0, minX - PAD);
         const vy = Math.max(0, minY - PAD);
-        const vw = Math.min(W, maxX + PAD) - vx;
+        const vw = maxX + PAD - vx;  // full content width, no artificial clip at W
         const vh = maxY + PAD - vy;
         svg.attr("viewBox", `${vx} ${vy} ${vw} ${vh}`);
         // 主容器依內容高度自動縮放
