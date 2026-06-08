@@ -1,5 +1,5 @@
 /**
- * tab-behavior-lsa.js  —  v16.14
+ * tab-behavior-lsa.js  —  v16.15
  *
  * 累積修正（v16.3–v16.7）：
  *   副標題放大、?說明 Modal、視覺優化、放大 overlay 重渲染
@@ -7,15 +7,20 @@
  *   自環 sweep=0 幾何修正（突出 91px）、badge 分散（t=0.22 貝茲點）
  *   dead variable 移除（zMQ）、_mkMarker 提升至 module 層
  *   isTop 改為 index 判斷、getElementById 快取
+ * v16.15：filterBar（學期 + 分群）篩選導入、_resolveGroupData、
+ *   CLUSTER_NAMES 提升至 module 層、init() filter 狀態重置
  */
 
 const BehaviorLsaTab = (() => {
 
-  let _lsaData = null;
-  let _group   = "all";
-  let _ro      = null;
+  let _lsaData        = null;
+  let _group          = "all";
+  let _filterSemester = "all";
+  let _filterCluster  = "all";
+  let _ro             = null;
 
   const BEHAVIOR_LABELS = { M: "教材閱讀", Q: "題庫作答" };
+  const CLUSTER_NAMES  = { P1:"穩定高效", P2:"規律中效", P3:"波動中效", P4:"低頻低效", P5:"高風險" };
   const NODE_BASE_R  = 40;   // 32 × 1.25
   const NODE_SCALE   = 0.008;
   const EDGE_Z_SCALE = 0.55;
@@ -23,15 +28,6 @@ const BehaviorLsaTab = (() => {
   const INSIG_COLOR  = "rgba(120,130,160,0.35)";
   const NODE_COLOR   = "rgba(52,152,219,0.30)";
   const NODE_STROKE  = "rgba(52,152,219,0.9)";
-
-  // ── badge 文字寬度：CJK ≈ 11px，ASCII/數字/符號 ≈ 6.5px ────────
-  function _textPx(str) {
-    let w = 0;
-    for (const ch of str) {
-      w += /[　-鿿＀-￯一-鿿]/.test(ch) ? 11 : 6.5;
-    }
-    return w;
-  }
 
   // ── marker 建立輔助（提升至 module 層，避免每次渲染重複定義）──────
   function _mkMarker(defs, id, color, mSize) {
@@ -51,7 +47,9 @@ const BehaviorLsaTab = (() => {
   // ── 初始化 ────────────────────────────────────────────────────
   async function init() {
     // 按鈕事件無論資料是否存在都需綁定，必須在資料檢查前執行
-    _group = "all";
+    _group          = "all";
+    _filterSemester = "all";
+    _filterCluster  = "all";
     _syncGroupBtnStyles();
     _bindGroupButtons();
     _bindHelpButton();
@@ -70,18 +68,17 @@ const BehaviorLsaTab = (() => {
       }
 
       _lsaData = lsaRaw;
+      _renderFilterBar();
       _render();
 
       const wrap = document.getElementById("lsaGraphWrap");
       if (wrap && typeof ResizeObserver !== "undefined") {
         if (_ro) _ro.disconnect();
-        let _roTimer = null;
         _ro = new ResizeObserver(() => {
           const pane = document.getElementById("sub-lsa");
           if (!pane || pane.style.display === "none") return;
           if (!wrap || wrap.clientWidth < 10) return;
-          clearTimeout(_roTimer);
-          _roTimer = setTimeout(_render, 120);  // debounce 120ms
+          _render();
         });
         _ro.observe(wrap);
       }
@@ -201,52 +198,33 @@ const BehaviorLsaTab = (() => {
       const overlay = document.createElement("div");
       overlay.id = "lsaExpandOverlay";
       Object.assign(overlay.style, {
-        position: "fixed",
-        top: "0", left: "0", right: "0", bottom: "0",
-        zIndex: "9998",
+        position: "fixed", inset: "0", zIndex: "9998",
         background: "rgba(10,13,22,0.95)",
         display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
-        // iOS safe-area：上方預留狀態列 + env()；下方預留 Home Indicator
-        paddingTop:    "max(52px, calc(env(safe-area-inset-top,0px) + 52px))",
-        paddingBottom: "max(24px, calc(env(safe-area-inset-bottom,0px) + 16px))",
-        paddingLeft:   "max(16px, env(safe-area-inset-left,0px))",
-        paddingRight:  "max(16px, env(safe-area-inset-right,0px))",
-        boxSizing: "border-box",
+        padding: "52px 24px 24px", boxSizing: "border-box",
       });
 
       const closeBtn = document.createElement("button");
       closeBtn.textContent = "✕ 關閉";
       Object.assign(closeBtn.style, {
-        position: "absolute",
-        // iOS safe-area：關閉按鈕頂部避開狀態列
-        top:  "max(16px, calc(env(safe-area-inset-top,0px) + 10px))",
-        right: "max(16px, calc(env(safe-area-inset-right,0px) + 8px))",
+        position: "absolute", top: "14px", right: "20px",
         background: "var(--surface2,#1c2030)",
         border: "1px solid var(--border2,#2a2f45)",
         borderRadius: "20px", color: "var(--text,#dde3f5)",
-        padding: "8px 20px", cursor: "pointer",
+        padding: "6px 18px", cursor: "pointer",
         fontSize: ".85rem",
-        zIndex: "1",          // 確保在 svgContainer 之上
-        WebkitTapHighlightColor: "transparent",
-        touchAction: "manipulation",
       });
       closeBtn.addEventListener("click", () => overlay.remove());
 
       const svgContainer = document.createElement("div");
-      svgContainer.id = "lsaExpandSvgContainer";
+      svgContainer.id = "lsaExpandSvgContainer";  // 供 _render() 同步更新用
       Object.assign(svgContainer.style, {
-        width:     "100%",
-        flex:      "1",
+        width: "100%", flex: "1",
+        display: "flex", alignItems: "center", justifyContent: "center",
         minHeight: "0",
-        overflowX: "auto",           // 橫向捲動
-        overflowY: "auto",
-        WebkitOverflowScrolling: "touch",
-        background:   "var(--surface,#13161f)",
+        background: "var(--surface,#13161f)",
         borderRadius: "10px",
-        // 捲動提示細橫線
-        scrollbarWidth: "thin",
-        scrollbarColor: "rgba(52,152,219,0.4) transparent",
       });
 
       overlay.appendChild(closeBtn);
@@ -257,10 +235,62 @@ const BehaviorLsaTab = (() => {
       // 等 overlay 進 DOM 後取得真實尺寸再渲染
       requestAnimationFrame(() => {
         const W = Math.max(600, svgContainer.clientWidth  || window.innerWidth  * 0.9);
-        const H = Math.round(W * 0.55);  // 與主渲染一致，後由 viewBox 裁切
+        const H = Math.max(400, svgContainer.clientHeight || window.innerHeight * 0.75);
         _renderToContainer(svgContainer, W, H);
       });
     });
+  }
+
+  // ── filterBar（學期 + 分群篩選）─────────────────────────────
+  function _renderFilterBar() {
+    const anchor = document.getElementById("lsaFilterBarAnchor");
+    if (!anchor) return;
+
+    const semesters = Object.keys(_lsaData?.by_semester ?? {}).sort();
+
+    const semOptions = [
+      `<option value="all">全部年度</option>`,
+      ...semesters.map(s => {
+        const yr  = s.slice(0, 3);
+        const sem = s.slice(3) === "1" ? "(1)" : "(2)";
+        return `<option value="${s}"${s === _filterSemester ? " selected" : ""}>${yr}${sem}</option>`;
+      }),
+    ].join("");
+
+    const clusterOptions = [
+      `<option value="all">全部分群</option>`,
+      ...Object.entries(CLUSTER_NAMES).map(([k, v]) =>
+        `<option value="${k}"${k === _filterCluster ? " selected" : ""}>${k} ${v}</option>`),
+    ].join("");
+
+    anchor.innerHTML = `
+      <div style="display:flex;flex-wrap:nowrap;overflow-x:auto;align-items:center;gap:8px;
+                  margin-bottom:12px;padding:8px 12px;
+                  border:1px solid rgba(110,130,165,.22);border-radius:10px;
+                  background:var(--card-bg2,#1c2030);white-space:nowrap">
+        <span style="font-size:.8rem;font-weight:700;color:var(--text-mid,#4f5f78)">篩選條件</span>
+        <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">學期
+          <select id="lsaSemFilter" style="font-size:.78rem;padding:2px 4px;border-radius:7px;
+            border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);
+            color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:90px">${semOptions}</select>
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">分群
+          <select id="lsaClusterFilter" style="font-size:.78rem;padding:2px 4px;border-radius:7px;
+            border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);
+            color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:110px">${clusterOptions}</select>
+        </label>
+      </div>`;
+
+    document.getElementById("lsaSemFilter")
+      ?.addEventListener("change", _onFilterChange);
+    document.getElementById("lsaClusterFilter")
+      ?.addEventListener("change", _onFilterChange);
+  }
+
+  function _onFilterChange() {
+    _filterSemester = document.getElementById("lsaSemFilter")?.value    ?? "all";
+    _filterCluster  = document.getElementById("lsaClusterFilter")?.value ?? "all";
+    if (_lsaData) _render();
   }
 
   // ── 群組按鈕 ──────────────────────────────────────────────────
@@ -286,26 +316,42 @@ const BehaviorLsaTab = (() => {
   }
 
   function resetFilters() {
-    _group = "all";
+    _group          = "all";
+    _filterSemester = "all";
+    _filterCluster  = "all";
     _syncGroupBtnStyles();
+    const semEl     = document.getElementById("lsaSemFilter");
+    const clusterEl = document.getElementById("lsaClusterFilter");
+    if (semEl)     semEl.value     = "all";
+    if (clusterEl) clusterEl.value = "all";
     if (_lsaData) _render();
+  }
+
+  // ── 依 filter 狀態取得對應 groupData ─────────────────────────
+  function _resolveGroupData() {
+    if (_filterCluster !== "all") {
+      return _lsaData.by_cluster?.[_filterCluster]?.[_group] ?? null;
+    }
+    if (_filterSemester !== "all") {
+      return _lsaData.by_semester?.[_filterSemester]?.[_group] ?? null;
+    }
+    return _lsaData.groups?.[_group] ?? null;
   }
 
   // ── 主渲染（委派至 _renderToContainer）────────────────────────
   function _render() {
     const wrap = document.getElementById("lsaGraphWrap");
     if (!wrap) return;
-    // 最小畫布寬 480px，確保手機窄螢幕時圖形不被壓縮（外層捲動）
-    const W = Math.max(wrap.clientWidth || 480, 480);
-    const H = Math.round(W * 0.55);
+    const W = wrap.clientWidth  || 560;
+    const H = Math.round(W * 0.55);  // 寬高比 ~16:9，讓 getBBox 有足夠空間計算
     _renderToContainer(wrap, W, H);
 
     // 若放大 overlay 開著，同步更新 overlay 內的圖形
     const overlayContainer = document.getElementById("lsaExpandSvgContainer");
     if (overlayContainer) {
-      const oW = Math.max(600, overlayContainer.clientWidth  || window.innerWidth  * 0.9);
-      const oH = Math.round(oW * 0.55);
-      _renderToContainer(overlayContainer, oW, oH);
+      const W = Math.max(600, overlayContainer.clientWidth  || window.innerWidth  * 0.9);
+      const H = Math.max(400, overlayContainer.clientHeight || window.innerHeight * 0.75);
+      _renderToContainer(overlayContainer, W, H);
     }
   }
 
@@ -313,8 +359,8 @@ const BehaviorLsaTab = (() => {
   function _renderToContainer(container, W, H) {
     if (!_lsaData) { _renderEmpty("資料尚未載入"); return; }
 
-    const groupData = _lsaData.groups?.[_group];
-    if (!groupData) { _renderEmpty(`找不到群組 ${_safeText(_group)} 的資料`); return; }
+    const groupData = _resolveGroupData();
+    if (!groupData) { _renderEmpty(`找不到群組 ${_group} 的資料`); return; }
 
     const n = groupData.n_sequences ?? 0;
     // 快取主容器參照，供後續 isMain 判斷複用
@@ -328,25 +374,13 @@ const BehaviorLsaTab = (() => {
 
     container.innerHTML = "";
 
-    // ── 捲動包裝層：確保窄螢幕可左右捲，不壓縮圖形 ──────────────
-    const scrollWrap = document.createElement("div");
-    Object.assign(scrollWrap.style, {
-      width:     "100%",
-      overflowX: "auto",
-      overflowY: "visible",  // Y 方向保持 visible，讓自環 badge 往上突出不被截
-      WebkitOverflowScrolling: "touch",
-      boxSizing: "border-box",
-    });
-    container.appendChild(scrollWrap);
-
     let svg;
     try {
-      svg = d3.select(scrollWrap).append("svg")
-        .attr("width",  W)          // 固定畫布寬，不隨容器縮放
-        .attr("height", H)
+      svg = d3.select(container).append("svg")
+        .attr("width",  "100%")
+        .attr("height", "100%")
         .attr("viewBox", `0 0 ${W} ${H}`)
         .attr("preserveAspectRatio", "xMidYMid meet")
-        .style("display", "block")  // 消除 inline 底部空隙
         .style("font-family", "sans-serif");
     } catch (e) {
       if (isMain) _renderEmpty("D3.js 載入失敗，請確認網路連線。");
@@ -355,20 +389,21 @@ const BehaviorLsaTab = (() => {
 
     // ── marker ─────────────────────────────────────────────────────
     const defs = svg.append("defs");
-    _mkMarker(defs, "arrow-sig",   SIG_COLOR,               5);
-    _mkMarker(defs, "arrow-insig", "rgba(120,130,160,0.6)", 4);
-    // arrow-self-sig / arrow-self-insig 與 arrow-sig / arrow-insig 完全相同，統一使用
+    _mkMarker(defs, "arrow-sig",        SIG_COLOR,               5);
+    _mkMarker(defs, "arrow-insig",      "rgba(120,130,160,0.6)", 4);
+    _mkMarker(defs, "arrow-self-sig",   SIG_COLOR,               5);
+    _mkMarker(defs, "arrow-self-insig", "rgba(120,130,160,0.6)", 4);
 
     // ── 節點 ──────────────────────────────────────────────────────
     const behaviors = _lsaData.behaviors ?? ["M", "Q"];
     const totals    = groupData.behavior_totals ?? {};
-    const nodes = behaviors.map(b => ({
+    const nodes = behaviors.map((b, i) => ({
       id:    b,
       label: BEHAVIOR_LABELS[b] || b,
       total: totals[b] ?? 0,
       r:     NODE_BASE_R + Math.sqrt(totals[b] ?? 0) * NODE_SCALE,
-      x:     0,  // 由下方固定幾何佈局設定
-      y:     0,
+      x:     W * (0.25 + i * 0.5),
+      y:     H * 0.5,
     }));
 
     // ── 邊 ────────────────────────────────────────────────────────
@@ -390,27 +425,24 @@ const BehaviorLsaTab = (() => {
       }
     }
 
-    // ── 固定幾何佈局（取代 force simulation，避免節點 Y 飄移造成空白）──
-    // 節點水平均分，Y 固定在基線 200，後續由 viewBox 精確裁切
-    const NODE_Y   = 200;
-    // Badge 最寬約 160px，兩側節點各 r≈40，中間 badge 需至少 180px 淨距
-    // NODE_GAP = 節點中心距，最小需 40+90+40+90+40 = badge+r+padding = ~380px
-    const NODE_R_MAX = Math.max(...nodes.map(nd => nd.r));
-    const NODE_GAP = Math.max(W * 0.58, NODE_R_MAX * 2 + 260);
-    nodes.forEach((nd, i) => {
-      const rawX = W / 2 + (i === 0 ? -NODE_GAP / 2 : NODE_GAP / 2);
-      nd.x = Math.max(nd.r + 4, Math.min(W - nd.r - 4, rawX));  // 防止超出畫布
-      nd.y = NODE_Y;
-    });
-
     const nodeById = new Map(nodes.map(nd => [nd.id, nd]));
     links.forEach(l => {
-      l.source = nodeById.get(l.source);  // undefined → 過濾掉
-      l.target = nodeById.get(l.target);
+      l.source = nodeById.get(l.source) ?? l.source;
+      l.target = nodeById.get(l.target) ?? l.target;
     });
-    // 過濾掉找不到對應節點的邊（防止 undefined.x 造成 NaN）
-    const validLinks = links.filter(l => l.source && l.target);
-    const nonSelf    = validLinks.filter(l => !l.isSelf);
+
+    const nonSelf = links.filter(l => !l.isSelf);
+    const sim = d3.forceSimulation(nodes)
+      .force("link",      d3.forceLink(nonSelf).id(d => d.id).distance(W * 0.45).strength(0.7))
+      .force("charge",    d3.forceManyBody().strength(-120))
+      .force("center",    d3.forceCenter(W / 2, H / 2))
+      .force("collision", d3.forceCollide().radius(d => d.r + 28))
+      .stop();
+    for (let i = 0; i < 300; i++) sim.tick();
+    nodes.forEach(nd => {
+      nd.x = Math.max(nd.r + 12, Math.min(W - nd.r - 12, nd.x));
+      nd.y = Math.max(nd.r + 12, Math.min(H - nd.r - 12, nd.y));
+    });
 
     // ── 邊線 ──────────────────────────────────────────────────────
     const edgeG = svg.append("g").attr("class", "lsa-edges");
@@ -468,8 +500,8 @@ const BehaviorLsaTab = (() => {
         const meaning = l.z < 0 ? "顯著迴避" : "顯著偏好";
         const line1 = `${l.source.id}→${l.target.id} 後切換${tName}`;
         const line2 = `Z=${l.z >= 0 ? "+" : ""}${l.z.toFixed(1)}  ${meaning} ✦`;
-        const bw    = Math.max(90, Math.max(_textPx(line1), _textPx(line2)) + 14);
-        const bh    = 48;
+        const bw    = Math.max(100, Math.max(line1.length, line2.length) * 7.25 + 20);
+        const bh    = 48;  // 38 × 1.25
 
         edgeG.append("rect")
           .attr("x", lx - bw / 2).attr("y", ly - bh / 2)
@@ -508,7 +540,7 @@ const BehaviorLsaTab = (() => {
     const loopAngle = 40 * Math.PI / 180;  // 端點從節點中心偏40°
     const loopH     = 60;                   // 控制點高出節點邊緣距離
 
-    validLinks.filter(l => l.isSelf).forEach(l => {
+    links.filter(l => l.isSelf).forEach(l => {
       const nd    = l.source;
       if (!nd) return;
       const isTop = behaviors.indexOf(nd.id) === 0;
@@ -531,7 +563,7 @@ const BehaviorLsaTab = (() => {
         cp2x = ex - 20;              cp2y = cp1y;
       }
 
-      const mId = l.sig ? "url(#arrow-sig)" : "url(#arrow-insig)";
+      const mId = l.sig ? "url(#arrow-self-sig)" : "url(#arrow-self-insig)";
       edgeG.append("path")
         .attr("d", `M${sx},${sy} C${cp1x},${cp1y} ${cp2x},${cp2y} ${ex},${ey}`)
         .attr("fill",         "none")
@@ -546,8 +578,8 @@ const BehaviorLsaTab = (() => {
         const line1 = `${nd.id}→${nd.id} 連續${behaviorName}`;
         // 第2行：Z值 + 顯著標記
         const line2 = `Z=${l.z >= 0 ? "+" : ""}${l.z.toFixed(1)}  顯著偏好 ✦`;
-        const bw    = Math.max(90, Math.max(_textPx(line1), _textPx(line2)) + 14);
-        const bh    = 48;
+        const bw    = Math.max(100, Math.max(line1.length, line2.length) * 7.25 + 20);
+        const bh    = 48;  // 兩行高度 × 1.25
 
         const topX = 0.125*sx + 0.375*cp1x + 0.375*cp2x + 0.125*ex;
         const topY = 0.125*sy + 0.375*cp1y + 0.375*cp2y + 0.125*ey;
@@ -623,33 +655,36 @@ const BehaviorLsaTab = (() => {
         .text(`${nd.id}：${nd.label}\n出現次數：${nd.total.toLocaleString()}`);
     });
 
-    // ── 內容自適應：只裁切 Y 軸消除上下空白，X 軸保持 0~W 不動（避免偏移）──
+    // ── 內容自適應：重算 viewBox 消除上下空白 ────────────────────
+    // 在所有元素繪製完成後，透過 getBBox() 取得實際內容範圍
+    // 加 PAD px 上下左右留白，讓圖形緊密貼合內容
     try {
-      const PAD_Y = 24;
+      const PAD = 20;
       const gAll = svg.node().querySelectorAll("path,rect,circle,text");
       let minY = Infinity, maxY = -Infinity;
+      let minX = Infinity, maxX = -Infinity;
       gAll.forEach(el => {
         try {
           const b = el.getBBox();
           if (b.width === 0 && b.height === 0) return;
           if (b.y < minY) minY = b.y;
           if (b.y + b.height > maxY) maxY = b.y + b.height;
+          if (b.x < minX) minX = b.x;
+          if (b.x + b.width > maxX) maxX = b.x + b.width;
         } catch (_) {}
       });
-      if (isFinite(minY) && isFinite(maxY) && (maxY - minY) > 10) {
-        // getBBox 有效（非 hidden tab 返回全零的情況）
-        const vy = Math.max(0, minY - PAD_Y);
-        const vh = maxY + PAD_Y - vy;
-        svg.attr("viewBox", `0 ${vy} ${W} ${vh}`);
-        const svgH = Math.max(180, Math.min(700, vh));
-        svg.attr("height", svgH);
-        if (isMain) container.style.height = svgH + "px";
-      } else {
-        // getBBox 失效（tab 隱藏中）：用計算值設定合理高度
-        const fallbackH = NODE_Y + NODE_R_MAX + 120;  // 節點基線 + 下方弧 + 餘白
-        svg.attr("viewBox", `0 0 ${W} ${fallbackH}`);
-        svg.attr("height", fallbackH);
-        if (isMain) container.style.height = fallbackH + "px";
+      if (isFinite(minY) && isFinite(maxY)) {
+        const vx = Math.max(0, minX - PAD);
+        const vy = Math.max(0, minY - PAD);
+        const vw = Math.min(W, maxX + PAD) - vx;
+        const vh = maxY + PAD - vy;
+        svg.attr("viewBox", `${vx} ${vy} ${vw} ${vh}`);
+        // 主容器依內容高度自動縮放
+        if (isMain) {
+          const aspectH = Math.round(container.clientWidth * vh / vw);
+          const clampedH = Math.max(200, Math.min(700, aspectH));
+          container.style.height = clampedH + "px";
+        }
       }
     } catch (_) {}
 
@@ -702,17 +737,14 @@ const BehaviorLsaTab = (() => {
     // 及格 vs 不及格比較（只在 all 組顯示）
     let compareHtml = "";
     if (group === "all" && _lsaData?.groups) {
-      const _zPassRaw = Math.abs(_lsaData.groups.pass?.z_score?.["M→M"] ?? 0);
-      const _zFailRaw = Math.abs(_lsaData.groups.fail?.z_score?.["M→M"] ?? 0);
-      const zPass = _zPassRaw.toFixed(1);
-      const zFail = _zFailRaw.toFixed(1);
-      const zDiff = (_zPassRaw - _zFailRaw).toFixed(1);
+      const zPass = Math.abs(_lsaData.groups.pass?.z_score?.["M→M"] ?? 0).toFixed(1);
+      const zFail = Math.abs(_lsaData.groups.fail?.z_score?.["M→M"] ?? 0).toFixed(1);
       compareHtml = `
         <div style="margin-top:10px;padding:10px 12px;background:var(--surface2,#1c2030);border-radius:8px">
           <div style="font-weight:600;color:var(--text,#dde3f5);margin-bottom:4px">📌 及格 vs 不及格比較</div>
           及格組「連續專注」Z = <strong style="color:var(--accent,#3498db)">${zPass}</strong>，
           不及格組 Z = <strong style="color:#e67e22">${zFail}</strong>。<br>
-          Z 值差距（${zDiff}）反映：
+          Z 值差距（${(parseFloat(zPass) - parseFloat(zFail)).toFixed(1)}）反映：
           及格組的<strong style="color:var(--text,#dde3f5)">連續專注行為更為穩定集中</strong>，
           不及格組行為序列相對分散，切換頻率較高。
         </div>`;
