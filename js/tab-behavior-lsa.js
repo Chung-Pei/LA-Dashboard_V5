@@ -468,7 +468,7 @@ const BehaviorLsaTab = (() => {
         const meaning = l.z < 0 ? "顯著迴避" : "顯著偏好";
         const line1 = `${l.source.id}→${l.target.id} 後切換${tName}`;
         const line2 = `Z=${l.z >= 0 ? "+" : ""}${l.z.toFixed(1)}  ${meaning} ✦`;
-        const bw    = Math.max(110, Math.max(_textPx(line1), _textPx(line2)) + 24);
+        const bw    = Math.max(90, Math.max(_textPx(line1), _textPx(line2)) + 14);
         const bh    = 48;
 
         edgeG.append("rect")
@@ -546,7 +546,7 @@ const BehaviorLsaTab = (() => {
         const line1 = `${nd.id}→${nd.id} 連續${behaviorName}`;
         // 第2行：Z值 + 顯著標記
         const line2 = `Z=${l.z >= 0 ? "+" : ""}${l.z.toFixed(1)}  顯著偏好 ✦`;
-        const bw    = Math.max(110, Math.max(_textPx(line1), _textPx(line2)) + 24);
+        const bw    = Math.max(90, Math.max(_textPx(line1), _textPx(line2)) + 14);
         const bh    = 48;
 
         const topX = 0.125*sx + 0.375*cp1x + 0.375*cp2x + 0.125*ex;
