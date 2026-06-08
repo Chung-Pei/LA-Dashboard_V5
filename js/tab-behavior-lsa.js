@@ -157,8 +157,8 @@ const BehaviorLsaTab = (() => {
       </p>
       <div style="font-weight:700;color:var(--text,#dde3f5);margin-bottom:4px">🔢 Z-score 怎麼算？</div>
       <div style="background:var(--surface2,#1c2030);border:1px solid var(--border2,#2a2f45);border-radius:8px;padding:12px 14px;font-family:monospace;font-size:.82rem;color:var(--text,#dde3f5);margin-bottom:14px;line-height:2">
-        Z = (觀察次數 − 期望次數) / √期望次數<br>
-        期望次數 = P(行為B出現) × A 出現後的總轉移次數
+        Z = (觀察次數 − 期望次數) / √[期望次數 × (1−P(A)) × (1−P(B))]<br>
+        期望次數 = (A 出現總次數 × B 出現總次數) / 總序列對數
       </div>
       <p style="color:var(--text-mid,#9aa0b8);margin:0 0 14px">
         Z-score &gt;+1.96 代表 A→B 的轉移<strong style="color:var(--text,#dde3f5)">顯著多於隨機預期</strong>；
@@ -296,7 +296,9 @@ const BehaviorLsaTab = (() => {
   // ── 群組按鈕 ──────────────────────────────────────────────────
   function _bindGroupButtons() {
     document.querySelectorAll("#lsaGroupControls .lsa-group-btn").forEach(btn => {
-      btn.addEventListener("click", () => onGroupChange(btn.dataset.group));
+      const clone = btn.cloneNode(true);
+      btn.parentNode.replaceChild(clone, btn);
+      clone.addEventListener("click", () => onGroupChange(clone.dataset.group));
     });
   }
 
@@ -349,18 +351,18 @@ const BehaviorLsaTab = (() => {
     // 若放大 overlay 開著，同步更新 overlay 內的圖形
     const overlayContainer = document.getElementById("lsaExpandSvgContainer");
     if (overlayContainer) {
-      const W = Math.max(600, overlayContainer.clientWidth  || window.innerWidth  * 0.9);
-      const H = Math.max(400, overlayContainer.clientHeight || window.innerHeight * 0.75);
-      _renderToContainer(overlayContainer, W, H);
+      const oW = Math.max(600, overlayContainer.clientWidth  || window.innerWidth  * 0.9);
+      const oH = Math.max(400, overlayContainer.clientHeight || window.innerHeight * 0.75);
+      _renderToContainer(overlayContainer, oW, oH);
     }
   }
 
   // ── 核心渲染函式（可複用至 overlay）──────────────────────────
   function _renderToContainer(container, W, H) {
-    if (!_lsaData) { _renderEmpty("資料尚未載入"); return; }
+    if (!_lsaData) { _renderEmptyTo(container, "資料尚未載入"); return; }
 
     const groupData = _resolveGroupData();
-    if (!groupData) { _renderEmpty(`找不到群組 ${_group} 的資料`); return; }
+    if (!groupData) { _renderEmptyTo(container, `找不到群組 ${_group} 的資料`); return; }
 
     const n = groupData.n_sequences ?? 0;
     // 快取主容器參照，供後續 isMain 判斷複用
@@ -368,7 +370,7 @@ const BehaviorLsaTab = (() => {
     const isMain   = container === mainWrap;
 
     if (n === 0) {
-      if (isMain) _renderEmpty("本批資料無有效行為序列對（reading_log 可能為空）");
+      if (isMain) _renderEmptyTo(container, "本批資料無有效行為序列對（reading_log 可能為空）");
       return;
     }
 
@@ -383,7 +385,7 @@ const BehaviorLsaTab = (() => {
         .attr("preserveAspectRatio", "xMidYMid meet")
         .style("font-family", "sans-serif");
     } catch (e) {
-      if (isMain) _renderEmpty("D3.js 載入失敗，請確認網路連線。");
+      if (isMain) _renderEmptyTo(container, "D3.js 載入失敗，請確認網路連線。");
       return;
     }
 
@@ -790,15 +792,19 @@ const BehaviorLsaTab = (() => {
   }
 
   // ── Graceful Degradation ──────────────────────────────────────
-  function _renderEmpty(msg) {
-    const wrap = document.getElementById("lsaGraphWrap");
-    if (!wrap) return;
-    wrap.innerHTML = `
+  function _renderEmptyTo(container, msg) {
+    if (!container) return;
+    container.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:center;height:100%;
                   padding:20px;background:rgba(52,152,219,.04);border:1px solid rgba(52,152,219,.15);
                   border-radius:8px;font-size:.83rem;color:var(--text-dim,#888);text-align:center">
         ⚠️ ${_safeText(msg)}
       </div>`;
+  }
+
+  function _renderEmpty(msg) {
+    const wrap = document.getElementById("lsaGraphWrap");
+    if (wrap) _renderEmptyTo(wrap, msg);
     const legEl = document.getElementById("lsaLegend");
     if (legEl) legEl.innerHTML = "";
   }
