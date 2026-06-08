@@ -224,13 +224,15 @@ const BehaviorLsaTab = (() => {
       closeBtn.addEventListener("click", () => overlay.remove());
 
       const svgContainer = document.createElement("div");
-      svgContainer.id = "lsaExpandSvgContainer";  // 供 _render() 同步更新用
+      svgContainer.id = "lsaExpandSvgContainer";
       Object.assign(svgContainer.style, {
-        width: "100%", flex: "1",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        minHeight: "0",
+        width: "100%",
+        // No flex:1 / fixed height — let SVG height follow its aspect ratio naturally
         background: "var(--surface,#13161f)",
         borderRadius: "10px",
+        overflowX: "auto",
+        overflowY: "hidden",
+        webkitOverflowScrolling: "touch",
       });
 
       overlay.appendChild(closeBtn);
@@ -240,8 +242,9 @@ const BehaviorLsaTab = (() => {
 
       // 等 overlay 進 DOM 後取得真實尺寸再渲染
       requestAnimationFrame(() => {
-        const W = Math.max(600, svgContainer.clientWidth  || window.innerWidth  * 0.9);
-        const H = Math.max(400, svgContainer.clientHeight || window.innerHeight * 0.75);
+        const availW = svgContainer.clientWidth || window.innerWidth * 0.9;
+        const W = Math.max(520, availW);
+        const H = Math.round(W * 0.55);
         _renderToContainer(svgContainer, W, H);
       });
     });
@@ -366,7 +369,8 @@ const BehaviorLsaTab = (() => {
   }
 
   // ── 核心渲染函式（可複用至 overlay）──────────────────────────
-  function _renderToContainer(container, W, H) {
+  function _renderToContainer(container, W_in, H) {
+    let W = W_in;  // mutable: may expand if layout requires wider canvas
     if (!_lsaData) { _renderEmptyTo(container, "資料尚未載入"); return; }
 
     const groupData = _resolveGroupData();
@@ -393,12 +397,12 @@ const BehaviorLsaTab = (() => {
     let svg;
     try {
       svg = d3.select(container).append("svg")
-        .attr("width",  W)   // explicit px width so overflow-x scroll triggers on mobile
-        .attr("height", "100%")
+        .attr("width",  "100%")
+        .attr("height", "auto")
         .attr("viewBox", `0 0 ${W} ${H}`)
         .attr("preserveAspectRatio", "xMidYMid meet")
         .style("font-family", "sans-serif")
-        .style("display", "block");  // remove inline baseline gap
+        .style("display", "block");
     } catch (e) {
       if (isMain) _renderEmptyTo(container, "D3.js 載入失敗，請確認網路連線。");
       return;
@@ -448,22 +452,26 @@ const BehaviorLsaTab = (() => {
       l.target = nodeById.get(l.target) ?? l.target;
     });
 
-    // Deterministic horizontal layout: pin X so badges never overlap nodes.
-    // Badge max width ≈ 170px (CJK 10px/char × ~15 chars + padding).
-    // Node radius ≈ 42px. Gap between node edges must fit badge + 8px margin each side.
-    // Required inter-node centre distance = r_left + r_right + badge_width + 16
-    const BADGE_RESERVE = 180;  // conservative badge width budget
+    // Deterministic horizontal layout — guarantee no badge↔node overlap.
+    // Each badge is ~160px wide (CJK); two badges side-by-side in the gap need 2×160 + 24px padding.
+    // Inter-node distance = r₀ + r₁ + 2×BADGE_W + padding
+    const BADGE_W    = 160;  // per-badge width budget
     const nodeR0 = nodes[0]?.r ?? NODE_BASE_R;
     const nodeR1 = nodes[1]?.r ?? NODE_BASE_R;
-    const minDist = nodeR0 + nodeR1 + BADGE_RESERVE;
-    // Place nodes symmetrically; if W is wide enough use W*0.25/0.75
-    const naturalDist = W * 0.5;
+    const minDist = nodeR0 + nodeR1 + BADGE_W * 2 + 24;
+    const naturalDist = W * 0.52;
     const dist = Math.max(minDist, naturalDist);
     const cx = W / 2;
+    // If dist > W*0.9, expand canvas W to fit (triggers scroll on narrow containers)
+    const requiredW = dist + nodeR0 + nodeR1 + 24;
+    if (requiredW > W) {
+      W = requiredW;
+      svg.attr("viewBox", `0 0 ${W} ${H}`);
+    }
     if (nodes[0]) nodes[0].x = cx - dist / 2;
     if (nodes[1]) nodes[1].x = cx + dist / 2;
 
-    // Use force only for Y positioning (vertical rhythm), X is pinned above
+    // Force only adjusts Y; X is pinned
     const nonSelf = links.filter(l => !l.isSelf);
     const sim = d3.forceSimulation(nodes)
       .force("link",      d3.forceLink(nonSelf).id(d => d.id).distance(dist).strength(0.3))
@@ -472,7 +480,7 @@ const BehaviorLsaTab = (() => {
       .force("collision", d3.forceCollide().radius(d => d.r + 20))
       .stop();
     for (let i = 0; i < 200; i++) sim.tick();
-    // Re-pin X after simulation (force may have drifted it)
+    // Re-pin X after simulation
     if (nodes[0]) nodes[0].x = cx - dist / 2;
     if (nodes[1]) nodes[1].x = cx + dist / 2;
     nodes.forEach(nd => {
@@ -521,15 +529,28 @@ const BehaviorLsaTab = (() => {
         .attr("marker-end",   l.marker)
         .attr("opacity",      l.sig ? 0.85 : 0.4);
 
-      // Z-score pill：放在路徑 t=0.2 處（靠近起點 1/4 弧長）
-      // 二次貝茲 B(t) = (1-t)²P0 + 2(1-t)t·P1 + t²P2
-      // M→Q badge 在 M 節點附近；Q→M badge 在 Q 節點附近
-      // → 兩個 badge X 方向分離，清楚歸屬各自箭頭
+      // Z-score pill：放在弧線中點（t=0.5），沿弧曲法線方向往外偏移，兩條弧的 badge 自然分離
       if (l.sig && l.z != null) {
-        const t  = 0.22;
+        const t  = 0.5;
         const u  = 1 - t;
+        // 弧中點座標
         const lx = u*u*startX + 2*u*t*cx + t*t*ex;
         const ly = u*u*startY + 2*u*t*cy + t*t*ey;
+        // 切線方向 (導數 = 2(1-t)(P1-P0) + 2t(P2-P1))
+        const tanX = 2*(1-t)*(cx - startX) + 2*t*(ex - cx);
+        const tanY = 2*(1-t)*(cy - startY) + 2*t*(ey - cy);
+        const tanLen = Math.sqrt(tanX*tanX + tanY*tanY) || 1;
+        // 法線方向（切線旋轉 90°）— 指向弧的彎曲外側
+        const nxRaw = -tanY / tanLen;
+        const nyRaw =  tanX / tanLen;
+        // 確認法線指向弧的外側（控制點方向）
+        const toCPx = cx - lx, toCPy = cy - ly;
+        const dot = nxRaw * toCPx + nyRaw * toCPy;
+        const nx = dot > 0 ? nxRaw : -nxRaw;
+        const ny = dot > 0 ? nyRaw : -nyRaw;
+        // badge 往外偏移 30px（讓 badge 不壓在弧線上）
+        const bx = lx + nx * 30;
+        const by = ly + ny * 30;
 
         // 第1行：方向 + 白話
         const tName = BEHAVIOR_LABELS[l.target.id] || l.target.id;
@@ -539,10 +560,12 @@ const BehaviorLsaTab = (() => {
         // CJK-aware width: non-ASCII chars ~10px, ASCII ~6.5px at font-size 11
         const _bwE = s => { let w = 0; for (const c of s) w += c.codePointAt(0) > 0x7F ? 10 : 6.5; return w + 20; };
         const bw  = Math.max(100, _bwE(line1), _bwE(line2));
-        const bh  = 48;  // 38 × 1.25
+        const bh  = 48;
+        // clamp so badge doesn't escape SVG canvas
+        const clampedBX = Math.max(4, Math.min(W - bw - 4, bx - bw / 2));
 
         edgeG.append("rect")
-          .attr("x", lx - bw / 2).attr("y", ly - bh / 2)
+          .attr("x", clampedBX).attr("y", by - bh / 2)
           .attr("width", bw).attr("height", bh)
           .attr("rx", 8)
           .attr("fill",         "var(--surface,#13161f)")
@@ -550,8 +573,10 @@ const BehaviorLsaTab = (() => {
           .attr("stroke-width", 1)
           .attr("opacity",      0.95);
 
+        const bCx = clampedBX + bw / 2;
+
         edgeG.append("text")
-          .attr("x", lx).attr("y", ly - 12)
+          .attr("x", bCx).attr("y", by - 12)
           .attr("dy", "0.35em")
           .attr("text-anchor",  "middle")
           .attr("font-size",    11)
@@ -560,7 +585,7 @@ const BehaviorLsaTab = (() => {
           .attr("pointer-events","none")
           .text(line1);
         edgeG.append("text")
-          .attr("x", lx).attr("y", ly + 12)
+          .attr("x", bCx).attr("y", by + 12)
           .attr("dy", "0.35em")
           .attr("text-anchor",  "middle")
           .attr("font-size",    10)
@@ -716,15 +741,16 @@ const BehaviorLsaTab = (() => {
       if (isFinite(minY) && isFinite(maxY)) {
         const vx = Math.max(0, minX - PAD);
         const vy = Math.max(0, minY - PAD);
-        const vw = maxX + PAD - vx;  // full content width, no artificial clip at W
+        const vw = maxX + PAD - vx;
         const vh = maxY + PAD - vy;
         svg.attr("viewBox", `${vx} ${vy} ${vw} ${vh}`);
-        // Sync SVG pixel width to actual content width (enables scroll when vw > container)
         if (isMain) {
+          // SVG stays width:100% of the scroll container (which may be wider than the viewport)
+          // Set the scroll container width to max(content, viewport) and height from aspect ratio
           const containerW = container.parentElement?.clientWidth || container.clientWidth || W;
-          const svgPxW = Math.max(vw, containerW);  // never narrower than container
-          svg.attr("width", svgPxW).attr("height", Math.round(svgPxW * vh / vw));
-          container.style.height = Math.round(svgPxW * vh / vw) + "px";
+          const scrollW  = Math.max(vw, containerW);
+          container.style.width  = scrollW + "px";
+          container.style.height = Math.round(scrollW * vh / vw) + "px";
         }
       }
     } catch (_) {}
