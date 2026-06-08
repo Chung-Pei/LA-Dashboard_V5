@@ -745,12 +745,12 @@ const BehaviorLsaTab = (() => {
         const vh = maxY + PAD - vy;
         svg.attr("viewBox", `${vx} ${vy} ${vw} ${vh}`);
         if (isMain) {
-          // SVG stays width:100% of the scroll container (which may be wider than the viewport)
-          // Set the scroll container width to max(content, viewport) and height from aspect ratio
-          const containerW = container.parentElement?.clientWidth || container.clientWidth || W;
-          const scrollW  = Math.max(vw, containerW);
-          container.style.width  = scrollW + "px";
-          container.style.height = Math.round(scrollW * vh / vw) + "px";
+          // Give SVG an explicit pixel width = content width.
+          // wrap keeps its natural CSS width (100% of card); overflow-x:auto scrolls when vw > wrap.
+          svg.attr("width",  Math.ceil(vw))
+             .attr("height", Math.ceil(vh));
+          container.style.width  = "";            // do NOT override — let parent card control width
+          container.style.height = Math.ceil(vh) + "px";
         }
       }
     } catch (_) {}
