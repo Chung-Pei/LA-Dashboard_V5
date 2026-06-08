@@ -350,8 +350,10 @@ const BehaviorLsaTab = (() => {
   function _render() {
     const wrap = document.getElementById("lsaGraphWrap");
     if (!wrap) return;
-    const W = Math.max(wrap.clientWidth, 480) || 560;  // mobile minimum 480 to fit 2-node + badges
-    const H = Math.round(W * 0.55);  // 寬高比 ~16:9，讓 getBBox 有足夠空間計算
+    // Use actual container width; SVG canvas will be at least 520px
+    // The wrap will get overflow-x:auto so narrow mobile can scroll
+    const W = Math.max(wrap.clientWidth || 340, 520);
+    const H = Math.round(W * 0.55);
     _renderToContainer(wrap, W, H);
 
     // 若放大 overlay 開著，同步更新 overlay 內的圖形
@@ -381,15 +383,22 @@ const BehaviorLsaTab = (() => {
     }
 
     container.innerHTML = "";
+    // For main wrap: enable horizontal scroll when SVG canvas > container width
+    if (isMain) {
+      container.style.overflowX = "auto";
+      container.style.overflowY = "hidden";
+      container.style.webkitOverflowScrolling = "touch";
+    }
 
     let svg;
     try {
       svg = d3.select(container).append("svg")
-        .attr("width",  "100%")
+        .attr("width",  W)   // explicit px width so overflow-x scroll triggers on mobile
         .attr("height", "100%")
         .attr("viewBox", `0 0 ${W} ${H}`)
         .attr("preserveAspectRatio", "xMidYMid meet")
-        .style("font-family", "sans-serif");
+        .style("font-family", "sans-serif")
+        .style("display", "block");  // remove inline baseline gap
     } catch (e) {
       if (isMain) _renderEmptyTo(container, "D3.js 載入失敗，請確認網路連線。");
       return;
@@ -439,14 +448,33 @@ const BehaviorLsaTab = (() => {
       l.target = nodeById.get(l.target) ?? l.target;
     });
 
+    // Deterministic horizontal layout: pin X so badges never overlap nodes.
+    // Badge max width ≈ 170px (CJK 10px/char × ~15 chars + padding).
+    // Node radius ≈ 42px. Gap between node edges must fit badge + 8px margin each side.
+    // Required inter-node centre distance = r_left + r_right + badge_width + 16
+    const BADGE_RESERVE = 180;  // conservative badge width budget
+    const nodeR0 = nodes[0]?.r ?? NODE_BASE_R;
+    const nodeR1 = nodes[1]?.r ?? NODE_BASE_R;
+    const minDist = nodeR0 + nodeR1 + BADGE_RESERVE;
+    // Place nodes symmetrically; if W is wide enough use W*0.25/0.75
+    const naturalDist = W * 0.5;
+    const dist = Math.max(minDist, naturalDist);
+    const cx = W / 2;
+    if (nodes[0]) nodes[0].x = cx - dist / 2;
+    if (nodes[1]) nodes[1].x = cx + dist / 2;
+
+    // Use force only for Y positioning (vertical rhythm), X is pinned above
     const nonSelf = links.filter(l => !l.isSelf);
     const sim = d3.forceSimulation(nodes)
-      .force("link",      d3.forceLink(nonSelf).id(d => d.id).distance(W * 0.45).strength(0.7))
-      .force("charge",    d3.forceManyBody().strength(-120))
-      .force("center",    d3.forceCenter(W / 2, H / 2))
-      .force("collision", d3.forceCollide().radius(d => d.r + 28))
+      .force("link",      d3.forceLink(nonSelf).id(d => d.id).distance(dist).strength(0.3))
+      .force("charge",    d3.forceManyBody().strength(-80))
+      .force("center",    d3.forceCenter(cx, H / 2))
+      .force("collision", d3.forceCollide().radius(d => d.r + 20))
       .stop();
-    for (let i = 0; i < 300; i++) sim.tick();
+    for (let i = 0; i < 200; i++) sim.tick();
+    // Re-pin X after simulation (force may have drifted it)
+    if (nodes[0]) nodes[0].x = cx - dist / 2;
+    if (nodes[1]) nodes[1].x = cx + dist / 2;
     nodes.forEach(nd => {
       nd.x = Math.max(nd.r + 12, Math.min(W - nd.r - 12, nd.x));
       nd.y = Math.max(nd.r + 12, Math.min(H - nd.r - 12, nd.y));
@@ -508,8 +536,8 @@ const BehaviorLsaTab = (() => {
         const meaning = l.z < 0 ? "顯著迴避" : "顯著偏好";
         const line1 = `${l.source.id}→${l.target.id} 後切換${tName}`;
         const line2 = `Z=${l.z >= 0 ? "+" : ""}${l.z.toFixed(1)}  ${meaning} ✦`;
-        // CJK-aware width: non-ASCII chars ~14px, ASCII ~7px at font-size 11
-        const _bwE = s => { let w = 0; for (const c of s) w += c.codePointAt(0) > 0x7F ? 14 : 7; return w + 20; };
+        // CJK-aware width: non-ASCII chars ~10px, ASCII ~6.5px at font-size 11
+        const _bwE = s => { let w = 0; for (const c of s) w += c.codePointAt(0) > 0x7F ? 10 : 6.5; return w + 20; };
         const bw  = Math.max(100, _bwE(line1), _bwE(line2));
         const bh  = 48;  // 38 × 1.25
 
@@ -588,8 +616,8 @@ const BehaviorLsaTab = (() => {
         const line1 = `${nd.id}→${nd.id} 連續${behaviorName}`;
         // 第2行：Z值 + 顯著標記
         const line2 = `Z=${l.z >= 0 ? "+" : ""}${l.z.toFixed(1)}  顯著偏好 ✦`;
-        // CJK-aware width: non-ASCII chars ~14px, ASCII ~7px at font-size 11
-        const _bwS = s => { let w = 0; for (const c of s) w += c.codePointAt(0) > 0x7F ? 14 : 7; return w + 20; };
+        // CJK-aware width: non-ASCII chars ~10px, ASCII ~6.5px at font-size 11
+        const _bwS = s => { let w = 0; for (const c of s) w += c.codePointAt(0) > 0x7F ? 10 : 6.5; return w + 20; };
         const bw  = Math.max(100, _bwS(line1), _bwS(line2));
         const bh  = 48;  // 兩行高度 × 1.25
 
@@ -691,11 +719,12 @@ const BehaviorLsaTab = (() => {
         const vw = maxX + PAD - vx;  // full content width, no artificial clip at W
         const vh = maxY + PAD - vy;
         svg.attr("viewBox", `${vx} ${vy} ${vw} ${vh}`);
-        // 主容器依內容高度自動縮放
+        // Sync SVG pixel width to actual content width (enables scroll when vw > container)
         if (isMain) {
-          const aspectH = Math.round(container.clientWidth * vh / vw);
-          const clampedH = Math.max(200, Math.min(700, aspectH));
-          container.style.height = clampedH + "px";
+          const containerW = container.parentElement?.clientWidth || container.clientWidth || W;
+          const svgPxW = Math.max(vw, containerW);  // never narrower than container
+          svg.attr("width", svgPxW).attr("height", Math.round(svgPxW * vh / vw));
+          container.style.height = Math.round(svgPxW * vh / vw) + "px";
         }
       }
     } catch (_) {}
