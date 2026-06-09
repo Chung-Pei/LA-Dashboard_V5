@@ -20,7 +20,11 @@ const BehaviorLsaTab = (() => {
   let _ro             = null;
 
   const BEHAVIOR_LABELS = { M: "教材閱讀", Q: "題庫作答" };
-  const CLUSTER_NAMES  = { P1:"穩定高效", P2:"規律中效", P3:"波動中效", P4:"低頻低效", P5:"高風險" };
+  const CLUSTER_NAMES  = { S1:"穩定高效", S2:"規律中效", S3:"波動中效", S4:"低頻低效", S5:"高風險" };
+
+  // ETL 的 by_cluster key 已為 S1–S5（由 10_lsa_transition.py 的 R→S 轉換產出）
+  // 前端直接以 S-key 查詢，不需轉換層
+
   const NODE_BASE_R  = 40;   // 32 × 1.25
   const NODE_SCALE   = 0.008;
   const EDGE_Z_SCALE = 0.55;
@@ -176,10 +180,30 @@ const BehaviorLsaTab = (() => {
         自環（弧形箭頭）代表<strong style="color:var(--text,#dde3f5)">連續重複相同行為</strong>。
       </p>
       <div style="font-weight:700;color:var(--text,#dde3f5);margin-bottom:4px">👥 三組篩選</div>
-      <p style="color:var(--text-mid,#9aa0b8);margin:0">
+      <p style="color:var(--text-mid,#9aa0b8);margin:0 0 14px">
         全體 / 及格組 / 不及格組 — 比較不同學習成效學生的行為序列差異，
         有助於辨識高效與低效的學習模式。
-      </p>`);
+      </p>
+      <hr style="border:none;border-top:1px solid var(--border2,#2a2f45);margin:4px 0 14px">
+      <div style="font-weight:700;color:var(--text,#dde3f5);margin-bottom:4px">🏷️ 行為序列分群（S1–S5）</div>
+      <p style="color:var(--text-mid,#9aa0b8);margin:0 0 8px">
+        本分析依 LAG-1 序列轉移矩陣的穩定性特徵，將學生分為五類行為序列群（S 代表 Sequence）。
+        此分群<strong style="color:var(--text,#dde3f5)">獨立於雷達圖的資源使用分群（R1–R5）</strong>，回答的是不同維度：
+      </p>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:.78rem;background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px;margin-bottom:12px;color:var(--text-mid,#9aa0b8)">
+        <span style="font-weight:700;color:var(--accent,#3498db)">S1 穩定高效</span><span>M→Q 轉移穩定、序列一致性高，通過率高</span>
+        <span style="font-weight:700;color:var(--accent,#3498db)">S2 規律中效</span><span>行為規律但效能中等，學習模式尚可</span>
+        <span style="font-weight:700;color:var(--accent,#3498db)">S3 波動中效</span><span>效能不穩定，學習節奏缺乏一致性</span>
+        <span style="font-weight:700;color:var(--accent,#3498db)">S4 低頻低效</span><span>行為頻率低，學習投入嚴重不足</span>
+        <span style="font-weight:700;color:#f07070">S5 高風險</span><span>異常序列模式，預警優先介入對象</span>
+      </div>
+      <div style="font-weight:700;color:var(--text,#dde3f5);margin-bottom:4px">📚 學術依據</div>
+      <p style="color:var(--text-dim,#888);margin:0;font-size:.78rem;line-height:1.7">
+        LAG-1 滯後序列分析是 Learning Analytics 領域的標準時序分析方法，可識別學習行為的因果接續結構
+        （Bakeman &amp; Gottman, 1997）。以序列穩定性預測學期末成績已有實證支持
+        （Malmberg et al., 2017, <em>Metacognition &amp; Learning</em>；Winne &amp; Hadwin, 1998）。
+        「穩定性」維度與雷達圖的六維資源偏好互補，合併解讀可提供更完整的早期預警依據。
+      </p>`;
 
     overlay.appendChild(panel);
     overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
@@ -267,7 +291,7 @@ const BehaviorLsaTab = (() => {
     ].join("");
 
     const clusterOptions = [
-      `<option value="all">全部分群</option>`,
+      `<option value="all">全部行為序列</option>`,
       ...Object.entries(CLUSTER_NAMES).map(([k, v]) =>
         `<option value="${k}"${k === _filterCluster ? " selected" : ""}>${k} ${v}</option>`),
     ].join("");
@@ -283,7 +307,7 @@ const BehaviorLsaTab = (() => {
             border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);
             color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:90px">${semOptions}</select>
         </label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">分群
+        <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">行為序列
           <select id="lsaClusterFilter" style="font-size:.78rem;padding:2px 4px;border-radius:7px;
             border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);
             color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:110px">${clusterOptions}</select>

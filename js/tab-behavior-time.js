@@ -47,12 +47,14 @@ const BehaviorTimeTab = (() => {
   };
 
   const CLUSTER_NAMES = {
-    P1: "影音輔導型",
-    P2: "彈性聽覺型",
-    P3: "平均使用型",
-    P4: "題庫刷題型",
-    P5: "被動低參與型",
+    R1: "影音輔導型",
+    R2: "彈性聽覺型",
+    R3: "平均使用型",
+    R4: "題庫刷題型",
+    R5: "被動低參與型",
   };
+
+  // UI key (R1–R5) 與 ETL JSON key 一致（ETL 已輸出 R1–R5）
 
   const PREP_TYPES = [
     { key: "low_invest",  label: "學習低投入型", color: "rgba(158, 158, 158, 0.85)" },
@@ -182,7 +184,7 @@ const BehaviorTimeTab = (() => {
       ..._allSemesters.map(s => `<option value="${s}"${s === _filterSemester ? " selected" : ""}>${_formatSemLabel(s)}</option>`),
     ].join("");
     const clusterOptions = [
-      `<option value="all">全部分群</option>`,
+      `<option value="all">全部資源使用</option>`,
       ...Object.entries(CLUSTER_NAMES).map(([k, v]) => `<option value="${k}"${k === _filterCluster ? " selected" : ""}>${k} ${v}</option>`),
     ].join("");
     const passOptions = [
@@ -196,7 +198,7 @@ const BehaviorTimeTab = (() => {
         <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">學期
           <select id="timeSemFilter" style="font-size:.78rem;padding:2px 4px;border-radius:7px;border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:90px">${semOptions}</select>
         </label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">分群
+        <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">資源使用
           <select id="timeClusterFilter" style="font-size:.78rem;padding:2px 4px;border-radius:7px;border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:110px">${clusterOptions}</select>
         </label>
         <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">及格
@@ -390,7 +392,7 @@ const BehaviorTimeTab = (() => {
     // 無 cluster 資料時行為與舊版一致（降級而非顯示錯誤資料）。
     const baseWeeks = _quizData?.weeks || [];
     const sem     = _filterSemester === "all" ? "all" : _normalizeSem(_filterSemester);
-    const cluster = _filterCluster;
+    const cluster = _filterCluster;  // ETL 輸出 R1–R5，直接使用
 
     // 精確 key（含 cluster）
     const key  = `${sem}|${cluster}|${_filterPass}`;
@@ -443,10 +445,10 @@ const BehaviorTimeTab = (() => {
       let hintMsg = null;
       if (!hasAllSeg) {
         // 情況 A：cluster 維度完全不存在（舊版 ETL，尚未細分）
-        hintMsg = `⚠ 題庫作答資料尚未按分群細分，目前顯示為所有分群的合併結果（${_filterCluster} 篩選中）`;
+        hintMsg = `⚠ 題庫作答資料尚未按資源使用細分，目前顯示為全體合併結果（${_filterCluster} 篩選中）`;
       } else if (!hasSemSeg && _filterSemester !== "all") {
-        // 情況 B：全局有此分群資料，但選定學期的此分群人數不足，無法獨立分析
-        hintMsg = `ℹ 本學期 ${_filterCluster} 分群人數不足，無法單獨顯示，目前以全學期合併資料替代`;
+        // 情況 B：全局有此資源使用資料，但選定學期的此類人數不足，無法獨立分析
+        hintMsg = `ℹ 本學期 ${_filterCluster} 資源使用類人數不足，無法單獨顯示，目前以全學期合併資料替代`;
       }
 
       if (hintMsg) {
@@ -713,7 +715,7 @@ const BehaviorTimeTab = (() => {
       ..._allSemesters.map(s => `<option value="${s}"${_normalizeSem(s) === _normalizeSem(_filterSemester) ? " selected" : ""}>${_formatSemLabel(s)}</option>`),
     ].join("");
     const clusterOptions2 = [
-      `<option value="all"${_filterCluster === "all" ? " selected" : ""}>全部分群</option>`,
+      `<option value="all"${_filterCluster === "all" ? " selected" : ""}>全部資源使用</option>`,
       ...Object.entries(CLUSTER_NAMES).map(([k, v]) => `<option value="${k}"${k === _filterCluster ? " selected" : ""}>${k} ${v}</option>`),
     ].join("");
     const passOptions2    = [
@@ -771,7 +773,7 @@ const BehaviorTimeTab = (() => {
         ..._allSemesters.map(s => `<option value="${s}"${_normalizeSem(s) === _normalizeSem(_filterSemester) ? " selected" : ""}>${_formatSemLabel(s)}</option>`),
       ].join("");
       const clusterOptions = [
-        `<option value="all"${_filterCluster === "all" ? " selected" : ""}>全部分群</option>`,
+        `<option value="all"${_filterCluster === "all" ? " selected" : ""}>全部資源使用</option>`,
         ...Object.entries(CLUSTER_NAMES).map(([k, v]) => `<option value="${k}"${k === _filterCluster ? " selected" : ""}>${k} ${v}</option>`),
       ].join("");
       const passOptions    = [

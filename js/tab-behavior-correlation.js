@@ -406,8 +406,8 @@ const BehaviorCorrelationTab = (() => {
   }
 
   const CLUSTER_NAMES_CORR = {
-    P1: "影音輔導型", P2: "彈性聽覺型", P3: "平均使用型",
-    P4: "題庫刷題型", P5: "被動低參與型",
+    R1: "影音輔導型", R2: "彈性聽覺型", R3: "平均使用型",
+    R4: "題庫刷題型", R5: "被動低參與型",
   };
 
   function _renderFilterBar(insertBeforeId) {
@@ -425,10 +425,13 @@ const BehaviorCorrelationTab = (() => {
 
     const _clCounts = {};
     if (Array.isArray(_allScatterData)) {
-      _allScatterData.forEach(r => { const c = r.cluster || ""; if (c) _clCounts[c] = (_clCounts[c] || 0) + 1; });
+      _allScatterData.forEach(r => {
+        const c = r.cluster || "";
+        if (c) _clCounts[c] = (_clCounts[c] || 0) + 1;
+      });
     }
     const clusterOptions = [
-      `<option value="all">全部分群（${Array.isArray(_allScatterData) ? _allScatterData.length : "—"}）</option>`,
+      `<option value="all">全部資源使用（${Array.isArray(_allScatterData) ? _allScatterData.length : "—"}）</option>`,
       ...Object.entries(CLUSTER_NAMES_CORR).map(([k, n]) => {
         const cnt = _clCounts[k] || 0;
         const dis = cnt === 0 ? " disabled" : "";
@@ -458,7 +461,7 @@ const BehaviorCorrelationTab = (() => {
         </select>
       </div>
       <div style="display:flex;align-items:center;gap:5px">
-        <label style="font-size:.78rem;color:var(--text-dim,#888);white-space:nowrap">分群</label>
+        <label style="font-size:.78rem;color:var(--text-dim,#888);white-space:nowrap">資源使用</label>
         <select id="corrClusterFilter"
                 style="font-size:.8rem;padding:3px 7px;border-radius:7px;border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);color:var(--text-mid,#9aa0b8);cursor:pointer">
           ${clusterOptions}
@@ -1045,7 +1048,7 @@ const BehaviorCorrelationTab = (() => {
 
     if (!hasScatterData) {
       const noDataReason = (_filterCluster !== "all")
-        ? `分群 ${_filterCluster} 在本相關性資料集中無對應學生（兩資料集學生母體不同）`
+        ? `資源使用 ${_filterCluster} 在本相關性資料集中無對應學生（兩資料集學生母體不同）`
         : (_filterSemester !== "all")
           ? `年度 ${_filterSemester} 尚無獨立散佈圖資料（ETL 尚未產出 by_semester）`
           : "散佈圖資料尚未產出，請執行 ETL";

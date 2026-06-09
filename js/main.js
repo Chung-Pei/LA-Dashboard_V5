@@ -565,14 +565,14 @@ const CHART_INFO = {
     use: '判斷補救教學介入時機，Hover 可查看遮蔽學號。',
   },
   radarChart: {
-    title: '學習行為分群雷達圖',
-    desc: '以 K-means 分群結果將學生分為五種學習型態。',
+    title: '學習行為資源使用雷達圖',
+    desc: '依六種教材資源完成率，將學生分為五種資源使用型態（R1–R5）。',
     points: [
       '面積越大 → 該群學習投入度越高，多媒體使用越多元',
       '特定維度突出 → 找出各群的主力學習工具，作為差異化教學依據',
       '切換「及格/不及格」視圖 → 觀察通過與未通過學生的行為輪廓差異',
     ],
-    use: '用於識別學習型態與成效的關聯，適合作為主動學習研究的分群佐證。',
+    use: '用於識別資源使用型態與學習成效的關聯（Mayer, 2009；Zimmerman, 2002），適合作為主動學習介入的分群佐證。與序列轉移分析（S1–S5）互補使用效果更佳。',
   },
   scatterChart: {
     title: '行為指標相關性散佈圖',
@@ -4262,7 +4262,7 @@ const PRINT_ITEMS = [
   { id: 'chartRetakeCount',      label: '重修次數分布',             tab: 'C', type: 'canvas', checked: false },
   { id: 'chartFirstVsDelta',     label: '首修成績 vs 重修進步',     tab: 'C', type: 'canvas', checked: false },
   // ── Panel L：學習行為 ──
-  { id: 'radarChart',            label: '學習行為分群雷達圖',       tab: 'L', type: 'canvas', checked: false },
+  { id: 'radarChart',            label: '學習行為資源使用雷達圖',   tab: 'L', type: 'canvas', checked: false },
   // corrHeatmap 為 HTML table，無法截圖；改為擷取 scatterChart canvas
   { id: 'scatterChart',          label: '行為相關性散佈圖',         tab: 'L', type: 'canvas', checked: false },
   { id: 'weeklyQuizChart',       label: '各週題庫作答強度',         tab: 'L', type: 'canvas', checked: false },

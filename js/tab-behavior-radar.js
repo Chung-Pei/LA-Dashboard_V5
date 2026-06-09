@@ -16,26 +16,24 @@ const BehaviorRadarTab = (() => {
     consistency_score:"學習穩定性",material_diversity:"教材多樣性",
   };
   const CLUSTER_COLORS = {
-    P0:{border:"rgba(100,100,100,0.9)",bg:"rgba(100,100,100,0.12)"},
-    P1:{border:"rgba(52,152,219,0.9)",bg:"rgba(52,152,219,0.15)"},
-    P2:{border:"rgba(46,204,113,0.9)",bg:"rgba(46,204,113,0.15)"},
-    P3:{border:"rgba(155,89,182,0.9)",bg:"rgba(155,89,182,0.15)"},
-    P4:{border:"rgba(230,126,34,0.9)",bg:"rgba(230,126,34,0.15)"},
-    P5:{border:"rgba(189,195,199,0.9)",bg:"rgba(189,195,199,0.15)"},
+    R0:{border:"rgba(100,100,100,0.9)",bg:"rgba(100,100,100,0.12)"},
+    R1:{border:"rgba(52,152,219,0.9)",bg:"rgba(52,152,219,0.15)"},
+    R2:{border:"rgba(46,204,113,0.9)",bg:"rgba(46,204,113,0.15)"},
+    R3:{border:"rgba(155,89,182,0.9)",bg:"rgba(155,89,182,0.15)"},
+    R4:{border:"rgba(230,126,34,0.9)",bg:"rgba(230,126,34,0.15)"},
+    R5:{border:"rgba(189,195,199,0.9)",bg:"rgba(189,195,199,0.15)"},
     pass:{border:"rgba(39,174,96,0.9)",bg:"rgba(39,174,96,0.12)"},
     fail:{border:"rgba(192,57,43,0.9)",bg:"rgba(192,57,43,0.12)"},
   };
   const CLUSTER_NAMES = {
-    P0:"無分群（全體）",P1:"影音輔導型",P2:"彈性聽覺型",
-    P3:"平均使用型",P4:"題庫刷題型",P5:"被動低參與型",
+    R0:"無分群（全體）",R1:"影音輔導型",R2:"彈性聽覺型",
+    R3:"平均使用型",R4:"題庫刷題型",R5:"被動低參與型",
   };
   const DIM_FEATURE_MAP = {
     AUD:"aud_completion_rate",VID:"vid_completion_rate",TXT:"txt_completion_rate",
     SUP:"sup_completion_rate",TUT:"tut_completion_rate",QUZ:"quz_completion_rate",
   };
   const RANK_MEDALS=["🥇","🥈","🥉"];
-
-  // ── 洞察設定 ──────────────────────────────────────────────
   const INSIGHT_THRESHOLD = 0.05;   // 差距 ≥ 5% 才列入洞察
   const MIN_PASS_COUNT    = 10;     // 及格樣本數低於此值時 fallback 至全體基準
 
@@ -53,7 +51,7 @@ const BehaviorRadarTab = (() => {
 
   let _radarData=null,_behaviorMeta={};
   let _behaviorStudents=[],_allStudents=[],_allSemesters=[];
-  let _selectedSemester="all",_selectedCluster="P0",_passFilter="all",_semesterFilterNote=null;
+  let _selectedSemester="all",_selectedCluster="R0",_passFilter="all",_semesterFilterNote=null;
   // Badge 固定值：載入後快照，不隨篩選變動
   let _badgeSemText=null,_badgeTotal=null,_badgeUpdateTime=null;
 
@@ -130,7 +128,7 @@ const BehaviorRadarTab = (() => {
       _radarData=radarData;_behaviorMeta=behaviorData?.meta||{};
       _behaviorStudents=_enrichBehaviorStudents(behaviorData?.students||[]);_allStudents=_behaviorStudents;
       _allSemesters=Array.isArray(_behaviorMeta.semesters)&&_behaviorMeta.semesters.length?[..._behaviorMeta.semesters]:[];
-      _selectedSemester="all";_selectedCluster="P0";_passFilter="all";_semesterFilterNote=null;
+      _selectedSemester="all";_selectedCluster="R0";_passFilter="all";_semesterFilterNote=null;
       _badgeSemText=null;_badgeTotal=null;_badgeUpdateTime=null; // B2 fix: 重載時強制重新快照
       _invalidateComputeCache();  // WARN-1：資料重載時清除快取
       _renderBehaviorMetaStrip();
@@ -173,7 +171,7 @@ const BehaviorRadarTab = (() => {
     }
     el.innerHTML=`<div style="display:flex;flex-direction:column;gap:2px">
       ${semCapsules?`<div class="brt-row"><span class="brt-lbl">學期</span><div style="display:flex;flex-wrap:wrap;gap:4px">${semCapsules}</div></div>${noteHtml}`:""}
-      <div class="brt-row"><span class="brt-lbl">依分群</span>${clBtns}</div>
+      <div class="brt-row"><span class="brt-lbl">依資源使用</span>${clBtns}</div>
       <div class="brt-row"><span class="brt-lbl">及格狀況</span>${pfBtns}</div>
     </div>`;
     _bindControlEvents(el);
@@ -243,7 +241,7 @@ const BehaviorRadarTab = (() => {
 
     const students=_behaviorStudents;if(!students||!students.length)return null;
     const filtered=students.filter(s=>{
-      if(clusterKey!=="P0"&&s.cluster!==clusterKey)return false;
+      if(clusterKey!=="R0"&&s.cluster!==clusterKey)return false;
       if(passKey!=="all"){const sc=s.final_score??s.semester_score??null;const scNum=Number(sc);const isPassing=Number.isFinite(scNum)&&scNum>=60;if(passKey==="pass"&&!isPassing)return false;if(passKey==="fail"&&isPassing)return false;}
       return true;
     });
@@ -305,8 +303,8 @@ const BehaviorRadarTab = (() => {
   }
 
   function _getClusterAggRow(clusterKey,dims){
-    if(clusterKey==="P0"){
-      const c=_computeFromStudents("P0","all",dims);if(c)return c;
+    if(clusterKey==="R0"){
+      const c=_computeFromStudents("R0","all",dims);if(c)return c;
       const rows=_clusterRows(),total=_clusterTotal();if(!total)return null;
       const sums=dims.map(()=>0);
       for(const row of Object.values(rows)){const n=Number(row?.count)||0;_values(row,dims).forEach((v,i)=>{sums[i]+=v*n;});}
@@ -346,11 +344,11 @@ const BehaviorRadarTab = (() => {
   function _filteredCount(clusterKey) {
     const students = _behaviorStudents;
     if (!students || !students.length) {
-      if (clusterKey === "P0") return _clusterTotal();
+      if (clusterKey === "R0") return _clusterTotal();
       return _clusterRows()[clusterKey]?.count || 0;
     }
     return students.filter(s => {
-      if (clusterKey !== "P0" && s.cluster !== clusterKey) return false;
+      if (clusterKey !== "R0" && s.cluster !== clusterKey) return false;
       if (_passFilter !== "all") {
         const sc = s.final_score ?? s.semester_score ?? null;
         const scNum = Number(sc);
@@ -365,7 +363,7 @@ const BehaviorRadarTab = (() => {
   function renderClusterSummary(containerId) {
     if (!_radarData) return;
     const el = document.getElementById(containerId); if (!el) return;
-    const total = _filteredCount("P0");
+    const total = _filteredCount("R0");
     let filterDesc = "";
     if (_selectedSemester !== "all") filterDesc += ` · ${_formatSemester(_selectedSemester)}`;
     if (_passFilter === "pass") filterDesc += " · 及格";
@@ -388,7 +386,7 @@ const BehaviorRadarTab = (() => {
       <div style="margin-top:6px;font-size:${lblSz};line-height:1.25;color:var(--text-mid,#9aa0b8)">100.0%</div>
     </div>`;
 
-    const cards=Object.entries(CLUSTER_NAMES).filter(([k])=>k!=="P0").map(([key,name])=>{
+    const cards=Object.entries(CLUSTER_NAMES).filter(([k])=>k!=="R0").map(([key,name])=>{
       const n=_filteredCount(key);
       const pct=total?(n/total)*100:0;
       const col=CLUSTER_COLORS[key];
@@ -426,8 +424,8 @@ const BehaviorRadarTab = (() => {
     const panel=document.getElementById("radarInsightsPanel");
     if(!panel)return;
 
-    // P0（全體）不顯示分群洞察
-    if(_selectedCluster==="P0"){panel.style.display="none";return;}
+    // R0（全體）不顯示資源使用洞察
+    if(_selectedCluster==="R0"){panel.style.display="none";return;}
 
     const dims=_dimensions();
     const bench=_getPassBenchmark(dims);
@@ -538,7 +536,7 @@ const BehaviorRadarTab = (() => {
       <div style="border:1px solid var(--border,#2a2f45);border-radius:10px;padding:${isMobile?'10px':'14px'};background:var(--surface,#13161f);margin-bottom:14px">
         <div style="font-size:.82rem;font-weight:700;color:var(--text,#dde3f5);margin-bottom:10px;display:flex;align-items:center;gap:8px">
           <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${clColor}"></span>
-          學習行為洞察 — ${_selectedCluster} ${clName}
+          學習行為洞察（資源使用分群）— ${_selectedCluster} ${clName}
         </div>
         ${fallbackHTML}
         ${summaryHTML}
@@ -559,7 +557,7 @@ const BehaviorRadarTab = (() => {
   function exportClusterCSV(){
     const students=_behaviorStudents;
     if(!students||!students.length){alert("無學生資料可匯出");return;}
-    const filtered=students.filter(s=>_selectedCluster==="P0"||s.cluster===_selectedCluster);
+    const filtered=students.filter(s=>_selectedCluster==="R0"||s.cluster===_selectedCluster);
     if(!filtered.length){alert("目前篩選條件下無學生資料");return;}
     const dims=_dimensions();
     const header=["masked_id","cluster","semester","final_score",...dims.map(d=>(DIM_FEATURE_MAP[d]||d.toLowerCase()+"_completion_rate"))].join(",");
@@ -586,7 +584,7 @@ const BehaviorRadarTab = (() => {
   }
 
   function resetFilters(){
-    _selectedSemester="all";_selectedCluster="P0";_passFilter="all";_semesterFilterNote=null;
+    _selectedSemester="all";_selectedCluster="R0";_passFilter="all";_semesterFilterNote=null;
     // B1 fix: badge 快照反映「載入的資料範圍」，與篩選狀態無關，不應在 resetFilters 清除
     _renderControls("radarControls");
     renderClusterSummary("clusterSummaryCards");
