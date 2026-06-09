@@ -1196,6 +1196,10 @@ body.light .behavior-range-badge {
   padding: 4px 6px;
   white-space: nowrap;
 }
+.print-choice.selected .print-tab {
+  color: var(--accent);
+  background: rgba(79,142,247,0.18);
+}
 .print-choice .print-label {
   font-size: 12px;
   font-weight: 600;
@@ -1205,6 +1209,51 @@ body.light .behavior-range-badge {
   margin-top: 10px;
   color: var(--text-dim);
   font-size: 11px;
+}
+/* 全選／全不選 快捷列 */
+.print-quick-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.print-quick-btn {
+  font-size: 11px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface2);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.print-quick-btn:hover { background: rgba(79,142,247,0.15); color: var(--text); }
+/* 預覽區關閉列 */
+.print-preview-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+.print-preview-close {
+  font-size: 12px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface2);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+/* @media print：列印時隱藏所有 UI，只顯示預覽內容 */
+@media print {
+  body > *         { display: none !important; }
+  body > #panelP   { display: block !important; }
+  #panelP > *:not(#printPreviewArea) { display: none !important; }
+  #printPreviewArea {
+    display: block !important;
+    border: none !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  .print-preview-toolbar { display: none !important; }
 }
 
 /* ── 規則五：重修生全域開關 ── */
@@ -2024,7 +2073,7 @@ body.light .behavior-range-badge {
                 data-action="behaviorSwitchSub"
                 style="padding:5px 14px;border-radius:20px;border:1px solid var(--accent,#3498db);
                        background:var(--accent,#3498db);color:#fff;cursor:pointer;font-size:0.82rem">
-          🕸 分群雷達圖
+          🕸 資源使用雷達圖
         </button>
         <button type="button" class="behavior-sub-btn" data-sub="time"
                 data-action="behaviorSwitchSub"
@@ -2055,7 +2104,7 @@ body.light .behavior-range-badge {
         <!-- 雷達圖 -->
         <div class="chart-card" style="margin-bottom:14px">
           <div class="chart-title" style="--accent-color:var(--accent)">
-            <span class="dot"></span>學習行為分群雷達圖
+            <span class="dot"></span>學習行為資源使用雷達圖
           </div>
           <div class="chart-wrap behavior-radar-wrap">
             <canvas id="radarChart"></canvas>
@@ -2076,11 +2125,11 @@ body.light .behavior-range-badge {
               </tr>
             </thead>
             <tbody>
-              <tr style="background:var(--card-bg2,#f8f9fa)"><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">① 最優先</td><td style="padding:5px 10px;white-space:nowrap">P5</td><td style="padding:5px 10px;white-space:nowrap">被動低參與型</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">整體學習量極少，教材使用單一</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">總學習時間 &lt; 120 分鐘 <span style="font-weight:600;color:var(--accent,#1a73e8)">且</span> 教材多樣性分數 ≤ 2</td></tr>
-              <tr><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">②</td><td style="padding:5px 10px;white-space:nowrap">P4</td><td style="padding:5px 10px;white-space:nowrap">題庫刷題型</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">高頻次作答，學習以測驗為主</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">QUZ 作答次數 ≥ 20 次 <span style="font-weight:600;color:var(--accent,#1a73e8)">且</span> QUZ 估計時間佔總學習時間 ≥ 40%</td></tr>
-              <tr style="background:var(--card-bg2,#f8f9fa)"><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">③</td><td style="padding:5px 10px;white-space:nowrap">P2</td><td style="padding:5px 10px;white-space:nowrap">彈性聽覺型</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">偏好音頻教材，影片使用較少</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">AUD 完成率 ≥ 50% <span style="font-weight:600;color:var(--accent,#1a73e8)">且</span> VID 完成率 &lt; 50%</td></tr>
-              <tr><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">④</td><td style="padding:5px 10px;white-space:nowrap">P1</td><td style="padding:5px 10px;white-space:nowrap">影音輔導型</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">大量觀看影片或使用輔導資源</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">VID 完成率 ≥ 50% <span style="font-weight:600;color:var(--accent,#1a73e8)">或</span> TUT 投入時間 ≥ 30 分鐘（任一即符合）</td></tr>
-              <tr style="background:var(--card-bg2,#f8f9fa)"><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">⑤ 預設</td><td style="padding:5px 10px;white-space:nowrap">P3</td><td style="padding:5px 10px;white-space:nowrap">平均使用型</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">各類教材均衡使用，無明顯偏重</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">以上條件皆不符合（預設分群）</td></tr>
+              <tr style="background:var(--card-bg2,#f8f9fa)"><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">① 最優先</td><td style="padding:5px 10px;white-space:nowrap">R5</td><td style="padding:5px 10px;white-space:nowrap">被動低參與型</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">整體學習量極少，教材使用單一</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">總學習時間 &lt; 120 分鐘 <span style="font-weight:600;color:var(--accent,#1a73e8)">且</span> 教材多樣性分數 ≤ 2</td></tr>
+              <tr><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">②</td><td style="padding:5px 10px;white-space:nowrap">R4</td><td style="padding:5px 10px;white-space:nowrap">題庫刷題型</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">高頻次作答，學習以測驗為主</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">QUZ 作答次數 ≥ 20 次 <span style="font-weight:600;color:var(--accent,#1a73e8)">且</span> QUZ 估計時間佔總學習時間 ≥ 40%</td></tr>
+              <tr style="background:var(--card-bg2,#f8f9fa)"><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">③</td><td style="padding:5px 10px;white-space:nowrap">R2</td><td style="padding:5px 10px;white-space:nowrap">彈性聽覺型</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">偏好音頻教材，影片使用較少</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">AUD 完成率 ≥ 50% <span style="font-weight:600;color:var(--accent,#1a73e8)">且</span> VID 完成率 &lt; 50%</td></tr>
+              <tr><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">④</td><td style="padding:5px 10px;white-space:nowrap">R1</td><td style="padding:5px 10px;white-space:nowrap">影音輔導型</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">大量觀看影片或使用輔導資源</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">VID 完成率 ≥ 50% <span style="font-weight:600;color:var(--accent,#1a73e8)">或</span> TUT 投入時間 ≥ 30 分鐘（任一即符合）</td></tr>
+              <tr style="background:var(--card-bg2,#f8f9fa)"><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">⑤ 預設</td><td style="padding:5px 10px;white-space:nowrap">R3</td><td style="padding:5px 10px;white-space:nowrap">平均使用型</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">各類教材均衡使用，無明顯偏重</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">以上條件皆不符合（預設分群）</td></tr>
             </tbody>
           </table>
         </div>
@@ -2103,6 +2152,42 @@ body.light .behavior-range-badge {
               <tr style="background:var(--card-bg2,#f8f9fa)"><td style="padding:5px 10px;white-space:nowrap;font-family:'JetBrains Mono',monospace">QUZ</td><td style="padding:5px 10px;white-space:nowrap">題庫測驗</td><td style="padding:5px 10px;white-space:nowrap;color:var(--text-dim,#888)">題庫、測驗、練習題等作答或完成情形。</td></tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- ── 資源使用分群（R1–R5）分析框架說明卡片 ── -->
+        <div class="chart-card" style="margin-top:14px">
+          <div class="chart-title" style="--accent-color:var(--accent)">
+            <span class="dot"></span>資源使用分群（R1–R5）— 分析框架說明
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.78rem;margin-bottom:14px">
+            <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
+              <div style="font-weight:700;color:var(--accent,#3498db);margin-bottom:4px">🎯 分析目的</div>
+              <div style="color:var(--text-mid,#9aa0b8);line-height:1.6">
+                識別學生<strong style="color:var(--text,#dde3f5)">偏好哪類教材資源</strong>，回答「這個學生<em>用了什麼</em>」的問題。依六個教材使用維度（AUD/VID/TXT/SUP/TUT/QUZ）的完成率，以規則式分類法將學生分為五種資源使用型態。
+              </div>
+            </div>
+            <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
+              <div style="font-weight:700;color:var(--accent,#3498db);margin-bottom:4px">⚙️ 演算法基礎</div>
+              <div style="color:var(--text-mid,#9aa0b8);line-height:1.6">
+                六維特徵向量（六種教材完成率）的<strong style="color:var(--text,#dde3f5)">規則式優先分類</strong>（MECE 判定順序）。分類條件詳見上方「量化判斷條件」欄，無需重新訓練即可套用至新學期。
+              </div>
+            </div>
+            <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
+              <div style="font-weight:700;color:var(--accent,#3498db);margin-bottom:4px">📋 教學用途</div>
+              <div style="color:var(--text-mid,#9aa0b8);line-height:1.6">
+                識別各分群的教材偏好後，可發送<strong style="color:var(--text,#dde3f5)">差異化學習建議</strong>（詳見洞察面板），並作為主動學習介入（Active Learning Intervention）的分群佐證。
+              </div>
+            </div>
+            <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
+              <div style="font-weight:700;color:var(--accent,#3498db);margin-bottom:4px">📚 學術依據</div>
+              <div style="color:var(--text-mid,#9aa0b8);line-height:1.6">
+                多媒體學習理論（Mayer, 2009）與自我調節學習研究（Zimmerman, 2002）均指出，<strong style="color:var(--text,#dde3f5)">資源使用多樣性與學習成效正相關</strong>。本分群可協助辨識資源偏用族群，作為課程設計參考。
+              </div>
+            </div>
+          </div>
+          <div style="font-size:.76rem;color:var(--text-dim,#888);padding:8px 12px;background:var(--surface2,#1c2030);border-radius:8px;line-height:1.6">
+            ℹ️ <strong>與行為序列分群（S1–S5）的區別：</strong>資源使用分群（R）回答「<em>用什麼</em>」；序列轉移分群（S）回答「<em>怎麼用</em>（時間序列穩定性）」。兩者互補，合併解讀可提供更完整的學習早期預警依據。
+          </div>
         </div>
       </div><!-- /sub-radar -->
 
@@ -2338,6 +2423,58 @@ body.light .behavior-range-badge {
           </details>
         </div><!-- /解讀卡片 -->
 
+        <!-- ── 行為序列分群（S1–S5）分析框架說明卡片 ── -->
+        <div class="chart-card" style="margin-top:12px">
+          <div class="chart-title" style="--accent-color:var(--accent2)">
+            <span class="dot"></span>行為序列分群（S1–S5）— 分析框架說明
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.78rem;margin-bottom:14px">
+            <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
+              <div style="font-weight:700;color:var(--accent,#3498db);margin-bottom:4px">🎯 分析目的</div>
+              <div style="color:var(--text-mid,#9aa0b8);line-height:1.6">
+                識別學生<strong style="color:var(--text,#dde3f5)">學習行為在時間序列上是否穩定</strong>，回答「這個學生<em>怎麼用</em>」的問題。與雷達圖資源使用分群（R1–R5）互補，合併可建立更完整的早期預警。
+              </div>
+            </div>
+            <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
+              <div style="font-weight:700;color:var(--accent,#3498db);margin-bottom:4px">⚙️ 演算法基礎</div>
+              <div style="color:var(--text-mid,#9aa0b8);line-height:1.6">
+                <strong style="color:var(--text,#dde3f5)">LAG-1 滯後序列分析</strong>：計算每位學生行為事件的轉移矩陣（M→M、M→Q、Q→M、Q→Q），以轉移穩定性特徵進行分群，S 代表 Sequence（序列）。
+              </div>
+            </div>
+            <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
+              <div style="font-weight:700;color:var(--accent,#3498db);margin-bottom:4px">📋 教學用途</div>
+              <div style="color:var(--text-mid,#9aa0b8);line-height:1.6">
+                S5（高風險）為<strong style="color:var(--text,#dde3f5)">優先預警介入</strong>對象；S4（低頻低效）次之。「穩定性」是預測期末成績的強預測因子，可在學期中段即早識別需要關注的學生。
+              </div>
+            </div>
+            <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
+              <div style="font-weight:700;color:var(--accent,#3498db);margin-bottom:4px">📚 學術依據</div>
+              <div style="color:var(--text-mid,#9aa0b8);line-height:1.6">
+                LAG 序列分析為 Learning Analytics 標準方法（Bakeman &amp; Gottman, 1997）；以序列穩定性預測學期成績已有實證（Malmberg et al., 2017, <em>Metacognition &amp; Learning</em>；Winne &amp; Hadwin, 1998）。
+              </div>
+            </div>
+          </div>
+          <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+            <table style="width:max-content;min-width:100%;border-collapse:collapse;font-size:.78rem">
+              <thead>
+                <tr style="background:var(--card-bg2,#f8f9fa)">
+                  <th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--border,#e0e0e0);white-space:nowrap">代碼</th>
+                  <th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--border,#e0e0e0);white-space:nowrap">名稱</th>
+                  <th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--border,#e0e0e0);white-space:nowrap">行為特徵</th>
+                  <th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--border,#e0e0e0);white-space:nowrap">教學建議</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td style="padding:5px 10px;white-space:nowrap;font-weight:700;color:var(--accent,#3498db)">S1</td><td style="padding:5px 10px;white-space:nowrap">穩定高效</td><td style="padding:5px 10px;color:var(--text-dim,#888)">M→Q 轉移穩定，序列一致性高</td><td style="padding:5px 10px;color:var(--text-dim,#888)">正向強化，鼓勵維持節奏</td></tr>
+                <tr style="background:var(--card-bg2,#f8f9fa)"><td style="padding:5px 10px;white-space:nowrap;font-weight:700;color:var(--accent,#3498db)">S2</td><td style="padding:5px 10px;white-space:nowrap">規律中效</td><td style="padding:5px 10px;color:var(--text-dim,#888)">行為規律，效能中等</td><td style="padding:5px 10px;color:var(--text-dim,#888)">引導提升學習深度</td></tr>
+                <tr><td style="padding:5px 10px;white-space:nowrap;font-weight:700;color:var(--accent,#3498db)">S3</td><td style="padding:5px 10px;white-space:nowrap">波動中效</td><td style="padding:5px 10px;color:var(--text-dim,#888)">學習節奏缺乏一致性</td><td style="padding:5px 10px;color:var(--text-dim,#888)">強化學習計畫與自我調節</td></tr>
+                <tr style="background:var(--card-bg2,#f8f9fa)"><td style="padding:5px 10px;white-space:nowrap;font-weight:700;color:var(--accent3,#e67e22)">S4</td><td style="padding:5px 10px;white-space:nowrap">低頻低效</td><td style="padding:5px 10px;color:var(--text-dim,#888)">行為頻率低，投入嚴重不足</td><td style="padding:5px 10px;color:var(--text-dim,#888)">主動聯繫，了解學習障礙</td></tr>
+                <tr><td style="padding:5px 10px;white-space:nowrap;font-weight:700;color:#f07070">S5</td><td style="padding:5px 10px;white-space:nowrap">高風險</td><td style="padding:5px 10px;color:var(--text-dim,#888)">異常序列模式，偏離常規</td><td style="padding:5px 10px;color:var(--text-dim,#888)">⚠ 優先介入，轉介輔導資源</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div><!-- /S1-S5說明卡片 -->
+
       </div><!-- /sub-lsa -->
 
     </div><!-- /#tab-behavior -->
@@ -2470,6 +2607,10 @@ body.light .behavior-range-badge {
         <select id="printYearEnd"></select>
       </div>
       <div id="printSelections" class="print-group"></div>
+      <div class="print-quick-actions">
+        <button type="button" class="print-quick-btn" data-action="printSelectAll">全選</button>
+        <button type="button" class="print-quick-btn" data-action="printClearAll">全不選</button>
+      </div>
       <div id="printSummary" class="print-summary"></div>
     </div>
 
@@ -2481,6 +2622,9 @@ body.light .behavior-range-badge {
 
     <!-- 預覽區域 (橫向可滑動) -->
     <div id="printPreviewArea" style="display:none;overflow-x:auto;border:1px solid var(--border);border-radius:10px;background:#fff;color:#000;padding:20px;min-height:200px">
+      <div class="print-preview-toolbar">
+        <button type="button" class="print-preview-close" data-action="closePrintPreview">✕ 關閉預覽</button>
+      </div>
       <div id="printPreviewContent" style="min-width:900px"></div>
     </div>
   </div>
@@ -2495,15 +2639,17 @@ body.light .behavior-range-badge {
 <script src="js/vendor/d3.min.js"></script>
 
 <!-- ══ 學習行為模組（依賴 main.js 全域變數）══ -->
-<script defer src="js/chart-registry.js?v=202606072023"></script>
-<script defer src="js/behavior-loader.js?v=202606072023"></script>
-<script defer src="js/tab-behavior-radar.js?v=202606072023"></script>
-<script defer src="js/tab-behavior-correlation.js?v=202606072023"></script>
-<script defer src="js/tab-behavior-time.js?v=202606072023"></script>
-<script defer src="js/tab-behavior-lsa.js?v=202606072023"></script>
+<script defer src="js/chart-registry.js?v=202606092000"></script>
+<script defer src="js/behavior-loader.js?v=202606092000"></script>
+<script defer src="js/tab-behavior-radar.js?v=202606092000"></script>
+<script defer src="js/tab-behavior-correlation.js?v=202606092000"></script>
+<script defer src="js/tab-behavior-time.js?v=202606092000"></script>
+<script defer src="js/tab-behavior-lsa.js?v=202606092000"></script>
 
 <!-- ══ 行為初始化 + 高風險報告（依賴 behavior 模組）══ -->
-<script defer src="js/behavior-init.js?v=202606072023"></script>
-<script defer src="js/at-risk-report.js?v=202606072023"></script>
+<script defer src="js/behavior-init.js?v=202606092000"></script>
+<script defer src="js/at-risk-report.js?v=202606092000"></script>
+<!-- ══ 列印面板（依賴所有 behavior 模組與 ChartRegistry）══ -->
+<script defer src="js/print-panel.js?v=202606092000"></script>
 </body>
 </html>
