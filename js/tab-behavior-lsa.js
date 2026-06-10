@@ -20,7 +20,9 @@ const BehaviorLsaTab = (() => {
   let _ro             = null;
 
   const BEHAVIOR_LABELS = { M: "教材閱讀", Q: "題庫作答" };
-  const CLUSTER_NAMES  = { P1:"穩定高效", P2:"規律中效", P3:"波動中效", P4:"低頻低效", P5:"高風險" };
+  // BUG-LSA-CLUSTER FIX: keys must match ETL 10_lsa_transition.py by_cluster output (S1–S5)
+  // Labels from 06b_clustering.py CLUSTER_LABELS: R1=影音輔導型, R2=彈性聽覺型, etc.
+  const CLUSTER_NAMES  = { S1:"影音輔導型", S2:"彈性聽覺型", S3:"平均使用型", S4:"題庫刷題型", S5:"被動低參與型" };
   const NODE_BASE_R  = 40;   // 32 × 1.25
   const NODE_SCALE   = 0.008;
   const EDGE_Z_SCALE = 0.55;
