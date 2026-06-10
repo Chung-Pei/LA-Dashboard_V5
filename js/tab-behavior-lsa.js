@@ -265,10 +265,20 @@ const BehaviorLsaTab = (() => {
 
     const semesters  = Object.keys(_lsaData?.by_semester ?? {}).sort();
     const hasSem     = semesters.length > 0;
-    // FIX-Q1: by_cluster keys are now R1–R5
-    const hasCluster = !!_lsaData?.by_cluster && Object.keys(_lsaData.by_cluster).some(k => k.startsWith("R"));
-    // FIX-Q2: only check S-prefixed keys; student_lsa_type/label no longer in dict
-    const hasLsaType = !!_lsaData?.by_lsa_type && Object.keys(_lsaData.by_lsa_type).some(k => k.startsWith("S"));
+
+    // 偵測 by_cluster：接受 R1–R5（新版）或 S1–S5（舊版 JSON 尚未重跑）
+    const clusterKeys = Object.keys(_lsaData?.by_cluster ?? {});
+    const hasCluster  = clusterKeys.length > 0;
+
+    // 偵測 by_lsa_type：接受 S1–S5，排除 student_lsa_type / label 等非矩陣 key
+    const lsaTypeKeys = Object.keys(_lsaData?.by_lsa_type ?? {}).filter(k => /^S\d$/.test(k));
+    const hasLsaType  = lsaTypeKeys.length > 0;
+
+    // 診斷用（可在 DevTools Console 確認實際 key）
+    console.debug("[LSA filterBar]",
+      "by_cluster keys:", clusterKeys,
+      "by_lsa_type keys:", Object.keys(_lsaData?.by_lsa_type ?? {}),
+    );
 
     if (!hasSem && !hasCluster && !hasLsaType) { anchor.innerHTML = ""; return; }
 
@@ -281,16 +291,20 @@ const BehaviorLsaTab = (() => {
       }),
     ].join("");
 
+    // by_cluster：優先用 CLUSTER_NAMES（R 前綴），若 JSON key 仍是舊版 S 前綴則 fallback
+    const clusterNameMap = clusterKeys.every(k => k.startsWith("S"))
+      ? { S1:"影音輔導型", S2:"彈性聽覺型", S3:"平均使用型", S4:"題庫刷題型", S5:"被動低參與型" }
+      : CLUSTER_NAMES;  // R1–R5
     const clusterOptions = [
       `<option value="all">全部分群</option>`,
-      ...Object.entries(CLUSTER_NAMES).map(([k, v]) =>
-        `<option value="${k}"${k === _filterCluster ? " selected" : ""}>${k} ${v}</option>`),
+      ...clusterKeys.sort().map(k =>
+        `<option value="${k}"${k === _filterCluster ? " selected" : ""}>${k} ${clusterNameMap[k] ?? k}</option>`),
     ].join("");
 
     const lsaTypeOptions = [
       `<option value="all">全部序列型</option>`,
-      ...Object.entries(LSA_TYPE_NAMES).map(([k, v]) =>
-        `<option value="${k}"${k === _filterLsaType ? " selected" : ""}>${k} ${v}</option>`),
+      ...lsaTypeKeys.sort().map(k =>
+        `<option value="${k}"${k === _filterLsaType ? " selected" : ""}>${k} ${LSA_TYPE_NAMES[k] ?? k}</option>`),
     ].join("");
 
     // FIX-Q5：互斥鎖定規則
