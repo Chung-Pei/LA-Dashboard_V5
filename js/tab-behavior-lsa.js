@@ -239,9 +239,11 @@ const BehaviorLsaTab = (() => {
       document.body.appendChild(overlay);
 
       setTimeout(() => {
+        // Fill overlay width; SVG tight-fit will shrink height but keep full width
         const W = Math.max(600, window.innerWidth - 48);
         const H = 400;
-        svgContainer.style.width = W + "px";
+        svgContainer.style.width = "100%";
+        svgContainer.style.maxWidth = W + "px";
         _renderToContainer(svgContainer, W, H);
       }, 0);
     });
