@@ -205,7 +205,6 @@ const BehaviorLsaTab = (() => {
         background: "rgba(10,13,22,0.95)",
         display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "flex-start",
-        // top padding must clear iOS status bar + button height (52px baseline + safe area)
         padding: "calc(52px + env(safe-area-inset-top, 0px)) 24px calc(24px + env(safe-area-inset-bottom, 0px))",
         boxSizing: "border-box",
         overflowY: "auto",
@@ -215,7 +214,6 @@ const BehaviorLsaTab = (() => {
       closeBtn.textContent = "✕ 關閉";
       Object.assign(closeBtn.style, {
         position: "absolute",
-        // iOS PWA/standalone: respect Dynamic Island + status bar safe area
         top: "calc(14px + env(safe-area-inset-top, 0px))",
         right: "20px",
         background: "var(--surface2,#1c2030)",
@@ -223,20 +221,22 @@ const BehaviorLsaTab = (() => {
         borderRadius: "20px", color: "var(--text,#dde3f5)",
         padding: "6px 18px", cursor: "pointer",
         fontSize: ".85rem",
-        zIndex: "1",  // ensure above SVG content
+        zIndex: "1",
       });
       closeBtn.addEventListener("click", () => overlay.remove());
 
       const svgContainer = document.createElement("div");
       svgContainer.id = "lsaExpandSvgContainer";
       Object.assign(svgContainer.style, {
+        // Use fixed pixel width derived from viewport so layout is stable before render
         width: "100%",
-        maxHeight: "calc(100vh - 100px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))",
+        maxWidth: "100%",
         background: "var(--surface,#13161f)",
         borderRadius: "10px",
         overflowX: "auto",
-        overflowY: "auto",
+        overflowY: "hidden",
         webkitOverflowScrolling: "touch",
+        flexShrink: "0",
       });
 
       overlay.appendChild(closeBtn);
@@ -244,13 +244,17 @@ const BehaviorLsaTab = (() => {
       overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
       document.body.appendChild(overlay);
 
-      // 等 overlay 進 DOM 後取得真實尺寸再渲染
-      requestAnimationFrame(() => {
-        const availW = svgContainer.clientWidth || window.innerWidth * 0.9;
+      // Use setTimeout to ensure overlay has fully laid out before measuring
+      setTimeout(() => {
+        const padH = 52 + 24; // top + bottom padding (approximation without safe-area)
+        const availW = window.innerWidth - 48;   // 24px padding each side
+        const availH = window.innerHeight - padH;
         const W = Math.max(520, availW);
-        const H = Math.round(W * 0.55);
+        // Cap height so SVG doesn't exceed viewport; tight-fit will shrink it further
+        const H = Math.min(Math.round(W * 0.55), availH);
+        svgContainer.style.width = W + "px";
         _renderToContainer(svgContainer, W, H);
-      });
+      }, 0);
     });
   }
 
@@ -758,13 +762,11 @@ const BehaviorLsaTab = (() => {
         const vy = Math.max(0, minY - PAD);
         const vw = maxX + PAD - vx;
         const vh = maxY + PAD - vy;
-        svg.attr("viewBox", `${vx} ${vy} ${vw} ${vh}`);
+        svg.attr("viewBox", `${vx} ${vy} ${vw} ${vh}`)
+           .attr("width",  Math.ceil(vw))
+           .attr("height", Math.ceil(vh));
         if (isMain) {
-          // Give SVG an explicit pixel width = content width.
-          // wrap keeps its natural CSS width (100% of card); overflow-x:auto scrolls when vw > wrap.
-          svg.attr("width",  Math.ceil(vw))
-             .attr("height", Math.ceil(vh));
-          container.style.width  = "";            // do NOT override — let parent card control width
+          container.style.width  = "";
           container.style.height = Math.ceil(vh) + "px";
         }
       }
