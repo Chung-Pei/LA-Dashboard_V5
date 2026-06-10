@@ -16,13 +16,17 @@ const BehaviorLsaTab = (() => {
   let _lsaData        = null;
   let _group          = "all";
   let _filterSemester = "all";
-  let _filterCluster  = "all";
+  let _filterCluster  = "all";   // by_cluster（R 資源分群切片，R→S 換牌）
+  let _filterLsaType  = "all";   // by_lsa_type（真正 S 序列行為分群）
   let _ro             = null;
 
   const BEHAVIOR_LABELS = { M: "教材閱讀", Q: "題庫作答" };
-  // BUG-LSA-CLUSTER FIX: keys must match ETL 10_lsa_transition.py by_cluster output (S1–S5)
-  // Labels from 06b_clustering.py CLUSTER_LABELS: R1=影音輔導型, R2=彈性聽覺型, etc.
-  const CLUSTER_NAMES  = { S1:"影音輔導型", S2:"彈性聽覺型", S3:"平均使用型", S4:"題庫刷題型", S5:"被動低參與型" };
+  // CLUSTER_NAMES：by_cluster dropdown 顯示「R 資源分群切片」語意
+  // （對應 06b_clustering.py CLUSTER_LABELS，by_cluster key 為 R→S 機械換牌）
+  const CLUSTER_NAMES = { S1:"影音輔導型", S2:"彈性聽覺型", S3:"平均使用型", S4:"題庫刷題型", S5:"被動低參與型" };
+  // LSA_TYPE_NAMES：by_lsa_type dropdown 顯示「序列行為分群」語意
+  // （對應 10_lsa_transition.py LSA_TYPE_LABELS，依學生自身轉移特徵分類）
+  const LSA_TYPE_NAMES = { S1:"穩定高效", S2:"規律中效", S3:"波動中效", S4:"低頻低效", S5:"高風險" };
   const NODE_BASE_R  = 40;   // 32 × 1.25
   const NODE_SCALE   = 0.008;
   const EDGE_Z_SCALE = 0.55;
@@ -52,6 +56,7 @@ const BehaviorLsaTab = (() => {
     _group          = "all";
     _filterSemester = "all";
     _filterCluster  = "all";
+    _filterLsaType  = "all";
     _syncGroupBtnStyles();
     _bindGroupButtons();
     _bindHelpButton();
@@ -258,9 +263,12 @@ const BehaviorLsaTab = (() => {
 
     const semesters  = Object.keys(_lsaData?.by_semester ?? {}).sort();
     const hasSem     = semesters.length > 0;
-    const hasCluster = !!_lsaData?.by_cluster;
+    const hasCluster = !!_lsaData?.by_cluster && Object.keys(_lsaData.by_cluster).length > 0;
+    // by_lsa_type：由 ETL v1.2.0 新增，舊版 JSON 無此欄位則隱藏 dropdown
+    const hasLsaType = !!_lsaData?.by_lsa_type &&
+                       Object.keys(_lsaData.by_lsa_type).some(k => k.startsWith("S"));
 
-    if (!hasSem && !hasCluster) { anchor.innerHTML = ""; return; }
+    if (!hasSem && !hasCluster && !hasLsaType) { anchor.innerHTML = ""; return; }
 
     const semOptions = [
       `<option value="all">全部年度</option>`,
@@ -271,25 +279,26 @@ const BehaviorLsaTab = (() => {
       }),
     ].join("");
 
+    // by_cluster：R 資源分群切片（標籤來自 CLUSTER_NAMES）
     const clusterOptions = [
       `<option value="all">全部分群</option>`,
       ...Object.entries(CLUSTER_NAMES).map(([k, v]) =>
         `<option value="${k}"${k === _filterCluster ? " selected" : ""}>${k} ${v}</option>`),
     ].join("");
 
-    const semHtml = hasSem ? `
-      <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">學期
-        <select id="lsaSemFilter" style="font-size:.78rem;padding:2px 4px;border-radius:7px;
-          border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);
-          color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:90px">${semOptions}</select>
-      </label>` : "";
+    // by_lsa_type：序列行為分群（標籤來自 LSA_TYPE_NAMES）
+    const lsaTypeOptions = [
+      `<option value="all">全部序列型</option>`,
+      ...Object.entries(LSA_TYPE_NAMES).map(([k, v]) =>
+        `<option value="${k}"${k === _filterLsaType ? " selected" : ""}>${k} ${v}</option>`),
+    ].join("");
 
-    const clusterHtml = hasCluster ? `
-      <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">分群
-        <select id="lsaClusterFilter" style="font-size:.78rem;padding:2px 4px;border-radius:7px;
+    const _sel = (id, opts, label, maxW) => `
+      <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">${label}
+        <select id="${id}" style="font-size:.78rem;padding:2px 4px;border-radius:7px;
           border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);
-          color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:110px">${clusterOptions}</select>
-      </label>` : "";
+          color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:${maxW}">${opts}</select>
+      </label>`;
 
     anchor.innerHTML = `
       <div style="display:flex;flex-wrap:nowrap;overflow-x:auto;align-items:center;gap:8px;
@@ -297,18 +306,23 @@ const BehaviorLsaTab = (() => {
                   border:1px solid rgba(110,130,165,.22);border-radius:10px;
                   background:var(--card-bg2,#1c2030);white-space:nowrap">
         <span style="font-size:.8rem;font-weight:700;color:var(--text-mid,#4f5f78)">篩選條件</span>
-        ${semHtml}${clusterHtml}
+        ${hasSem     ? _sel("lsaSemFilter",     semOptions,     "學期",       "90px") : ""}
+        ${hasCluster ? _sel("lsaClusterFilter", clusterOptions, "資源分群",   "120px") : ""}
+        ${hasLsaType ? _sel("lsaTypeFilter",    lsaTypeOptions, "序列分群",   "120px") : ""}
       </div>`;
 
     document.getElementById("lsaSemFilter")
       ?.addEventListener("change", _onFilterChange);
     document.getElementById("lsaClusterFilter")
       ?.addEventListener("change", _onFilterChange);
+    document.getElementById("lsaTypeFilter")
+      ?.addEventListener("change", _onFilterChange);
   }
 
   function _onFilterChange() {
-    _filterSemester = document.getElementById("lsaSemFilter")?.value    ?? "all";
+    _filterSemester = document.getElementById("lsaSemFilter")?.value     ?? "all";
     _filterCluster  = document.getElementById("lsaClusterFilter")?.value ?? "all";
+    _filterLsaType  = document.getElementById("lsaTypeFilter")?.value    ?? "all";
     if (_lsaData) _render();
   }
 
@@ -340,16 +354,24 @@ const BehaviorLsaTab = (() => {
     _group          = "all";
     _filterSemester = "all";
     _filterCluster  = "all";
+    _filterLsaType  = "all";
     _syncGroupBtnStyles();
     const semEl     = document.getElementById("lsaSemFilter");
     const clusterEl = document.getElementById("lsaClusterFilter");
+    const typeEl    = document.getElementById("lsaTypeFilter");
     if (semEl)     semEl.value     = "all";
     if (clusterEl) clusterEl.value = "all";
+    if (typeEl)    typeEl.value    = "all";
     if (_lsaData) _render();
   }
 
   // ── 依 filter 狀態取得對應 groupData ─────────────────────────
+  // 優先順序：序列分群 > 資源分群 > 學期 > 全體
+  // by_lsa_type 與 by_cluster 互斥（同時選取時以序列分群優先）
   function _resolveGroupData() {
+    if (_filterLsaType !== "all") {
+      return _lsaData.by_lsa_type?.[_filterLsaType]?.[_group] ?? null;
+    }
     if (_filterCluster !== "all") {
       return _lsaData.by_cluster?.[_filterCluster]?.[_group] ?? null;
     }
