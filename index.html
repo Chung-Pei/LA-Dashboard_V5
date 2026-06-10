@@ -2337,7 +2337,9 @@ body.light .behavior-range-badge {
               <button type="button" id="lsaExpandBtn" class="chart-expand-btn" title="放大圖形">⤢</button>
             </div>
           </div>
-          <!-- filterBar anchor（由 tab-behavior-lsa.js _renderFilterBar() 動態注入）-->
+          <!-- filterBar anchor（由 tab-behavior-lsa.js _renderFilterBar() 動態注入）
+               包含三個 dropdown：學期 / 資源分群（by_cluster，R→S 換牌）/ 序列分群（by_lsa_type，真正 S 分群）
+               資源分群與序列分群互斥，以序列分群優先。-->
           <div id="lsaFilterBarAnchor"></div>
           <!-- 群組切換 -->
           <div id="lsaGroupControls" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
@@ -2428,7 +2430,15 @@ body.light .behavior-range-badge {
           <div class="chart-title" style="--accent-color:var(--accent2)">
             <span class="dot"></span>行為序列分群（S1–S5）— 分析框架說明
           </div>
-          <!-- 分群代碼說明表（移至框架說明前） -->
+          <!-- 雙維度說明提示 -->
+          <div style="margin-bottom:10px;padding:8px 12px;background:rgba(100,212,168,.07);
+                      border:1px solid rgba(100,212,168,.25);border-radius:8px;font-size:.77rem;
+                      color:var(--text-mid,#9aa0b8);line-height:1.7">
+            ℹ️ <strong style="color:var(--accent2,#64d4a8)">分群篩選器有兩個維度</strong>，語意不同，可個別使用：<br>
+            &nbsp;&nbsp;• <strong style="color:var(--text,#dde3f5)">資源分群（by_cluster）</strong>：依學生使用資源型態（R1–R5）切片，觀察各資源習慣學生的序列行為。<br>
+            &nbsp;&nbsp;• <strong style="color:var(--text,#dde3f5)">序列分群（by_lsa_type）</strong>：依學生自身的轉移矩陣特徵重新分類，S1–S5 代表下表的序列行為類型。
+          </div>
+          <!-- 分群代碼說明表 -->
           <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:14px">
             <table style="width:max-content;min-width:100%;border-collapse:collapse;font-size:.78rem">
               <thead>
@@ -2441,11 +2451,11 @@ body.light .behavior-range-badge {
                 </tr>
               </thead>
               <tbody>
-                <tr><td style="padding:5px 10px;white-space:nowrap;font-weight:700;color:var(--accent,#3498db)">S1</td><td style="padding:5px 10px;white-space:nowrap">穩定高效</td><td style="padding:5px 10px;color:var(--text-dim,#888)">M→Q 轉移穩定，序列一致性高</td><td style="padding:5px 10px;color:var(--text-dim,#888)">活動天數 ≥ 中位數，轉移熵 &lt; 0.6，Z(M→M) 或 Z(Q→Q) &gt; +1.96</td><td style="padding:5px 10px;color:var(--text-dim,#888)">正向強化，鼓勵維持節奏</td></tr>
-                <tr style="background:var(--card-bg2,#f8f9fa)"><td style="padding:5px 10px;white-space:nowrap;font-weight:700;color:var(--accent,#3498db)">S2</td><td style="padding:5px 10px;white-space:nowrap">規律中效</td><td style="padding:5px 10px;color:var(--text-dim,#888)">行為規律，效能中等</td><td style="padding:5px 10px;color:var(--text-dim,#888)">活動天數 ≥ 中位數，轉移熵 0.6–0.85，|Z| &lt; 1.96（轉移接近隨機）</td><td style="padding:5px 10px;color:var(--text-dim,#888)">引導提升學習深度</td></tr>
-                <tr><td style="padding:5px 10px;white-space:nowrap;font-weight:700;color:var(--accent,#3498db)">S3</td><td style="padding:5px 10px;white-space:nowrap">波動中效</td><td style="padding:5px 10px;color:var(--text-dim,#888)">學習節奏缺乏一致性</td><td style="padding:5px 10px;color:var(--text-dim,#888)">活動天數 ≥ 中位數，轉移熵 &gt; 0.85，週活動 CV &gt; 0.5（高波動）</td><td style="padding:5px 10px;color:var(--text-dim,#888)">強化學習計畫與自我調節</td></tr>
-                <tr style="background:var(--card-bg2,#f8f9fa)"><td style="padding:5px 10px;white-space:nowrap;font-weight:700;color:var(--accent3,#e67e22)">S4</td><td style="padding:5px 10px;white-space:nowrap">低頻低效</td><td style="padding:5px 10px;color:var(--text-dim,#888)">行為頻率低，投入嚴重不足</td><td style="padding:5px 10px;color:var(--text-dim,#888)">活動天數 &lt; 中位數，總事件數 &lt; 下四分位數（Q1）</td><td style="padding:5px 10px;color:var(--text-dim,#888)">主動聯繫，了解學習障礙</td></tr>
-                <tr><td style="padding:5px 10px;white-space:nowrap;font-weight:700;color:#f07070">S5</td><td style="padding:5px 10px;white-space:nowrap">高風險</td><td style="padding:5px 10px;color:var(--text-dim,#888)">異常序列模式，偏離常規</td><td style="padding:5px 10px;color:var(--text-dim,#888)">|Z(M→Q)| 或 |Z(Q→M)| &gt; 3.0，且轉移方向不一致（同時出現極端偏好與迴避）</td><td style="padding:5px 10px;color:var(--text-dim,#888)">⚠ 優先介入，轉介輔導資源</td></tr>
+                <tr><td style="padding:5px 10px;white-space:nowrap;font-weight:700;color:var(--accent,#3498db)">S1</td><td style="padding:5px 10px;white-space:nowrap">穩定高效</td><td style="padding:5px 10px;color:var(--text-dim,#888)">M→Q 轉移穩定，序列一致性高</td><td style="padding:5px 10px;color:var(--text-dim,#888)">活動天數 ≥ 中位數，連續閱讀率 p(M→M) &lt; 0.6，Z(M→M) 或 Z(Q→Q) &gt; +1.96</td><td style="padding:5px 10px;color:var(--text-dim,#888)">正向強化，鼓勵維持節奏</td></tr>
+                <tr style="background:var(--card-bg2,#f8f9fa)"><td style="padding:5px 10px;white-space:nowrap;font-weight:700;color:var(--accent,#3498db)">S2</td><td style="padding:5px 10px;white-space:nowrap">規律中效</td><td style="padding:5px 10px;color:var(--text-dim,#888)">行為規律，效能中等</td><td style="padding:5px 10px;color:var(--text-dim,#888)">活動天數 ≥ 中位數，0.6 ≤ p(M→M) ≤ 0.85，max|Z| &lt; 1.96（轉移接近隨機）</td><td style="padding:5px 10px;color:var(--text-dim,#888)">引導提升學習深度</td></tr>
+                <tr><td style="padding:5px 10px;white-space:nowrap;font-weight:700;color:var(--accent,#3498db)">S3</td><td style="padding:5px 10px;white-space:nowrap">波動中效</td><td style="padding:5px 10px;color:var(--text-dim,#888)">學習節奏缺乏一致性</td><td style="padding:5px 10px;color:var(--text-dim,#888)">活動天數 ≥ 中位數，p(M→M) &gt; 0.85（過度固著）或週活動 CV &gt; 0.5</td><td style="padding:5px 10px;color:var(--text-dim,#888)">強化學習計畫與自我調節</td></tr>
+                <tr style="background:var(--card-bg2,#f8f9fa)"><td style="padding:5px 10px;white-space:nowrap;font-weight:700;color:var(--accent3,#e67e22)">S4</td><td style="padding:5px 10px;white-space:nowrap">低頻低效</td><td style="padding:5px 10px;color:var(--text-dim,#888)">行為頻率低，投入嚴重不足</td><td style="padding:5px 10px;color:var(--text-dim,#888)">活動天數 &lt; 中位數，且序列對數 &lt; 同學期 Q1；或個人序列對數 &lt; 5（樣本不足）</td><td style="padding:5px 10px;color:var(--text-dim,#888)">主動聯繫，了解學習障礙</td></tr>
+                <tr><td style="padding:5px 10px;white-space:nowrap;font-weight:700;color:#f07070">S5</td><td style="padding:5px 10px;white-space:nowrap">高風險</td><td style="padding:5px 10px;color:var(--text-dim,#888)">異常序列模式，偏離常規</td><td style="padding:5px 10px;color:var(--text-dim,#888)">|Z(M→Q)| &gt; 3.0 且 |Z(Q→M)| &gt; 3.0，且兩者異號（一個極端偏好，另一個極端迴避）</td><td style="padding:5px 10px;color:var(--text-dim,#888)">⚠ 優先介入，轉介輔導資源</td></tr>
               </tbody>
             </table>
           </div>
@@ -2460,7 +2470,7 @@ body.light .behavior-range-badge {
             <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
               <div style="font-weight:700;color:var(--accent,#3498db);margin-bottom:4px">⚙️ 演算法基礎</div>
               <div style="color:var(--text-mid,#9aa0b8);line-height:1.6">
-                <strong style="color:var(--text,#dde3f5)">LAG-1 滯後序列分析</strong>：計算每位學生行為事件的轉移矩陣（M→M、M→Q、Q→M、Q→Q），以轉移穩定性特徵進行分群，S 代表 Sequence（序列）。
+                <strong style="color:var(--text,#dde3f5)">LAG-1 滯後序列分析</strong>：逐人計算轉移矩陣（M→M、M→Q、Q→M、Q→Q），以 p(M→M)（連續閱讀率）、活動天數、Z-score 方向一致性進行 S 分群。中位數基準依學期計算，S 代表 Sequence（序列）。
               </div>
             </div>
             <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
