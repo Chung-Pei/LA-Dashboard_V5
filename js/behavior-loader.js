@@ -1,4 +1,4 @@
-﻿/**
+/**
  * behavior-loader.js
  * Phase 2 前端非同步資料載入框架
  * 負責：lazy load JSON、masked_id join、快取管理
@@ -10,6 +10,9 @@
  *   WARN-1：joinByMaskedId 全量展開複製 → 僅 behavior 非 null 時展開
  *   新增：_fetchWithGzFallback（gzip → DecompressionStream → plain fallback）
  *   新增：_parseJsonSafe（NaN/Infinity 修正，抽為獨立函式）
+ *
+ * [v3.1 修正]
+ *   BUG-LSA-1：clearCache 遺漏 BehaviorLsaTab 通知 → 補加第四個 fn
  */
 
 const BehaviorLoader = (() => {
@@ -90,17 +93,13 @@ const BehaviorLoader = (() => {
 
     const gzUrl = _withCacheBust(baseUrl + ".gz");
 
-    // 方案 A：伺服器支援 Content-Encoding:gzip（Nginx gzip_static / Apache）→ 瀏覽器自動解壓
-    // 方案 B：伺服器送裸 .gz（無 Content-Encoding）→ 用 DecompressionStream 手動解壓
-    // 兩者統一在同一個 try 裡處理，避免冗餘 fetch
     try {
       const res = await fetch(gzUrl);
       if (res.ok) {
-        // 先嘗試直接讀 text（方案 A：伺服器已設定 Content-Encoding:gzip，瀏覽器自動解壓）
         const contentEncoding = res.headers.get("Content-Encoding");
         let text;
         if (!contentEncoding && typeof DecompressionStream !== "undefined") {
-          // 方案 B：伺服器未設 Content-Encoding，手動解壓（Chrome 80+, Firefox 113+, Safari 16.4+）
+          // 方案 B：手動解壓（Chrome 80+, Firefox 113+, Safari 16.4+）
           const ds = new DecompressionStream("gzip");
           const decompressed = res.body.pipeThrough(ds);
           text = await new Response(decompressed).text();
@@ -118,7 +117,7 @@ const BehaviorLoader = (() => {
     return fetchJSON(key, baseUrl);
   }
 
-  // ── 各 JSON 檔的 lazy loader ──────────────────────────────
+  // ── 各 JSON 檔的 lazy loader ──────────────────────────────────
 
   const DATA_ROOT = "data/";   // 相對於 HTML 的 docs/data/ 目錄
 
@@ -181,7 +180,8 @@ const BehaviorLoader = (() => {
     setLoading,
     showError,
     /**
-     * BUG-3 修正：clearCache 同步通知三個 Tab 模組重置內部狀態
+     * BUG-3 修正：clearCache 同步通知四個 Tab 模組重置內部狀態
+     * BUG-LSA-1 修正：補加 BehaviorLsaTab（原版遺漏）
      * @param {boolean} notifyTabs 預設 true，傳 false 可靜默清除
      */
     clearCache: (notifyTabs = true) => {
@@ -192,6 +192,8 @@ const BehaviorLoader = (() => {
           () => typeof BehaviorRadarTab       !== "undefined" && BehaviorRadarTab.resetFilters?.(),
           () => typeof BehaviorCorrelationTab !== "undefined" && BehaviorCorrelationTab.resetFilters?.(),
           () => typeof BehaviorTimeTab        !== "undefined" && BehaviorTimeTab.resetFilters?.(),
+          // BUG-LSA-1 FIX: was missing — LSA tab never received cache-clear notification
+          () => typeof BehaviorLsaTab         !== "undefined" && BehaviorLsaTab.resetFilters?.(),
         ].forEach(fn => { try { fn(); } catch (e) { console.warn("[BehaviorLoader.clearCache]", e); } });
       }
     },

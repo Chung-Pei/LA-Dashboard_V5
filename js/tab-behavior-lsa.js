@@ -85,6 +85,7 @@ const BehaviorLsaTab = (() => {
     } catch (e) {
       console.error("[BehaviorLsaTab] init:", e);
       _renderEmpty(`初始化失敗：${_safeText(String(e?.message ?? e))}`);
+      throw e; // BUG-LSA-2 FIX: re-throw so behavior-init.js switchSub can catch & log
     }
   }
 
@@ -251,11 +252,17 @@ const BehaviorLsaTab = (() => {
   }
 
   // ── filterBar（學期 + 分群篩選）─────────────────────────────
+  // BUG-LSA-3 FIX: only render dropdowns when backing data exists in JSON.
+  // Avoids "找不到群組資料" error if user selects a filter with no ETL data.
   function _renderFilterBar() {
     const anchor = document.getElementById("lsaFilterBarAnchor");
     if (!anchor) return;
 
-    const semesters = Object.keys(_lsaData?.by_semester ?? {}).sort();
+    const semesters  = Object.keys(_lsaData?.by_semester ?? {}).sort();
+    const hasSem     = semesters.length > 0;
+    const hasCluster = !!_lsaData?.by_cluster;
+
+    if (!hasSem && !hasCluster) { anchor.innerHTML = ""; return; }
 
     const semOptions = [
       `<option value="all">全部年度</option>`,
@@ -272,22 +279,27 @@ const BehaviorLsaTab = (() => {
         `<option value="${k}"${k === _filterCluster ? " selected" : ""}>${k} ${v}</option>`),
     ].join("");
 
+    const semHtml = hasSem ? `
+      <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">學期
+        <select id="lsaSemFilter" style="font-size:.78rem;padding:2px 4px;border-radius:7px;
+          border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);
+          color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:90px">${semOptions}</select>
+      </label>` : "";
+
+    const clusterHtml = hasCluster ? `
+      <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">分群
+        <select id="lsaClusterFilter" style="font-size:.78rem;padding:2px 4px;border-radius:7px;
+          border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);
+          color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:110px">${clusterOptions}</select>
+      </label>` : "";
+
     anchor.innerHTML = `
       <div style="display:flex;flex-wrap:nowrap;overflow-x:auto;align-items:center;gap:8px;
                   margin-bottom:12px;padding:8px 12px;
                   border:1px solid rgba(110,130,165,.22);border-radius:10px;
                   background:var(--card-bg2,#1c2030);white-space:nowrap">
         <span style="font-size:.8rem;font-weight:700;color:var(--text-mid,#4f5f78)">篩選條件</span>
-        <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">學期
-          <select id="lsaSemFilter" style="font-size:.78rem;padding:2px 4px;border-radius:7px;
-            border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);
-            color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:90px">${semOptions}</select>
-        </label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">分群
-          <select id="lsaClusterFilter" style="font-size:.78rem;padding:2px 4px;border-radius:7px;
-            border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);
-            color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:110px">${clusterOptions}</select>
-        </label>
+        ${semHtml}${clusterHtml}
       </div>`;
 
     document.getElementById("lsaSemFilter")
