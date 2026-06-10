@@ -1959,7 +1959,7 @@ function getCFilteredRecords() {
   const inclRetaker = getIncludeRetaker('C');
 
   const result = [];
-  Object.values(DATA.students).forEach(stu => {
+  Object.entries(DATA.students).forEach(([sid, stu]) => {
     stu.records.forEach(r => {
       if (semVal  !== 'all' && String(r.semester) !== String(semVal))  return;
       if (progVal !== 'all' && classInfo(r.sheet_name||'', r.semester).program !== progVal) return;
@@ -1968,7 +1968,7 @@ function getCFilteredRecords() {
       const score = r[cCurrentExam];
       if (passVal === 'pass' && (score == null || score < 60)) return;
       if (passVal === 'fail' && (score == null || score >= 60)) return;
-      result.push({ ...r, masked: stu.name_masked });
+      result.push({ ...r, masked: stu.name_masked, sid });
     });
   });
   return result;
@@ -2020,7 +2020,7 @@ function renderCStats() {
   const avg = (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1);
   const pass = scores.filter(s=>s>=60).length;
   const passRate = ((pass/scores.length)*100).toFixed(1);
-  const uniqueStudents = new Set(recs.map(r => r.masked)).size;
+  const uniqueStudents = new Set(recs.map(r => r.sid)).size;
   const examLabel = { semester_score:'學期', midterm:'期中', final:'期末' }[cCurrentExam] || '學期';
   const passColor = parseFloat(passRate) >= 90 ? 'var(--green)' : parseFloat(passRate) >= 70 ? 'var(--accent3)' : 'var(--red)';
   document.getElementById('cStats').innerHTML = `
