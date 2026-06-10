@@ -13,12 +13,12 @@
   "default_semester": "114(2)",
   "course_id": "1141111900055011A0",
   "course_name": "微生物及免疫學",
-  "generated_at": "2026-06-09T19:18:29.832731",
+  "generated_at": "2026-06-10T09:52:51.087980",
   "all_semesters": {
     "semester": "all",
     "course_id": "1141111900055011A0",
     "course_name": "微生物及免疫學",
-    "generated_at": "2026-06-09T19:18:29.817951",
+    "generated_at": "2026-06-10T09:52:51.058558",
     "cohort_summary": {
       "total_students": 2697,
       "pass_count": 2075,
@@ -116,7 +116,7 @@
       "semester": "111(1)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-09T19:18:29.787404",
+      "generated_at": "2026-06-10T09:52:51.001168",
       "cohort_summary": {
         "total_students": 443,
         "pass_count": 410,
@@ -206,7 +206,7 @@
       "semester": "111(2)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-09T19:18:29.792790",
+      "generated_at": "2026-06-10T09:52:51.012824",
       "cohort_summary": {
         "total_students": 193,
         "pass_count": 161,
@@ -302,7 +302,7 @@
       "semester": "112(1)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-09T19:18:29.796382",
+      "generated_at": "2026-06-10T09:52:51.020710",
       "cohort_summary": {
         "total_students": 460,
         "pass_count": 408,
@@ -399,7 +399,7 @@
       "semester": "112(2)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-09T19:18:29.800673",
+      "generated_at": "2026-06-10T09:52:51.027003",
       "cohort_summary": {
         "total_students": 202,
         "pass_count": 165,
@@ -502,7 +502,7 @@
       "semester": "113(1)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-09T19:18:29.803745",
+      "generated_at": "2026-06-10T09:52:51.034948",
       "cohort_summary": {
         "total_students": 449,
         "pass_count": 420,
@@ -571,7 +571,7 @@
       "semester": "113(2)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-09T19:18:29.808004",
+      "generated_at": "2026-06-10T09:52:51.041765",
       "cohort_summary": {
         "total_students": 198,
         "pass_count": 108,
@@ -667,7 +667,7 @@
       "semester": "114(1)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-09T19:18:29.812134",
+      "generated_at": "2026-06-10T09:52:51.045161",
       "cohort_summary": {
         "total_students": 504,
         "pass_count": 403,
@@ -757,7 +757,7 @@
       "semester": "114(2)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-09T19:18:29.816726",
+      "generated_at": "2026-06-10T09:52:51.056387",
       "cohort_summary": {
         "total_students": 248,
         "pass_count": 0,
