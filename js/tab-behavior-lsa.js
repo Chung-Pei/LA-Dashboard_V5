@@ -1,5 +1,5 @@
 /**
- * tab-behavior-lsa.js  —  v16.15
+ * tab-behavior-lsa.js  —  v16.16
  *
  * 累積修正（v16.3–v16.7）：
  *   副標題放大、?說明 Modal、視覺優化、放大 overlay 重渲染
@@ -9,6 +9,10 @@
  *   isTop 改為 index 判斷、getElementById 快取
  * v16.15：filterBar（學期 + 分群）篩選導入、_resolveGroupData、
  *   CLUSTER_NAMES 提升至 module 層、init() filter 狀態重置
+ * v16.16（code-review --fix）：
+ *   BUG-6：compareHtml 改讀當前篩選脈絡 pass/fail，不再硬寫 _lsaData.groups
+ *   BUG-7：resetFilters 移除冗餘 DOM sync（已由 _renderFilterBar 處理）
+ *   Q2/Q3/Q5 fixes：hasLsaType/hasCluster 偵測修正、互斥鎖定、優先順序調整
  */
 
 const BehaviorLsaTab = (() => {
@@ -21,11 +25,9 @@ const BehaviorLsaTab = (() => {
   let _ro             = null;
 
   const BEHAVIOR_LABELS = { M: "教材閱讀", Q: "題庫作答" };
-  // CLUSTER_NAMES：by_cluster dropdown 顯示「R 資源分群切片」語意
-  // （對應 06b_clustering.py CLUSTER_LABELS，by_cluster key 為 R→S 機械換牌）
-  const CLUSTER_NAMES = { S1:"影音輔導型", S2:"彈性聽覺型", S3:"平均使用型", S4:"題庫刷題型", S5:"被動低參與型" };
-  // LSA_TYPE_NAMES：by_lsa_type dropdown 顯示「序列行為分群」語意
-  // （對應 10_lsa_transition.py LSA_TYPE_LABELS，依學生自身轉移特徵分類）
+  // CLUSTER_NAMES：by_cluster dropdown，key 對應 ETL by_cluster 的 R1–R5
+  const CLUSTER_NAMES  = { R1:"影音輔導型", R2:"彈性聽覺型", R3:"平均使用型", R4:"題庫刷題型", R5:"被動低參與型" };
+  // LSA_TYPE_NAMES：by_lsa_type dropdown，key 對應 ETL by_lsa_type 的 S1–S5
   const LSA_TYPE_NAMES = { S1:"穩定高效", S2:"規律中效", S3:"波動中效", S4:"低頻低效", S5:"高風險" };
   const NODE_BASE_R  = 40;   // 32 × 1.25
   const NODE_SCALE   = 0.008;
@@ -263,10 +265,10 @@ const BehaviorLsaTab = (() => {
 
     const semesters  = Object.keys(_lsaData?.by_semester ?? {}).sort();
     const hasSem     = semesters.length > 0;
-    const hasCluster = !!_lsaData?.by_cluster && Object.keys(_lsaData.by_cluster).length > 0;
-    // by_lsa_type：由 ETL v1.2.0 新增，舊版 JSON 無此欄位則隱藏 dropdown
-    const hasLsaType = !!_lsaData?.by_lsa_type &&
-                       Object.keys(_lsaData.by_lsa_type).some(k => k.startsWith("S"));
+    // FIX-Q1: by_cluster keys are now R1–R5
+    const hasCluster = !!_lsaData?.by_cluster && Object.keys(_lsaData.by_cluster).some(k => k.startsWith("R"));
+    // FIX-Q2: only check S-prefixed keys; student_lsa_type/label no longer in dict
+    const hasLsaType = !!_lsaData?.by_lsa_type && Object.keys(_lsaData.by_lsa_type).some(k => k.startsWith("S"));
 
     if (!hasSem && !hasCluster && !hasLsaType) { anchor.innerHTML = ""; return; }
 
@@ -279,25 +281,33 @@ const BehaviorLsaTab = (() => {
       }),
     ].join("");
 
-    // by_cluster：R 資源分群切片（標籤來自 CLUSTER_NAMES）
     const clusterOptions = [
       `<option value="all">全部分群</option>`,
       ...Object.entries(CLUSTER_NAMES).map(([k, v]) =>
         `<option value="${k}"${k === _filterCluster ? " selected" : ""}>${k} ${v}</option>`),
     ].join("");
 
-    // by_lsa_type：序列行為分群（標籤來自 LSA_TYPE_NAMES）
     const lsaTypeOptions = [
       `<option value="all">全部序列型</option>`,
       ...Object.entries(LSA_TYPE_NAMES).map(([k, v]) =>
         `<option value="${k}"${k === _filterLsaType ? " selected" : ""}>${k} ${v}</option>`),
     ].join("");
 
-    const _sel = (id, opts, label, maxW) => `
-      <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">${label}
-        <select id="${id}" style="font-size:.78rem;padding:2px 4px;border-radius:7px;
+    // FIX-Q5：互斥鎖定規則
+    // 選資源分群 → 鎖學期（by_cluster 無學期交叉維度）
+    // 選序列分群 → 鎖學期 + 資源分群（by_lsa_type 為獨立維度）
+    const semLocked     = _filterCluster !== "all" || _filterLsaType !== "all";
+    const clusterLocked = _filterLsaType !== "all";
+
+    const _sel = (id, opts, label, maxW, locked) => `
+      <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;
+                    color:var(--text-dim,#888);flex-shrink:0;
+                    opacity:${locked ? ".4" : "1"};pointer-events:${locked ? "none" : "auto"}">
+        ${label}
+        <select id="${id}" ${locked ? "disabled" : ""} style="font-size:.78rem;padding:2px 4px;border-radius:7px;
           border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);
-          color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:${maxW}">${opts}</select>
+          color:var(--text-mid,#9aa0b8);cursor:${locked ? "not-allowed" : "pointer"};
+          max-width:${maxW}">${opts}</select>
       </label>`;
 
     anchor.innerHTML = `
@@ -306,9 +316,9 @@ const BehaviorLsaTab = (() => {
                   border:1px solid rgba(110,130,165,.22);border-radius:10px;
                   background:var(--card-bg2,#1c2030);white-space:nowrap">
         <span style="font-size:.8rem;font-weight:700;color:var(--text-mid,#4f5f78)">篩選條件</span>
-        ${hasSem     ? _sel("lsaSemFilter",     semOptions,     "學期",       "90px") : ""}
-        ${hasCluster ? _sel("lsaClusterFilter", clusterOptions, "資源分群",   "120px") : ""}
-        ${hasLsaType ? _sel("lsaTypeFilter",    lsaTypeOptions, "序列分群",   "120px") : ""}
+        ${hasSem     ? _sel("lsaSemFilter",     semOptions,     "學期",     "90px",  semLocked)     : ""}
+        ${hasCluster ? _sel("lsaClusterFilter", clusterOptions, "資源分群", "120px", clusterLocked) : ""}
+        ${hasLsaType ? _sel("lsaTypeFilter",    lsaTypeOptions, "序列分群", "120px", false)         : ""}
       </div>`;
 
     document.getElementById("lsaSemFilter")
@@ -323,6 +333,15 @@ const BehaviorLsaTab = (() => {
     _filterSemester = document.getElementById("lsaSemFilter")?.value     ?? "all";
     _filterCluster  = document.getElementById("lsaClusterFilter")?.value ?? "all";
     _filterLsaType  = document.getElementById("lsaTypeFilter")?.value    ?? "all";
+    // FIX-Q5：選序列分群時自動清除其他；選資源分群時清除學期
+    if (_filterLsaType !== "all") {
+      _filterSemester = "all";
+      _filterCluster  = "all";
+    } else if (_filterCluster !== "all") {
+      _filterSemester = "all";
+    }
+    // 重繪 filterBar 更新 disabled 狀態
+    _renderFilterBar();
     if (_lsaData) _render();
   }
 
@@ -356,27 +375,22 @@ const BehaviorLsaTab = (() => {
     _filterCluster  = "all";
     _filterLsaType  = "all";
     _syncGroupBtnStyles();
-    const semEl     = document.getElementById("lsaSemFilter");
-    const clusterEl = document.getElementById("lsaClusterFilter");
-    const typeEl    = document.getElementById("lsaTypeFilter");
-    if (semEl)     semEl.value     = "all";
-    if (clusterEl) clusterEl.value = "all";
-    if (typeEl)    typeEl.value    = "all";
+    _renderFilterBar();   // re-renders dropdowns with correct disabled state & selected values
     if (_lsaData) _render();
   }
 
   // ── 依 filter 狀態取得對應 groupData ─────────────────────────
-  // 優先順序：序列分群 > 資源分群 > 學期 > 全體
-  // by_lsa_type 與 by_cluster 互斥（同時選取時以序列分群優先）
+  // FIX-Q3 優先順序：學期 > 資源分群 > 序列分群 > 全體
+  // 及格狀況（_group = all/pass/fail）永遠是最終一層
   function _resolveGroupData() {
-    if (_filterLsaType !== "all") {
-      return _lsaData.by_lsa_type?.[_filterLsaType]?.[_group] ?? null;
+    if (_filterSemester !== "all") {
+      return _lsaData.by_semester?.[_filterSemester]?.[_group] ?? null;
     }
     if (_filterCluster !== "all") {
       return _lsaData.by_cluster?.[_filterCluster]?.[_group] ?? null;
     }
-    if (_filterSemester !== "all") {
-      return _lsaData.by_semester?.[_filterSemester]?.[_group] ?? null;
+    if (_filterLsaType !== "all") {
+      return _lsaData.by_lsa_type?.[_filterLsaType]?.[_group] ?? null;
     }
     return _lsaData.groups?.[_group] ?? null;
   }
@@ -831,20 +845,31 @@ const BehaviorLsaTab = (() => {
     const eMQ  = Math.round(exp["M→Q"] ?? 0).toLocaleString();
     const zAbs = Math.abs(zMM).toFixed(1);
 
-    // 及格 vs 不及格比較（只在 all 組顯示）
+    // 及格 vs 不及格比較（只在 all 組顯示，使用當前篩選脈絡的 pass/fail）
     let compareHtml = "";
-    if (group === "all" && _lsaData?.groups) {
-      const zPass = Math.abs(_lsaData.groups.pass?.z_score?.["M→M"] ?? 0).toFixed(1);
-      const zFail = Math.abs(_lsaData.groups.fail?.z_score?.["M→M"] ?? 0).toFixed(1);
-      compareHtml = `
-        <div style="margin-top:10px;padding:10px 12px;background:var(--surface2,#1c2030);border-radius:8px">
-          <div style="font-weight:600;color:var(--text,#dde3f5);margin-bottom:4px">📌 及格 vs 不及格比較</div>
-          及格組「連續專注」Z = <strong style="color:var(--accent,#3498db)">${zPass}</strong>，
-          不及格組 Z = <strong style="color:#e67e22">${zFail}</strong>。<br>
-          Z 值差距（${(parseFloat(zPass) - parseFloat(zFail)).toFixed(1)}）反映：
-          及格組的<strong style="color:var(--text,#dde3f5)">連續專注行為更為穩定集中</strong>，
-          不及格組行為序列相對分散，切換頻率較高。
-        </div>`;
+    if (group === "all") {
+      // _resolveGroupData 已依篩選優先順序取得當前脈絡；這裡取同脈絡的 pass/fail
+      const _getCtxGroup = (g) => {
+        if (_filterSemester !== "all") return _lsaData.by_semester?.[_filterSemester]?.[g];
+        if (_filterCluster  !== "all") return _lsaData.by_cluster?.[_filterCluster]?.[g];
+        if (_filterLsaType  !== "all") return _lsaData.by_lsa_type?.[_filterLsaType]?.[g];
+        return _lsaData.groups?.[g];
+      };
+      const passData = _getCtxGroup("pass");
+      const failData = _getCtxGroup("fail");
+      if (passData && failData) {
+        const zPass = Math.abs(passData.z_score?.["M→M"] ?? 0).toFixed(1);
+        const zFail = Math.abs(failData.z_score?.["M→M"] ?? 0).toFixed(1);
+        compareHtml = `
+          <div style="margin-top:10px;padding:10px 12px;background:var(--surface2,#1c2030);border-radius:8px">
+            <div style="font-weight:600;color:var(--text,#dde3f5);margin-bottom:4px">📌 及格 vs 不及格比較</div>
+            及格組「連續專注」Z = <strong style="color:var(--accent,#3498db)">${zPass}</strong>，
+            不及格組 Z = <strong style="color:#e67e22">${zFail}</strong>。<br>
+            Z 值差距（${(parseFloat(zPass) - parseFloat(zFail)).toFixed(1)}）反映：
+            及格組的<strong style="color:var(--text,#dde3f5)">連續專注行為更為穩定集中</strong>，
+            不及格組行為序列相對分散，切換頻率較高。
+          </div>`;
+      }
     }
 
     cardEl.innerHTML = `
