@@ -228,9 +228,6 @@ const BehaviorLsaTab = (() => {
       const svgContainer = document.createElement("div");
       svgContainer.id = "lsaExpandSvgContainer";
       Object.assign(svgContainer.style, {
-        // Use fixed pixel width derived from viewport so layout is stable before render
-        width: "100%",
-        maxWidth: "100%",
         background: "var(--surface,#13161f)",
         borderRadius: "10px",
         overflowX: "auto",
@@ -244,14 +241,10 @@ const BehaviorLsaTab = (() => {
       overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
       document.body.appendChild(overlay);
 
-      // Use setTimeout to ensure overlay has fully laid out before measuring
       setTimeout(() => {
-        const padH = 52 + 24; // top + bottom padding (approximation without safe-area)
-        const availW = window.innerWidth - 48;   // 24px padding each side
-        const availH = window.innerHeight - padH;
+        const availW = window.innerWidth - 48;
         const W = Math.max(520, availW);
-        // Cap height so SVG doesn't exceed viewport; tight-fit will shrink it further
-        const H = Math.min(Math.round(W * 0.55), availH);
+        const H = Math.round(W * 0.55);
         svgContainer.style.width = W + "px";
         _renderToContainer(svgContainer, W, H);
       }, 0);
@@ -758,8 +751,8 @@ const BehaviorLsaTab = (() => {
         } catch (_) {}
       });
       if (isFinite(minY) && isFinite(maxY)) {
-        const vx = Math.max(0, minX - PAD);
-        const vy = Math.max(0, minY - PAD);
+        const vx = minX - PAD;
+        const vy = minY - PAD;
         const vw = maxX + PAD - vx;
         const vh = maxY + PAD - vy;
         svg.attr("viewBox", `${vx} ${vy} ${vw} ${vh}`)
