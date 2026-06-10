@@ -229,7 +229,7 @@ const BehaviorLsaTab = (() => {
         background: "var(--surface,#13161f)",
         borderRadius: "10px",
         overflowX: "auto",
-        overflowY: "hidden",
+        overflowY: "visible",
         webkitOverflowScrolling: "touch",
       });
 
@@ -241,7 +241,7 @@ const BehaviorLsaTab = (() => {
       setTimeout(() => {
         // Fill overlay width; SVG tight-fit will shrink height but keep full width
         const W = Math.max(600, window.innerWidth - 48);
-        const H = 500;
+        const H = 400;
         svgContainer.style.width = "100%";
         svgContainer.style.maxWidth = W + "px";
         _renderToContainer(svgContainer, W, H);
@@ -366,7 +366,7 @@ const BehaviorLsaTab = (() => {
     // Use actual container width; SVG canvas will be at least 520px
     // The wrap will get overflow-x:auto so narrow mobile can scroll
     const W = Math.max(wrap.clientWidth || 340, 520);
-    const H = 500;
+    const H = 400;
     _renderToContainer(wrap, W, H);
 
     // 若放大 overlay 開著，同步更新 overlay 內的圖形
