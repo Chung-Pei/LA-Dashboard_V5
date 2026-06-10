@@ -1,4 +1,4 @@
-/**
+﻿/**
  * behavior-loader.js
  * Phase 2 前端非同步資料載入框架
  * 負責：lazy load JSON、masked_id join、快取管理
@@ -19,7 +19,7 @@ const BehaviorLoader = (() => {
   // ── LRU 快取（BUG-1 修正）────────────────────────────────
   const MAX_CACHE = 4;          // 最多快取 4 個 JSON key
   const _lruCache = new Map();  // 保證插入順序（ES2015+）
-  const DATA_VERSION = "202606091919"; // [Schema 3.0] 升級快取版本
+  const DATA_VERSION = "202606101016"; // [Schema 3.0] 升級快取版本
 
   function _withCacheBust(url) {
     const sep = url.includes("?") ? "&" : "?";
