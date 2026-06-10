@@ -204,10 +204,11 @@ const BehaviorLsaTab = (() => {
         position: "fixed", inset: "0", zIndex: "9998",
         background: "rgba(10,13,22,0.95)",
         display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center",
+        alignItems: "center", justifyContent: "flex-start",
         // top padding must clear iOS status bar + button height (52px baseline + safe area)
         padding: "calc(52px + env(safe-area-inset-top, 0px)) 24px calc(24px + env(safe-area-inset-bottom, 0px))",
         boxSizing: "border-box",
+        overflowY: "auto",
       });
 
       const closeBtn = document.createElement("button");
@@ -230,11 +231,11 @@ const BehaviorLsaTab = (() => {
       svgContainer.id = "lsaExpandSvgContainer";
       Object.assign(svgContainer.style, {
         width: "100%",
-        // No flex:1 / fixed height — let SVG height follow its aspect ratio naturally
+        maxHeight: "calc(100vh - 100px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))",
         background: "var(--surface,#13161f)",
         borderRadius: "10px",
         overflowX: "auto",
-        overflowY: "hidden",
+        overflowY: "auto",
         webkitOverflowScrolling: "touch",
       });
 
