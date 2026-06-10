@@ -753,13 +753,11 @@ const BehaviorLsaTab = (() => {
         const vy = Math.max(0, minY - PAD);
         const vw = maxX + PAD - vx;
         const vh = maxY + PAD - vy;
-        svg.attr("viewBox", `${vx} ${vy} ${vw} ${vh}`);
+        svg.attr("viewBox", `${vx} ${vy} ${vw} ${vh}`)
+           .attr("width",  Math.ceil(vw))
+           .attr("height", Math.ceil(vh));
         if (isMain) {
-          // Give SVG an explicit pixel width = content width.
-          // wrap keeps its natural CSS width (100% of card); overflow-x:auto scrolls when vw > wrap.
-          svg.attr("width",  Math.ceil(vw))
-             .attr("height", Math.ceil(vh));
-          container.style.width  = "";            // do NOT override — let parent card control width
+          container.style.width  = "";
           container.style.height = Math.ceil(vh) + "px";
         }
       }
