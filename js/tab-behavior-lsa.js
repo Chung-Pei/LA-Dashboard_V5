@@ -270,8 +270,12 @@ const BehaviorLsaTab = (() => {
     const clusterKeys = Object.keys(_lsaData?.by_cluster ?? {});
     const hasCluster  = clusterKeys.length > 0;
 
-    // 偵測 by_lsa_type：接受 S1–S5，排除 student_lsa_type / label 等非矩陣 key
-    const lsaTypeKeys = Object.keys(_lsaData?.by_lsa_type ?? {}).filter(k => /^S\d$/.test(k));
+    // 偵測 by_lsa_type：接受 S1–S5，排除空分群（n_sequences == 0）
+    // Q-FILTER：只顯示有實際資料的序列分群，避免使用者選到空白畫面
+    const lsaTypeKeys = Object.keys(_lsaData?.by_lsa_type ?? {}).filter(k =>
+      /^S\d$/.test(k) &&
+      (_lsaData.by_lsa_type[k]?.all?.n_sequences ?? 0) > 0
+    );
     const hasLsaType  = lsaTypeKeys.length > 0;
 
     // 診斷用（可在 DevTools Console 確認實際 key）
