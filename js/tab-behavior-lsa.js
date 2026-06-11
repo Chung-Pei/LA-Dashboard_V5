@@ -263,7 +263,7 @@ const BehaviorLsaTab = (() => {
     const anchor = document.getElementById("lsaFilterBarAnchor");
     if (!anchor) return;
 
-    const semesters  = Object.keys(_lsaData?.by_semester ?? {}).sort();
+    const semesters  = Object.keys(_lsaData?.by_semester ?? {}).sort().reverse(); // 近→遠
     const hasSem     = semesters.length > 0;
 
     // 偵測 by_cluster：接受 R1–R5（新版）或 S1–S5（舊版 JSON 尚未重跑）
@@ -330,14 +330,17 @@ const BehaviorLsaTab = (() => {
 
     anchor.innerHTML = `
       <div style="display:flex;flex-wrap:nowrap;overflow-x:auto;align-items:center;gap:8px;
-                  margin-bottom:12px;padding:8px 12px;
+                  margin-bottom:6px;padding:8px 12px;
                   border:1px solid rgba(110,130,165,.22);border-radius:10px;
                   background:var(--card-bg2,#1c2030);white-space:nowrap">
         <span style="font-size:.8rem;font-weight:700;color:var(--text-mid,#4f5f78)">篩選條件</span>
         ${hasSem     ? _sel("lsaSemFilter",     semOptions,     "學期",     "90px",  semLocked)     : ""}
         ${hasCluster ? _sel("lsaClusterFilter", clusterOptions, "資源分群", "120px", clusterLocked) : ""}
         ${hasLsaType ? _sel("lsaTypeFilter",    lsaTypeOptions, "序列分群", "120px", false)         : ""}
-      </div>`;
+      </div>
+      <div id="lsaInfoBar" style="font-size:.78rem;color:var(--text-dim,#888);
+                  margin-bottom:10px;padding:4px 14px;
+                  display:flex;gap:16px;flex-wrap:wrap;align-items:center"></div>`;
 
     document.getElementById("lsaSemFilter")
       ?.addEventListener("change", _onFilterChange);
@@ -422,6 +425,7 @@ const BehaviorLsaTab = (() => {
     const W = Math.max(wrap.clientWidth || 340, 520);
     const H = 400;
     _renderToContainer(wrap, W, H);
+    _updateInfoBar();   // 同步更新人數資訊列
 
     // 若放大 overlay 開著，同步更新 overlay 內的圖形
     const overlayContainer = document.getElementById("lsaExpandSvgContainer");
@@ -430,6 +434,60 @@ const BehaviorLsaTab = (() => {
       const oH = 400;
       _renderToContainer(overlayContainer, oW, oH);
     }
+  }
+
+  // ── 人數資訊列更新 ──────────────────────────────────────────
+  function _updateInfoBar() {
+    const bar = document.getElementById("lsaInfoBar");
+    if (!bar || !_lsaData) return;
+
+    const groupData = _resolveGroupData();
+    if (!groupData) { bar.innerHTML = ""; return; }
+
+    // 全體 all 的 n_students 作為母群分母
+    const allData    = (() => {
+      if (_filterSemester !== "all") return _lsaData.by_semester?.[_filterSemester]?.all;
+      if (_filterCluster  !== "all") return _lsaData.by_cluster?.[_filterCluster]?.all;
+      if (_filterLsaType  !== "all") return _lsaData.by_lsa_type?.[_filterLsaType]?.all;
+      return _lsaData.groups?.all;
+    })();
+    const grandTotal = _lsaData.groups?.all?.n_students ?? null; // 全資料集人數（佔比基準）
+    const groupAll   = allData?.n_students ?? null;              // 本篩選條件全體人數
+    const groupCur   = groupData.n_students ?? null;             // 本篩選條件+及格組人數
+
+    const pct = (a, b) => (b && b > 0) ? ` (${(a / b * 100).toFixed(1)}%)` : "";
+
+    const groupLabel = _group === "pass" ? "及格組"
+                     : _group === "fail" ? "不及格組" : "全體";
+
+    // 篩選條件標籤
+    let filterLabel = "全資料集";
+    if (_filterSemester !== "all") {
+      const yr = _filterSemester.slice(0,3);
+      const s  = _filterSemester.slice(3) === "1" ? "(1)" : "(2)";
+      filterLabel = `學期 ${yr}${s}`;
+    } else if (_filterCluster !== "all") {
+      filterLabel = `資源分群 ${_filterCluster}`;
+    } else if (_filterLsaType !== "all") {
+      filterLabel = `序列分群 ${_filterLsaType}`;
+    }
+
+    const items = [];
+    if (groupAll !== null && grandTotal !== null) {
+      items.push(`<span>📊 <strong>${filterLabel}</strong>：${groupAll.toLocaleString()} 人${pct(groupAll, grandTotal)}</span>`);
+    }
+    if (groupCur !== null && groupAll !== null && _group !== "all") {
+      items.push(`<span>👥 ${groupLabel}：${groupCur.toLocaleString()} 人${pct(groupCur, groupAll)}</span>`);
+    } else if (groupCur !== null && grandTotal !== null && _group === "all") {
+      items.push(`<span>👥 ${groupLabel}：${groupCur.toLocaleString()} 人</span>`);
+    }
+
+    const seqN = groupData.n_sequences ?? 0;
+    items.push(`<span>🔢 序列對：${seqN.toLocaleString()}</span>`);
+
+    bar.innerHTML = items.join(
+      `<span style="color:var(--border,#2a2f45);margin:0 2px">|</span>`
+    );
   }
 
   // ── 核心渲染函式（可複用至 overlay）──────────────────────────
