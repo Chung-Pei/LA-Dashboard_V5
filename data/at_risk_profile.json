@@ -13,17 +13,17 @@
   "default_semester": "114(2)",
   "course_id": "1141111900055011A0",
   "course_name": "微生物及免疫學",
-  "generated_at": "2026-06-11T09:02:28.421833",
+  "generated_at": "2026-06-12T08:12:06.504152",
   "all_semesters": {
     "semester": "all",
     "course_id": "1141111900055011A0",
     "course_name": "微生物及免疫學",
-    "generated_at": "2026-06-11T09:02:28.406488",
+    "generated_at": "2026-06-12T08:12:06.490220",
     "cohort_summary": {
       "total_students": 2697,
-      "pass_count": 2075,
-      "fail_count": 347,
-      "unsettled_count": 275,
+      "pass_count": 2094,
+      "fail_count": 349,
+      "unsettled_count": 254,
       "fail_rate_pct": 14.3
     },
     "metrics_comparison": {
@@ -43,10 +43,10 @@
       },
       "tutoring_resource_rate": {
         "pass_median_normalized": 19.1,
-        "fail_median_normalized": 14.3,
-        "gap_percentage": "-25.1%",
+        "fail_median_normalized": 11.9,
+        "gap_percentage": "-37.7%",
         "raw_pass_median": 0.1633,
-        "raw_fail_median": 0.1224
+        "raw_fail_median": 0.102
       },
       "pre_exam_intensity": {
         "pass_median_normalized": 0.0,
@@ -60,14 +60,14 @@
         "fail_median_normalized": 15.4,
         "gap_percentage": "+10.0%",
         "raw_pass_median": 0.1132,
-        "raw_fail_median": 0.1244
+        "raw_fail_median": 0.1242
       },
       "audio_material_hours": {
         "pass_median_normalized": 0.2,
         "fail_median_normalized": 0.2,
         "gap_percentage": "+0.0%",
-        "raw_pass_median": 121.4,
-        "raw_fail_median": 114.08
+        "raw_pass_median": 118.86,
+        "raw_fail_median": 102.07
       }
     },
     "behavioral_markers": {
@@ -80,13 +80,13 @@
         {
           "metric": "supplementary_completion",
           "threshold_pct": 20,
-          "ratio_in_fail_group": 0.602,
-          "ratio_in_pass_group": 0.528
+          "ratio_in_fail_group": 0.607,
+          "ratio_in_pass_group": 0.53
         },
         {
           "metric": "tutoring_resource_rate",
           "threshold_pct": 20,
-          "ratio_in_fail_group": 0.573,
+          "ratio_in_fail_group": 0.579,
           "ratio_in_pass_group": 0.532
         }
       ]
@@ -99,7 +99,7 @@
         "severity": "critical",
         "metric": "tutoring_resource_rate",
         "trigger_condition": "ratio_in_fail_group >= 0.40",
-        "finding": "57% 的不及格學生輔導資源完成率低於 20%，遠高於及格組的 53%。",
+        "finding": "58% 的不及格學生輔導資源完成率低於 20%，遠高於及格組的 53%。",
         "action": "建議下學期開學第一週即宣導輔導資源使用方式，並於第 4 週前設定強制完成里程碑。"
       },
       {
@@ -116,7 +116,7 @@
       "semester": "111(1)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-11T09:02:28.378848",
+      "generated_at": "2026-06-12T08:12:06.460723",
       "cohort_summary": {
         "total_students": 443,
         "pass_count": 410,
@@ -206,13 +206,13 @@
       "semester": "111(2)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-11T09:02:28.383904",
+      "generated_at": "2026-06-12T08:12:06.467180",
       "cohort_summary": {
         "total_students": 193,
-        "pass_count": 161,
+        "pass_count": 165,
         "fail_count": 27,
-        "unsettled_count": 5,
-        "fail_rate_pct": 14.4
+        "unsettled_count": 1,
+        "fail_rate_pct": 14.1
       },
       "metrics_comparison": {
         "text_material_completion": {
@@ -244,10 +244,10 @@
           "raw_fail_median": 0.0
         },
         "learning_stability": {
-          "pass_median_normalized": 25.8,
+          "pass_median_normalized": 25.7,
           "fail_median_normalized": 33.3,
-          "gap_percentage": "+29.1%",
-          "raw_pass_median": 0.1219,
+          "gap_percentage": "+29.6%",
+          "raw_pass_median": 0.1218,
           "raw_fail_median": 0.1558
         },
         "audio_material_hours": {
@@ -269,19 +269,19 @@
             "metric": "text_material_completion",
             "threshold_pct": 20,
             "ratio_in_fail_group": 0.481,
-            "ratio_in_pass_group": 0.323
+            "ratio_in_pass_group": 0.321
           },
           {
             "metric": "supplementary_completion",
             "threshold_pct": 20,
             "ratio_in_fail_group": 0.778,
-            "ratio_in_pass_group": 0.702
+            "ratio_in_pass_group": 0.703
           },
           {
             "metric": "tutoring_resource_rate",
             "threshold_pct": 20,
             "ratio_in_fail_group": 0.741,
-            "ratio_in_pass_group": 0.634
+            "ratio_in_pass_group": 0.636
           }
         ]
       },
@@ -293,7 +293,7 @@
           "severity": "critical",
           "metric": "tutoring_resource_rate",
           "trigger_condition": "ratio_in_fail_group >= 0.40",
-          "finding": "74% 的不及格學生輔導資源完成率低於 20%，遠高於及格組的 63%。",
+          "finding": "74% 的不及格學生輔導資源完成率低於 20%，遠高於及格組的 64%。",
           "action": "建議下學期開學第一週即宣導輔導資源使用方式，並於第 4 週前設定強制完成里程碑。"
         }
       ]
@@ -302,7 +302,7 @@
       "semester": "112(1)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-11T09:02:28.386787",
+      "generated_at": "2026-06-12T08:12:06.470281",
       "cohort_summary": {
         "total_students": 460,
         "pass_count": 408,
@@ -399,20 +399,20 @@
       "semester": "112(2)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-11T09:02:28.390558",
+      "generated_at": "2026-06-12T08:12:06.474203",
       "cohort_summary": {
         "total_students": 202,
-        "pass_count": 165,
+        "pass_count": 172,
         "fail_count": 30,
-        "unsettled_count": 7,
-        "fail_rate_pct": 15.4
+        "unsettled_count": 0,
+        "fail_rate_pct": 14.9
       },
       "metrics_comparison": {
         "text_material_completion": {
-          "pass_median_normalized": 28.6,
+          "pass_median_normalized": 30.0,
           "fail_median_normalized": 18.6,
-          "gap_percentage": "-35.0%",
-          "raw_pass_median": 0.274,
+          "gap_percentage": "-38.0%",
+          "raw_pass_median": 0.2877,
           "raw_fail_median": 0.1781
         },
         "supplementary_completion": {
@@ -437,10 +437,10 @@
           "raw_fail_median": 0.0
         },
         "learning_stability": {
-          "pass_median_normalized": 11.2,
+          "pass_median_normalized": 11.3,
           "fail_median_normalized": 12.6,
-          "gap_percentage": "+12.5%",
-          "raw_pass_median": 0.0937,
+          "gap_percentage": "+11.5%",
+          "raw_pass_median": 0.095,
           "raw_fail_median": 0.105
         },
         "audio_material_hours": {
@@ -462,7 +462,7 @@
             "metric": "text_material_completion",
             "threshold_pct": 20,
             "ratio_in_fail_group": 0.533,
-            "ratio_in_pass_group": 0.364
+            "ratio_in_pass_group": 0.355
           },
           {
             "metric": "supplementary_completion",
@@ -474,7 +474,7 @@
             "metric": "tutoring_resource_rate",
             "threshold_pct": 20,
             "ratio_in_fail_group": 0.833,
-            "ratio_in_pass_group": 0.667
+            "ratio_in_pass_group": 0.669
           }
         ]
       },
@@ -502,7 +502,7 @@
       "semester": "113(1)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-11T09:02:28.393349",
+      "generated_at": "2026-06-12T08:12:06.477126",
       "cohort_summary": {
         "total_students": 449,
         "pass_count": 420,
@@ -571,28 +571,28 @@
       "semester": "113(2)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-11T09:02:28.397069",
+      "generated_at": "2026-06-12T08:12:06.481123",
       "cohort_summary": {
         "total_students": 198,
-        "pass_count": 108,
-        "fail_count": 80,
-        "unsettled_count": 10,
-        "fail_rate_pct": 42.6
+        "pass_count": 115,
+        "fail_count": 83,
+        "unsettled_count": 0,
+        "fail_rate_pct": 41.9
       },
       "metrics_comparison": {
         "text_material_completion": {
-          "pass_median_normalized": 22.5,
-          "fail_median_normalized": 16.2,
-          "gap_percentage": "-28.0%",
-          "raw_pass_median": 0.2192,
-          "raw_fail_median": 0.1576
+          "pass_median_normalized": 21.1,
+          "fail_median_normalized": 15.5,
+          "gap_percentage": "-26.5%",
+          "raw_pass_median": 0.2055,
+          "raw_fail_median": 0.1507
         },
         "supplementary_completion": {
           "pass_median_normalized": 8.0,
-          "fail_median_normalized": 6.0,
-          "gap_percentage": "-25.0%",
+          "fail_median_normalized": 4.0,
+          "gap_percentage": "-50.0%",
           "raw_pass_median": 0.0541,
-          "raw_fail_median": 0.0406
+          "raw_fail_median": 0.027
         },
         "tutoring_resource_rate": {
           "pass_median_normalized": 7.1,
@@ -602,18 +602,18 @@
           "raw_fail_median": 0.0612
         },
         "pre_exam_intensity": {
-          "pass_median_normalized": 13.5,
-          "fail_median_normalized": 25.8,
-          "gap_percentage": "+91.1%",
-          "raw_pass_median": 0.3449,
-          "raw_fail_median": 0.6596
+          "pass_median_normalized": 13.6,
+          "fail_median_normalized": 26.3,
+          "gap_percentage": "+93.4%",
+          "raw_pass_median": 0.3473,
+          "raw_fail_median": 0.6707
         },
         "learning_stability": {
-          "pass_median_normalized": 16.2,
-          "fail_median_normalized": 17.1,
+          "pass_median_normalized": 16.1,
+          "fail_median_normalized": 17.0,
           "gap_percentage": "+5.6%",
-          "raw_pass_median": 0.1262,
-          "raw_fail_median": 0.1334
+          "raw_pass_median": 0.1258,
+          "raw_fail_median": 0.1322
         },
         "audio_material_hours": {
           "pass_median_normalized": 0.0,
@@ -633,20 +633,20 @@
           {
             "metric": "text_material_completion",
             "threshold_pct": 20,
-            "ratio_in_fail_group": 0.537,
-            "ratio_in_pass_group": 0.463
+            "ratio_in_fail_group": 0.542,
+            "ratio_in_pass_group": 0.487
           },
           {
             "metric": "supplementary_completion",
             "threshold_pct": 20,
-            "ratio_in_fail_group": 0.762,
-            "ratio_in_pass_group": 0.731
+            "ratio_in_fail_group": 0.771,
+            "ratio_in_pass_group": 0.739
           },
           {
             "metric": "tutoring_resource_rate",
             "threshold_pct": 20,
-            "ratio_in_fail_group": 0.637,
-            "ratio_in_pass_group": 0.667
+            "ratio_in_fail_group": 0.651,
+            "ratio_in_pass_group": 0.661
           }
         ]
       },
@@ -658,8 +658,15 @@
           "severity": "critical",
           "metric": "tutoring_resource_rate",
           "trigger_condition": "ratio_in_fail_group >= 0.40",
-          "finding": "64% 的不及格學生輔導資源完成率低於 20%，遠高於及格組的 67%。",
+          "finding": "65% 的不及格學生輔導資源完成率低於 20%，遠高於及格組的 66%。",
           "action": "建議下學期開學第一週即宣導輔導資源使用方式，並於第 4 週前設定強制完成里程碑。"
+        },
+        {
+          "severity": "warning",
+          "metric": "supplementary_completion",
+          "trigger_condition": "gap_percentage <= -40.0%",
+          "finding": "不及格群體門檻解鎖教材（整理筆記/補充教材/動畫）完成率比及格組低 50.0%，顯示知識內化過程可能提早中斷。",
+          "action": "建議將 SUP 類教材設計為分段式（每 2 週一個里程碑），並在完成率低於 30% 時觸發自動提醒。"
         }
       ]
     },
@@ -667,56 +674,56 @@
       "semester": "114(1)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-11T09:02:28.400462",
+      "generated_at": "2026-06-12T08:12:06.484642",
       "cohort_summary": {
         "total_students": 504,
-        "pass_count": 403,
-        "fail_count": 101,
+        "pass_count": 404,
+        "fail_count": 100,
         "unsettled_count": 0,
-        "fail_rate_pct": 20.0
+        "fail_rate_pct": 19.8
       },
       "metrics_comparison": {
         "text_material_completion": {
           "pass_median_normalized": 47.1,
-          "fail_median_normalized": 40.0,
-          "gap_percentage": "-15.1%",
+          "fail_median_normalized": 39.3,
+          "gap_percentage": "-16.6%",
           "raw_pass_median": 0.4658,
-          "raw_fail_median": 0.3973
+          "raw_fail_median": 0.3904
         },
         "supplementary_completion": {
-          "pass_median_normalized": 40.6,
+          "pass_median_normalized": 42.2,
           "fail_median_normalized": 28.1,
-          "gap_percentage": "-30.8%",
-          "raw_pass_median": 0.3514,
+          "gap_percentage": "-33.4%",
+          "raw_pass_median": 0.3649,
           "raw_fail_median": 0.2432
         },
         "tutoring_resource_rate": {
-          "pass_median_normalized": 16.7,
-          "fail_median_normalized": 16.7,
-          "gap_percentage": "+0.0%",
-          "raw_pass_median": 0.1429,
-          "raw_fail_median": 0.1429
+          "pass_median_normalized": 17.9,
+          "fail_median_normalized": 15.5,
+          "gap_percentage": "-13.4%",
+          "raw_pass_median": 0.1531,
+          "raw_fail_median": 0.1326
         },
         "pre_exam_intensity": {
           "pass_median_normalized": 12.5,
-          "fail_median_normalized": 9.5,
-          "gap_percentage": "-24.0%",
-          "raw_pass_median": 0.3129,
-          "raw_fail_median": 0.2382
+          "fail_median_normalized": 10.2,
+          "gap_percentage": "-18.4%",
+          "raw_pass_median": 0.3126,
+          "raw_fail_median": 0.2558
         },
         "learning_stability": {
           "pass_median_normalized": 26.5,
-          "fail_median_normalized": 24.1,
-          "gap_percentage": "-9.1%",
-          "raw_pass_median": 0.1909,
-          "raw_fail_median": 0.1733
+          "fail_median_normalized": 24.9,
+          "gap_percentage": "-6.0%",
+          "raw_pass_median": 0.1904,
+          "raw_fail_median": 0.1792
         },
         "audio_material_hours": {
           "pass_median_normalized": 0.5,
           "fail_median_normalized": 0.4,
           "gap_percentage": "-20.0%",
-          "raw_pass_median": 215.7,
-          "raw_fail_median": 184.97
+          "raw_pass_median": 217.29,
+          "raw_fail_median": 179.835
         }
       },
       "behavioral_markers": {
@@ -729,14 +736,14 @@
           {
             "metric": "supplementary_completion",
             "threshold_pct": 20,
-            "ratio_in_fail_group": 0.485,
-            "ratio_in_pass_group": 0.407
+            "ratio_in_fail_group": 0.49,
+            "ratio_in_pass_group": 0.406
           },
           {
             "metric": "tutoring_resource_rate",
             "threshold_pct": 20,
-            "ratio_in_fail_group": 0.554,
-            "ratio_in_pass_group": 0.524
+            "ratio_in_fail_group": 0.56,
+            "ratio_in_pass_group": 0.522
           }
         ]
       },
@@ -748,7 +755,7 @@
           "severity": "critical",
           "metric": "tutoring_resource_rate",
           "trigger_condition": "ratio_in_fail_group >= 0.40",
-          "finding": "55% 的不及格學生輔導資源完成率低於 20%，遠高於及格組的 52%。",
+          "finding": "56% 的不及格學生輔導資源完成率低於 20%，遠高於及格組的 52%。",
           "action": "建議下學期開學第一週即宣導輔導資源使用方式，並於第 4 週前設定強制完成里程碑。"
         }
       ]
@@ -757,7 +764,7 @@
       "semester": "114(2)",
       "course_id": "1141111900055011A0",
       "course_name": "微生物及免疫學",
-      "generated_at": "2026-06-11T09:02:28.404709",
+      "generated_at": "2026-06-12T08:12:06.488968",
       "cohort_summary": {
         "total_students": 248,
         "pass_count": 0,
