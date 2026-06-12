@@ -80,6 +80,14 @@ const BehaviorCorrelationTab = (() => {
       border:  "1px solid rgba(120,130,160,0.35)",
       txtCls:  "text-muted",
     },
+    excluded_new_material: {
+      symbol:  "NEW",
+      label:   "新教材類別，暫無相關係數",
+      detail:  "此指標屬本學期新增教材類別，歷史資料不足，ETL 刻意排除相關係數計算{nHint}。",
+      color:   "rgba(13,110,253,0.10)",
+      border:  "1px solid rgba(13,110,253,0.35)",
+      txtCls:  "text-info",
+    },
   };
 
   let _corrData     = null;
@@ -89,8 +97,9 @@ const BehaviorCorrelationTab = (() => {
   // BUG-CORR-2 FIX: _behaviorByMasked/_behaviorByAnon moved to init() local scope —
   // they were module-level state but only used within init() for the cluster join.
   // Keeping them as module-level caused unnecessary memory retention after init completes.
-  let _allSemesters     = [];     // 可用學期列表
-  let _filterSemester   = "all";
+  let _allSemesters         = [];     // 可用學期列表
+  let _incompleteSemesters  = [];     // 尚未獲得學末成績的學期（僅用於顯示警告）
+  let _filterSemester       = "all";
   let _filterCluster    = "all";
   let _filterPass       = "all";
   let _filterOutlier    = false;
@@ -129,6 +138,13 @@ const BehaviorCorrelationTab = (() => {
    * 此函式統一解包，確保整個 module 取到的都是 number | null。
    */
   function _pearson(feat, target) {
+    // 若目前篩選的是未完成學期，優先讀取 incomplete_pearson（midterm only）
+    if (_filterSemester !== "all" && _incompleteSemesters.includes(String(_filterSemester))) {
+      const incM = _corrData?.incomplete_pearson?.[String(_filterSemester)] || {};
+      const incRaw = incM[feat]?.[target] ?? incM[target]?.[feat] ?? null;
+      if (incRaw !== null && typeof incRaw === "object") return incRaw.r ?? null;
+      if (incRaw !== null) return incRaw;
+    }
     const m = (_corrType === "spearman")
       ? (_corrData?.spearman || _corrData?.pearson || {})
       : (_filterOutlier && _corrData?.pearson_without_outliers
@@ -138,6 +154,26 @@ const BehaviorCorrelationTab = (() => {
     // 支援新格式 {r, p, significant} 與舊格式 number 並存
     if (raw !== null && typeof raw === "object") return raw.r ?? null;
     return raw;
+  }
+
+  /**
+   * 讀取 ETL 預算值中 r==null 時附帶的 reason（如 "excluded_new_material"）。
+   * 與 _pearson() 使用相同的矩陣解析邏輯，但保留診斷物件的 reason 欄位。
+   */
+  function _pearsonReason(feat, target) {
+    if (_filterSemester !== "all" && _incompleteSemesters.includes(String(_filterSemester))) {
+      const incM = _corrData?.incomplete_pearson?.[String(_filterSemester)] || {};
+      const incRaw = incM[feat]?.[target] ?? incM[target]?.[feat] ?? null;
+      if (incRaw !== null && typeof incRaw === "object" && incRaw.reason) return incRaw.reason;
+    }
+    const m = (_corrType === "spearman")
+      ? (_corrData?.spearman || _corrData?.pearson || {})
+      : (_filterOutlier && _corrData?.pearson_without_outliers
+          ? _corrData.pearson_without_outliers
+          : (_corrData?.pearson || {}));
+    const raw = m[feat]?.[target] ?? m[target]?.[feat] ?? null;
+    if (raw !== null && typeof raw === "object" && raw.reason) return raw.reason;
+    return "no_etl";
   }
 
   /**
@@ -379,6 +415,10 @@ const BehaviorCorrelationTab = (() => {
       _allSemesters = Array.isArray(_corrData?.meta?.semesters)
         ? _corrData.meta.semesters
         : (behaviorData?.meta?.semesters || []);
+      // 未完成學期（已排除於全體相關性計算，供前端標示警告用）
+      _incompleteSemesters = Array.isArray(_corrData?.meta?.incomplete_semesters)
+        ? _corrData.meta.incomplete_semesters
+        : [];
 
       _filterSemester = "all";
       _filterCluster  = "all";
@@ -419,8 +459,14 @@ const BehaviorCorrelationTab = (() => {
     if (existing) { existing.remove(); }
 
     const semOptions = [
-      `<option value="all">全部學期</option>`,
-      ..._allSemesters.map(s => `<option value="${s}">${_formatSemLabel(s)}</option>`),
+      `<option value="all">全部學期（已排除未完成學期）</option>`,
+      ..._allSemesters.map(s => {
+        const isIncomplete = _incompleteSemesters.includes(String(s));
+        const label = isIncomplete
+          ? `${_formatSemLabel(s)} ⚠️ 預警用（學末成績未出）`
+          : _formatSemLabel(s);
+        return `<option value="${s}">${label}</option>`;
+      }),
     ].join("");
 
     const _clCounts = {};
@@ -705,6 +751,56 @@ const BehaviorCorrelationTab = (() => {
       countEl.textContent = `共 ${count} 筆${cutoffNote}`;
     }
 
+    // 未完成學期警告 banner
+    const bannerElId = "corrIncompleteBanner";
+    let bannerEl = document.getElementById(bannerElId);
+    const isIncompleteSem = _filterSemester !== "all"
+      && _incompleteSemesters.includes(String(_filterSemester));
+    if (isIncompleteSem) {
+      if (!bannerEl) {
+        bannerEl = document.createElement("div");
+        bannerEl.id = bannerElId;
+        bannerEl.style.cssText =
+          "margin:6px 0 10px;padding:8px 12px;border-radius:6px;" +
+          "background:rgba(255,193,7,0.12);border:1px solid rgba(255,193,7,0.45);" +
+          "color:var(--text-mid,#9aa0b8);font-size:.78rem;line-height:1.5";
+      }
+      const semLabel = _formatSemLabel(_filterSemester);
+      bannerEl.innerHTML =
+        `⚠️ <strong>${semLabel} 學期</strong>：學末成績尚未公布，此學期已排除於全體相關性計算。` +
+        `目前顯示的是<strong>期中成績</strong>相關性，僅供預警參考，不代表最終結果。` +
+        ((_corrData?.meta?.incomplete_semesters_note)
+          ? `` : ``);
+      const anchor = document.getElementById(heatmapId)?.closest(".chart-card");
+      if (anchor && !document.getElementById(bannerElId)) anchor.prepend(bannerEl);
+      else if (bannerEl.parentElement === null && anchor) anchor.prepend(bannerEl);
+    } else if (bannerEl) {
+      bannerEl.remove();
+    }
+
+    // 全體模式時若有排除學期，顯示提示
+    const globalNoteId = "corrGlobalExcludeNote";
+    let globalNoteEl = document.getElementById(globalNoteId);
+    if (_filterSemester === "all" && _incompleteSemesters.length > 0) {
+      if (!globalNoteEl) {
+        globalNoteEl = document.createElement("div");
+        globalNoteEl.id = globalNoteId;
+        globalNoteEl.style.cssText =
+          "margin:4px 0 8px;padding:6px 10px;border-radius:5px;" +
+          "background:rgba(100,160,255,0.08);border:1px solid rgba(100,160,255,0.25);" +
+          "color:var(--text-dim,#888);font-size:.75rem";
+      }
+      globalNoteEl.textContent =
+        `ℹ️ 全體相關性已排除尚未獲得學末成績的學期：` +
+        _incompleteSemesters.map(_formatSemLabel).join("、") +
+        `。如需查看，請於上方篩選選擇該學期。`;
+      const anchor = document.getElementById(heatmapId)?.closest(".chart-card");
+      if (anchor && !document.getElementById(globalNoteId)) anchor.prepend(globalNoteEl);
+      else if (globalNoteEl.parentElement === null && anchor) anchor.prepend(globalNoteEl);
+    } else if (globalNoteEl) {
+      globalNoteEl.remove();
+    }
+
     _renderInsightsBadge(heatmapId, filtered);
     _renderHeatmap(heatmapId, filtered);
     _renderScatterSelector(scatterWrapperId, filtered);
@@ -741,7 +837,7 @@ const BehaviorCorrelationTab = (() => {
       if (isUnfiltered) {
         // 全量：讀 ETL 預算值
         const r = _pearson(feat, g);
-        if (r == null) return { r: null, reason: "no_etl" };
+        if (r == null) return { r: null, reason: _pearsonReason(feat, g) };
         return { r };
       }
       // Phase D：篩選模式，優先讀 segment_pearson 預聚合
@@ -749,7 +845,10 @@ const BehaviorCorrelationTab = (() => {
         const rObj = segData.pearson[g]?.[feat] ?? segData.pearson[feat]?.[g];
         if (rObj != null) {
           const r = typeof rObj === "object" ? (rObj.r ?? null) : rObj;
-          if (r == null) return { r: null, reason: "no_etl" };
+          if (r == null) {
+            const reason = (typeof rObj === "object" && rObj.reason) ? rObj.reason : "no_etl";
+            return { r: null, reason };
+          }
           return { r };
         }
       }
