@@ -2123,7 +2123,7 @@ body.light .behavior-range-badge {
                 <th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--border,#e0e0e0);white-space:nowrap;font-size:0.82rem">行為特徵</th>
                 <th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--border,#e0e0e0);white-space:nowrap;font-size:0.82rem;position:relative">量化判斷條件
                   <button type="button" id="r2ExcludeInfoBtn"
-                    onclick="var p=document.getElementById('r2ExcludePopover');p.style.display=p.style.display==='block'?'none':'block'"
+                    onclick="toggleR2Popover()"
                     style="margin-left:6px;padding:1px 7px;border-radius:4px;border:1px solid var(--border2,#353c58);
                            background:var(--surface2,#1c2030);color:var(--accent,#4f8ef7);font-size:10px;
                            font-weight:600;cursor:pointer;vertical-align:middle;white-space:nowrap">
@@ -2138,7 +2138,7 @@ body.light .behavior-range-badge {
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
                       <span style="font-weight:700;color:var(--accent,#4f8ef7);font-size:12px">📋 排除資料說明</span>
                       <button type="button"
-                        onclick="document.getElementById('r2ExcludePopover').style.display='none'"
+                        onclick="closeR2Popover()"
                         style="background:none;border:none;color:var(--text-dim,#6b748f);font-size:14px;cursor:pointer;padding:0 2px;line-height:1">×</button>
                     </div>
                     ※ 注意：AUD / VID 教材於 114-2 學期起規模性大量新增（AUD +35 件、VID +30 件），超過歷史最大單期增量的 2 倍且 ≥ 10 件。系統已自動偵測並將 AUD / VID 相關特徵排除於全體跨學期相關性計算，避免新教材導入造成比較偏差；各學期獨立相關性分析不受影響。
@@ -2220,7 +2220,7 @@ body.light .behavior-range-badge {
         </p>
         <div style="margin-bottom:12px;border-radius:5px;background:rgba(100,160,255,0.07);border:1px solid rgba(100,160,255,0.2);overflow:hidden">
           <button type="button"
-            onclick="var c=document.getElementById('corrInfoBody');var i=document.getElementById('corrInfoIcon');var open=c.style.display!=='none';c.style.display=open?'none':'block';i.textContent=open?'▶':'▼'"
+            onclick="toggleCorrInfo()"
             style="width:100%;text-align:left;padding:7px 10px;background:none;border:none;cursor:pointer;
                    font-size:0.78rem;color:var(--text-dim,#888);display:flex;align-items:center;gap:6px">
             <span id="corrInfoIcon" style="font-size:10px;color:var(--accent,#4f8ef7)">▶</span>
@@ -2682,17 +2682,36 @@ body.light .behavior-range-badge {
 <script src="js/vendor/d3.min.js"></script>
 
 <!-- ══ 學習行為模組（依賴 main.js 全域變數）══ -->
-<script defer src="js/chart-registry.js?v=202606131826"></script>
-<script defer src="js/behavior-loader.js?v=202606131826"></script>
-<script defer src="js/tab-behavior-radar.js?v=202606131826"></script>
-<script defer src="js/tab-behavior-correlation.js?v=202606131826"></script>
-<script defer src="js/tab-behavior-time.js?v=202606131826"></script>
-<script defer src="js/tab-behavior-lsa.js?v=202606131826"></script>
+<script defer src="js/chart-registry.js?v=202606131110"></script>
+<script defer src="js/behavior-loader.js?v=202606131110"></script>
+<script defer src="js/tab-behavior-radar.js?v=202606131110"></script>
+<script defer src="js/tab-behavior-correlation.js?v=202606131110"></script>
+<script defer src="js/tab-behavior-time.js?v=202606131110"></script>
+<script defer src="js/tab-behavior-lsa.js?v=202606131110"></script>
 
 <!-- ══ 行為初始化 + 高風險報告（依賴 behavior 模組）══ -->
-<script defer src="js/behavior-init.js?v=202606131826"></script>
-<script defer src="js/at-risk-report.js?v=202606131826"></script>
+<script defer src="js/behavior-init.js?v=202606131110"></script>
+<script defer src="js/at-risk-report.js?v=202606131110"></script>
 <!-- ══ 列印面板（依賴所有 behavior 模組與 ChartRegistry）══ -->
-<script defer src="js/print-panel.js?v=202606131826"></script>
+<script defer src="js/print-panel.js?v=202606131110"></script>
+<script>
+function toggleR2Popover() {
+  var p = document.getElementById('r2ExcludePopover');
+  if (!p) return;
+  p.style.display = (p.style.display === 'block') ? 'none' : 'block';
+}
+function closeR2Popover() {
+  var p = document.getElementById('r2ExcludePopover');
+  if (p) p.style.display = 'none';
+}
+function toggleCorrInfo() {
+  var c = document.getElementById('corrInfoBody');
+  var i = document.getElementById('corrInfoIcon');
+  if (!c) return;
+  var isOpen = c.style.display !== 'none';
+  c.style.display = isOpen ? 'none' : 'block';
+  if (i) i.textContent = isOpen ? '▶' : '▼';
+}
+</script>
 </body>
 </html>
