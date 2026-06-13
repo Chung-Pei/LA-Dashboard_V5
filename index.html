@@ -1696,9 +1696,9 @@ body.light .behavior-range-badge {
 
       <!-- 說明彈出面板 -->
       <div id="bStatsHelpPanel"
-        style="display:none;position:absolute;top:28px;left:0;z-index:300;
+        style="display:none;position:fixed;z-index:9000;
                background:var(--surface);border:1px solid var(--border2);border-radius:10px;
-               padding:14px 16px;min-width:280px;max-width:340px;
+               padding:14px 16px;width:min(88vw,340px);
                box-shadow:0 8px 24px rgba(0,0,0,0.18);font-size:12px;line-height:1.6">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <span style="font-size:12px;font-weight:700;color:var(--text)">📊 統計卡說明</span>
@@ -2121,27 +2121,13 @@ body.light .behavior-range-badge {
                 <th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--border,#e0e0e0);white-space:nowrap;font-size:0.82rem">代碼</th>
                 <th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--border,#e0e0e0);white-space:nowrap;font-size:0.82rem">名稱</th>
                 <th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--border,#e0e0e0);white-space:nowrap;font-size:0.82rem">行為特徵</th>
-                <th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--border,#e0e0e0);white-space:nowrap;font-size:0.82rem;position:relative">量化判斷條件
+                <th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--border,#e0e0e0);white-space:nowrap;font-size:0.82rem">量化判斷條件
                   <button type="button" id="r2ExcludeInfoBtn"
                     style="margin-left:6px;padding:1px 7px;border-radius:4px;border:1px solid var(--border2,#353c58);
                            background:var(--surface2,#1c2030);color:var(--accent,#4f8ef7);font-size:10px;
                            font-weight:600;cursor:pointer;vertical-align:middle;white-space:nowrap">
                     排除資料說明
                   </button>
-                  <div id="r2ExcludePopover"
-                    style="display:none;position:absolute;z-index:8000;margin-top:6px;left:0;
-                           background:var(--surface2,#1c2030);border:1px solid var(--border2,#353c58);
-                           border-radius:10px;padding:14px 16px;max-width:420px;min-width:300px;
-                           box-shadow:0 8px 28px rgba(0,0,0,0.35);font-size:11px;
-                           color:var(--text-mid,#9aa0b8);line-height:1.7;font-weight:400">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                      <span style="font-weight:700;color:var(--accent,#4f8ef7);font-size:12px">📋 排除資料說明</span>
-                      <button type="button"
-                        id="r2ExcludeCloseBtn"
-                        style="background:none;border:none;color:var(--text-dim,#6b748f);font-size:14px;cursor:pointer;padding:0 2px;line-height:1">×</button>
-                    </div>
-                    ※ 注意：AUD / VID 教材於 114-2 學期起規模性大量新增（AUD +35 件、VID +30 件），超過歷史最大單期增量的 2 倍且 ≥ 10 件。系統已自動偵測並將 AUD / VID 相關特徵排除於全體跨學期相關性計算，避免新教材導入造成比較偏差；各學期獨立相關性分析不受影響。
-                  </div>
                 </th>
               </tr>
             </thead>
@@ -2693,5 +2679,21 @@ body.light .behavior-range-badge {
 <!-- ══ 列印面板（依賴所有 behavior 模組與 ChartRegistry）══ -->
 <script defer src="js/print-panel.js?v=202606131110"></script>
 <script defer src="js/ui-toggles.js?v=202606131110"></script>
+
+<!-- R2 排除資料說明 popover（body 層，position:fixed 避免被 table overflow 裁切）-->
+<div id="r2ExcludePopover"
+  style="display:none;position:fixed;z-index:9999;
+         background:var(--surface2,#1c2030);border:1px solid var(--border2,#353c58);
+         border-radius:10px;padding:14px 16px;width:min(88vw,360px);
+         box-shadow:0 8px 28px rgba(0,0,0,0.45);font-size:11px;
+         color:var(--text-mid,#9aa0b8);line-height:1.7;font-weight:400">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <span style="font-weight:700;color:var(--accent,#4f8ef7);font-size:12px">📋 排除資料說明</span>
+    <button type="button" id="r2ExcludeCloseBtn"
+      style="background:none;border:none;color:var(--text-dim,#6b748f);font-size:16px;cursor:pointer;padding:0 4px;line-height:1">×</button>
+  </div>
+  ※ 注意：AUD / VID 教材於 114-2 學期起規模性大量新增（AUD +35 件、VID +30 件），超過歷史最大單期增量的 2 倍且 ≥ 10 件。系統已自動偵測並將 AUD / VID 相關特徵排除於全體跨學期相關性計算，避免新教材導入造成比較偏差；各學期獨立相關性分析不受影響。
+</div>
+
 </body>
 </html>
