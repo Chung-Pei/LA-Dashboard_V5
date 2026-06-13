@@ -6,8 +6,8 @@
 // 更新：2026-05-24 效能優化：JS 模組改 Cache First
 // ══════════════════════════════════════════════════════════
 
-const CACHE_VERSION = 'la-dash-v6-202606131100';
-const DATA_CACHE    = 'la-dash-data-v6-202606131100';
+const CACHE_VERSION = 'la-dash-v6-202606131826';
+const DATA_CACHE    = 'la-dash-data-v6-202606131826';
 
 // App Shell：靜態資源，安裝時全部快取
 // ⚠ CDN 資源釘定版本號，確保快取與 HTML 引用一致
@@ -32,14 +32,14 @@ const APP_SHELL = [
   './js/filter-engine.js',
   // 主應用邏輯
   './js/main.js',
-  // 學習行為模組（版本釘定 ?v=202606131100）
-  './js/chart-registry.js?v=202606131100',
-  './js/behavior-loader.js?v=202606131100',
-  './js/tab-behavior-radar.js?v=202606131100',
-  './js/tab-behavior-correlation.js?v=202606131100',
-  './js/tab-behavior-time.js?v=202606131100',
-  './js/behavior-init.js?v=202606131100',
-  './js/at-risk-report.js?v=202606131100',
+  // 學習行為模組（版本釘定 ?v=202606131826）
+  './js/chart-registry.js?v=202606131826',
+  './js/behavior-loader.js?v=202606131826',
+  './js/tab-behavior-radar.js?v=202606131826',
+  './js/tab-behavior-correlation.js?v=202606131826',
+  './js/tab-behavior-time.js?v=202606131826',
+  './js/behavior-init.js?v=202606131826',
+  './js/at-risk-report.js?v=202606131826',
   // CDN 備援（版本釘定）
   CHARTJS_URL,
 ];
