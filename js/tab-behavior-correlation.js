@@ -80,12 +80,12 @@ const BehaviorCorrelationTab = (() => {
       border:  "1px solid rgba(120,130,160,0.35)",
       txtCls:  "text-muted",
     },
-    excluded_new_material: {
-      symbol:  "NEW",
-      label:   "新教材類別，暫無相關係數",
-      detail:  "此指標屬本學期新增教材類別，歷史資料不足，ETL 刻意排除相關係數計算{nHint}。",
-      color:   "rgba(13,110,253,0.10)",
-      border:  "1px solid rgba(13,110,253,0.35)",
+    scale_change: {
+      symbol:  "Δ規模",
+      label:   "本學期規模性變動，暫排除全體計算",
+      detail:  "此指標本學期數值規模較歷史顯著變動（非新增教材），為避免學期間規模差異扭曲全體相關係數，暫排除於全量(all/all/all)計算{nHint}。切換至單一學期或分群可看到實際 r 值。",
+      color:   "rgba(80,160,255,0.15)",
+      border:  "1px solid rgba(80,160,255,0.45)",
       txtCls:  "text-info",
     },
   };
@@ -154,26 +154,6 @@ const BehaviorCorrelationTab = (() => {
     // 支援新格式 {r, p, significant} 與舊格式 number 並存
     if (raw !== null && typeof raw === "object") return raw.r ?? null;
     return raw;
-  }
-
-  /**
-   * 讀取 ETL 預算值中 r==null 時附帶的 reason（如 "excluded_new_material"）。
-   * 與 _pearson() 使用相同的矩陣解析邏輯，但保留診斷物件的 reason 欄位。
-   */
-  function _pearsonReason(feat, target) {
-    if (_filterSemester !== "all" && _incompleteSemesters.includes(String(_filterSemester))) {
-      const incM = _corrData?.incomplete_pearson?.[String(_filterSemester)] || {};
-      const incRaw = incM[feat]?.[target] ?? incM[target]?.[feat] ?? null;
-      if (incRaw !== null && typeof incRaw === "object" && incRaw.reason) return incRaw.reason;
-    }
-    const m = (_corrType === "spearman")
-      ? (_corrData?.spearman || _corrData?.pearson || {})
-      : (_filterOutlier && _corrData?.pearson_without_outliers
-          ? _corrData.pearson_without_outliers
-          : (_corrData?.pearson || {}));
-    const raw = m[feat]?.[target] ?? m[target]?.[feat] ?? null;
-    if (raw !== null && typeof raw === "object" && raw.reason) return raw.reason;
-    return "no_etl";
   }
 
   /**
@@ -835,9 +815,15 @@ const BehaviorCorrelationTab = (() => {
 
     function _getR(feat, g) {
       if (isUnfiltered) {
-        // 全量：讀 ETL 預算值
+        // 全量：讀 ETL 預算值（含 reason，如 excluded_new_material）
+        const raw = _corrData?.pearson?.[feat]?.[g] ?? _corrData?.pearson?.[g]?.[feat] ?? null;
+        if (raw !== null && typeof raw === "object") {
+          const r = raw.r ?? null;
+          if (r == null) return { r: null, reason: raw.reason ?? "no_etl", n: raw.n ?? null };
+          return { r };
+        }
         const r = _pearson(feat, g);
-        if (r == null) return { r: null, reason: _pearsonReason(feat, g) };
+        if (r == null) return { r: null, reason: "no_etl" };
         return { r };
       }
       // Phase D：篩選模式，優先讀 segment_pearson 預聚合
@@ -845,10 +831,7 @@ const BehaviorCorrelationTab = (() => {
         const rObj = segData.pearson[g]?.[feat] ?? segData.pearson[feat]?.[g];
         if (rObj != null) {
           const r = typeof rObj === "object" ? (rObj.r ?? null) : rObj;
-          if (r == null) {
-            const reason = (typeof rObj === "object" && rObj.reason) ? rObj.reason : "no_etl";
-            return { r: null, reason };
-          }
+          if (r == null) return { r: null, reason: "no_etl" };
           return { r };
         }
       }
