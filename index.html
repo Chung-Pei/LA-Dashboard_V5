@@ -1695,7 +1695,7 @@ body.light .behavior-range-badge {
         title="說明卡片含義">?</button>
 
       <!-- 說明彈出面板 -->
-      <div id="bStatsHelpPanel"
+      <div id="bStatsHelpPanel" data-maxw="340"
         style="display:none;position:fixed;z-index:9000;
                background:var(--surface);border:1px solid var(--border2);border-radius:10px;
                padding:14px 16px;width:min(88vw,340px);
@@ -2681,7 +2681,7 @@ body.light .behavior-range-badge {
 <script defer src="js/ui-toggles.js?v=202606131110"></script>
 
 <!-- R2 排除資料說明 popover（body 層，position:fixed 避免被 table overflow 裁切）-->
-<div id="r2ExcludePopover"
+<div id="r2ExcludePopover" data-maxw="360"
   style="display:none;position:fixed;z-index:9999;
          background:var(--surface2,#1c2030);border:1px solid var(--border2,#353c58);
          border-radius:10px;padding:14px 16px;width:min(88vw,360px);
