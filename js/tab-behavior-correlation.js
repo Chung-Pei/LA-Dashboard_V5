@@ -406,6 +406,14 @@ const BehaviorCorrelationTab = (() => {
       _filterOutlier  = false;
       _lastFilterKey  = null;
       _lastFiltered   = null;
+      _lagFilteredRows = null;
+
+      // BUG-RESET-2 FIX: re-init 時清除舊 bar chart（確保 DOM 重建後可重新建立）
+      ChartRegistry.destroyById("laggedCorrBarChart");
+      ChartRegistry.destroyById("laggedScatterMid");
+      ChartRegistry.destroyById("laggedScatterFinal");
+      const oldCanvas = document.getElementById("laggedCorrBarChart");
+      if (oldCanvas) delete oldCanvas.__chartBuilt;
 
       _renderFilterBar(heatmapId);
       _setFilterControlsFromState();
@@ -678,9 +686,9 @@ const BehaviorCorrelationTab = (() => {
     card1.innerHTML = `
       <h6 style="margin:0;font-size:.92rem;font-weight:700;color:var(--text,#172033);
                  display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        Pearson / Spearman 相關係數
+        【資源使用 vs. 成績相關性】
         <span style="font-size:.75rem;font-weight:400;color:var(--text-dim,#667085)">
-          行為指標與成績的相關矩陣
+          Pearson / Spearman 相關係數矩陣
         </span>
       </h6>
       <div id="corrInsightsBadgeSlot"></div>
@@ -715,6 +723,72 @@ const BehaviorCorrelationTab = (() => {
         }
       `;
       document.head.appendChild(style);
+    }
+
+    // ── Card 3：時間滯後相關性（lagged_pearson）─────────────
+    if (!document.getElementById("laggedCorrCard")) {
+      const card3 = document.createElement("div");
+      card3.id = "laggedCorrCard";
+      card3.className = "chart-card";
+      card3.style.cssText = [
+        "background:var(--card-bg,#fff)",
+        "border:1px solid var(--border,#d5dbea)",
+        "border-radius:12px",
+        "padding:16px",
+        "display:flex",
+        "flex-direction:column",
+        "gap:10px",
+        "min-width:0",
+        "margin-top:16px",
+      ].join(";");
+
+      // 可收放標題列
+      card3.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;cursor:pointer" id="laggedCorrToggleRow">
+          <h6 style="margin:0;font-size:.92rem;font-weight:700;color:var(--text,#172033);
+                     display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1">
+            ⏱ 【時間滯後相關性】
+            <span style="font-size:.75rem;font-weight:400;color:var(--text-dim,#667085)">
+              期初（W1–3）vs 期末（W14–16）學習行為對成績預測力比較
+            </span>
+          </h6>
+          <span id="laggedCorrCollapseIcon"
+                style="font-size:.8rem;color:var(--text-dim,#888);user-select:none;min-width:20px;text-align:center">▼</span>
+        </div>
+        <div id="laggedCorrBody">
+          <div style="font-size:.76rem;color:var(--text-dim,#888);margin-bottom:8px;
+                      padding:7px 10px;background:rgba(100,160,255,0.07);
+                      border:1px solid rgba(100,160,255,0.2);border-radius:6px;line-height:1.6">
+            ⚠ <strong>r 值為全體學生統計（n 見括號），散佈圖依前端篩選條件顯示子集。</strong><br>
+            🔵 <strong>期初</strong>（W1–3）× 期中成績　　🟠 <strong>期末</strong>（W14–16）× 期末成績<br>
+            ▲↓ 箭頭代表同指標從期初到期末的 <code>lag_delta</code>（預測力變化量）
+          </div>
+          <div id="laggedCorrChartWrap" style="position:relative;height:340px;width:100%">
+            <canvas id="laggedCorrBarChart"></canvas>
+          </div>
+          <div style="margin-top:6px;font-size:.75rem;color:var(--text-dim,#888)">
+            點擊長條可查看對應滯後散佈圖 ↓
+          </div>
+          <div id="laggedScatterSection" style="margin-top:10px"></div>
+        </div>`;
+
+      // 插入 grid 之後
+      const gridEl = document.getElementById("corrCardGrid");
+      if (gridEl && gridEl.parentNode) {
+        gridEl.parentNode.insertBefore(card3, gridEl.nextSibling);
+      } else {
+        parent.appendChild(card3);
+      }
+
+      // 收放邏輯
+      document.getElementById("laggedCorrToggleRow")?.addEventListener("click", () => {
+        const body = document.getElementById("laggedCorrBody");
+        const icon = document.getElementById("laggedCorrCollapseIcon");
+        if (!body) return;
+        const open = body.style.display !== "none";
+        body.style.display = open ? "none" : "";
+        if (icon) icon.textContent = open ? "▶" : "▼";
+      });
     }
   }
 
@@ -753,7 +827,6 @@ const BehaviorCorrelationTab = (() => {
           ? `` : ``);
       const anchor = document.getElementById(heatmapId)?.closest(".chart-card");
       if (anchor && !document.getElementById(bannerElId)) anchor.prepend(bannerEl);
-      else if (bannerEl.parentElement === null && anchor) anchor.prepend(bannerEl);
     } else if (bannerEl) {
       bannerEl.remove();
     }
@@ -776,7 +849,6 @@ const BehaviorCorrelationTab = (() => {
         `。如需查看，請於上方篩選選擇該學期。`;
       const anchor = document.getElementById(heatmapId)?.closest(".chart-card");
       if (anchor && !document.getElementById(globalNoteId)) anchor.prepend(globalNoteEl);
-      else if (globalNoteEl.parentElement === null && anchor) anchor.prepend(globalNoteEl);
     } else if (globalNoteEl) {
       globalNoteEl.remove();
     }
@@ -784,6 +856,7 @@ const BehaviorCorrelationTab = (() => {
     _renderInsightsBadge(heatmapId, filtered);
     _renderHeatmap(heatmapId, filtered);
     _renderScatterSelector(scatterWrapperId, filtered);
+    _renderLaggedCorr(filtered);
   }
 
   // ── Pearson 熱力圖（HTML table + 色彩映射）────────────────
@@ -972,6 +1045,379 @@ const BehaviorCorrelationTab = (() => {
     return r >= 0
       ? `rgba(${70 - v}, ${130 + v}, 220, ${0.15 + abs * 0.75})`
       : `rgba(${200 + v}, 60, 60, ${0.15 + abs * 0.75})`;
+  }
+
+  // ── 時間滯後相關性長條圖 ─────────────────────────────────
+
+  // OPT-1: bar chart 的 r 值來自 ETL 預算（不隨篩選變動），只需建立一次。
+  // 篩選後僅透過 _lagFilteredRows reference 更新散佈圖用的 rows。
+  let _lagFilteredRows = null;   // 最新篩選 rows，供 onClick closure 取用
+
+  /**
+   * 渲染 lagged_pearson 分組長條圖（Chart.js bar）。
+   * - 藍色：front（期初 W1-3 × 期中成績）
+   * - 橙色：back（期末 W14-16 × 期末成績）
+   * - lag_delta 以 ▲/▼ 箭頭標示於 bar 頂部（plugin afterDatasetsDraw）
+   * - 篩選器只影響下方散佈圖；bar 高度固定使用 ETL 預算 r 值。
+   * @param {Array} filteredRows  - 目前篩選後的 scatter_data 列（供散佈圖使用）
+   */
+  function _renderLaggedCorr(filteredRows) {
+    const card = document.getElementById("laggedCorrCard");
+    if (!card) return;
+
+    // OPT-1: 每次篩選更新 rows reference，讓 onClick closure 能取到最新資料
+    _lagFilteredRows = filteredRows;
+
+    // BUG-LAG-5 / BUG-RESET-4 FIX: 若散佈圖已展開，自動以最新篩選重繪
+    _autoRefreshLaggedScatter(filteredRows);
+
+    const lp = _corrData?.lagged_pearson;
+    if (!lp?.results) {
+      const wrap = document.getElementById("laggedCorrChartWrap");
+      if (wrap) wrap.innerHTML =
+        `<div style="padding:12px;font-size:.82rem;color:var(--text-dim,#888)">
+           ℹ️ 本 ETL 版本尚無 <code>lagged_pearson</code> 欄位，請重跑 ETL。
+         </div>`;
+      return;
+    }
+
+    // OPT-1: bar chart 已存在（r 值不變）→ 只更新 rows，不重建
+    // BUG-DISPLAY-5 FIX: 只用 DOM 屬性守衛（不用 ChartRegistry.getById，避免 detached instance 誤判）
+    if (document.getElementById("laggedCorrBarChart")?.__chartBuilt) return;
+
+    const feats        = _features();
+    const results      = lp.results;
+    const frontWeeks   = lp.front_weeks?.join("、") || "1–3";
+    const backWeeks    = lp.back_weeks?.join("、")  || "14–16";
+    const frontTarget  = lp.front_target  || "midterm_score";
+    const backTarget   = lp.back_target   || "final_score";
+
+    // 只保留 results 中有值的 feature，並對齊 _features() 順序
+    const activeFeat   = feats.filter(f => results[f]);
+    const labels       = activeFeat.map(f => FEAT_LABELS[f] || f);
+    const frontData    = activeFeat.map(f => results[f]?.front?.r ?? null);
+    const backData     = activeFeat.map(f => results[f]?.back?.r  ?? null);
+    const deltas       = activeFeat.map(f => results[f]?.lag_delta ?? null);
+    const frontSig     = activeFeat.map(f => results[f]?.front?.significant ?? false);
+    const backSig      = activeFeat.map(f => results[f]?.back?.significant  ?? false);
+
+    const canvas = document.getElementById("laggedCorrBarChart");
+    if (!canvas) return;
+
+    // lag_delta 箭頭 plugin（繪於 bar 頂，不影響 layout）
+    const lagDeltaPlugin = {
+      id: "lagDeltaArrows",
+      afterDatasetsDraw(chart) {
+        const ctx   = chart.ctx;
+        const meta0 = chart.getDatasetMeta(0); // front bars
+        const meta1 = chart.getDatasetMeta(1); // back bars
+        ctx.save();
+        ctx.font      = "bold 10px system-ui,sans-serif";
+        ctx.textAlign = "center";
+        activeFeat.forEach((f, i) => {
+          const delta = deltas[i];
+          if (delta == null) return;
+          // position: above the taller bar
+          const bar0 = meta0.data[i];
+          const bar1 = meta1.data[i];
+          if (!bar0 || !bar1) return;
+          const x   = (bar0.x + bar1.x) / 2;
+          const topY = Math.min(bar0.y, bar1.y) - 4;
+          const sign = delta >= 0 ? "▲" : "▼";
+          const absd = Math.abs(delta);
+          ctx.fillStyle = absd >= 0.05 ? (delta >= 0 ? "#3498db" : "#e74c3c") : "rgba(150,150,170,0.8)";
+          ctx.fillText(`${sign}${absd.toFixed(2)}`, x, topY);
+        });
+        ctx.restore();
+      },
+    };
+
+    ChartRegistry.destroyById("laggedCorrBarChart");
+    const chart = new Chart(canvas.getContext("2d"), {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: `🔵 期初（W${frontWeeks}）× ${GRADE_LABELS[frontTarget] || frontTarget}`,
+            data: frontData,
+            backgroundColor: frontData.map((_, i) =>
+              frontSig[i] ? "rgba(52,152,219,0.80)" : "rgba(52,152,219,0.30)"),
+            borderColor:     "rgba(52,152,219,1)",
+            borderWidth: 1,
+          },
+          {
+            label: `🟠 期末（W${backWeeks}）× ${GRADE_LABELS[backTarget] || backTarget}`,
+            data: backData,
+            backgroundColor: backData.map((_, i) =>
+              backSig[i] ? "rgba(230,126,34,0.80)" : "rgba(230,126,34,0.30)"),
+            borderColor:     "rgba(230,126,34,1)",
+            borderWidth: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { font: { size: 11 } } },
+          tooltip: {
+            callbacks: {
+              title: ctx => FEAT_LABELS[activeFeat[ctx[0]?.dataIndex]] || activeFeat[ctx[0]?.dataIndex] || "",
+              label: ctx => {
+                const i = ctx.dataIndex;
+                const isBack = ctx.datasetIndex === 1;
+                const r     = ctx.parsed.y;
+                const sig   = isBack ? backSig[i] : frontSig[i];
+                const n     = isBack ? (results[activeFeat[i]]?.back?.n ?? null)
+                                     : (results[activeFeat[i]]?.front?.n ?? null);
+                const nStr  = n != null ? ` (n=${n})` : "";
+                return ` r = ${r >= 0 ? "+" : ""}${r.toFixed(3)}${nStr}${sig ? " *顯著" : ""}`;
+              },
+              afterBody: ctx => {
+                const i     = ctx[0]?.dataIndex;
+                const delta = deltas[i];
+                if (delta == null) return [];
+                return [`lag_delta = ${delta >= 0 ? "+" : ""}${delta.toFixed(3)}（期末相較期初 ${delta >= 0 ? "↑上升" : "↓下降"}）`];
+              },
+            },
+          },
+        },
+        onClick: (_, elements) => {
+          if (!elements.length) return;
+          const i    = elements[0].index;
+          const feat = activeFeat[i];
+          if (!feat) return;
+          // OPT-1: 取最新篩選 rows（不依賴 closure 捕捉的舊值）
+          showLaggedScatter(feat, _lagFilteredRows);
+        },
+        scales: {
+          x: {
+            ticks: { font: { size: 10 }, maxRotation: 40 },
+          },
+          y: {
+            title: { display: true, text: "Pearson r", font: { size: 11 } },
+            min: -1, max: 1,
+            grid: { color: "rgba(150,150,180,0.15)" },
+          },
+        },
+      },
+      plugins: [lagDeltaPlugin],
+    });
+    ChartRegistry.register("laggedCorrBarChart", chart);
+    // OPT-1: 標記已建立，後續篩選不重建
+    const cvs = document.getElementById("laggedCorrBarChart");
+    if (cvs) cvs.__chartBuilt = true;
+
+    // BUG-LAG-5 / BUG-RESET-4 不在此處處理（bar 首次建立時不需重繪散佈圖）
+  }
+
+  /**
+   * BUG-LAG-5 / BUG-RESET-4 FIX：
+   * 若滯後散佈圖已展開（#laggedScatterSection 有內容），篩選/重置後自動重繪。
+   * 取得目前展開的 feat，以最新 _lagFilteredRows 重繪。
+   * @param {Array} filteredRows - 最新篩選 rows
+   */
+  function _autoRefreshLaggedScatter(filteredRows) {
+    const section = document.getElementById("laggedScatterSection");
+    if (!section || !section.innerHTML.trim()) return;  // 未展開，不處理
+
+    // 從標題 span 中取回目前展開的 feat label，反查 feat key
+    const titleEl = section.querySelector("[data-lag-feat]");
+    const feat = titleEl?.dataset?.lagFeat;
+    if (!feat) return;  // 無法識別 feat，靜默放棄
+
+    showLaggedScatter(feat, filteredRows);
+  }
+
+  /**
+   * 滯後散佈圖：以 scatter_data 全期 feature 值作為 X 軸近似（ETL 無分期行為）。
+   * 左圖 = feature × midterm_score，右圖 = feature × final_score。
+   * 底色藍色系（淡藍底框），與現有白底散佈圖視覺區隔。
+   * @param {string} feat         - 指標 key
+   * @param {Array}  filteredRows - 目前篩選後的 scatter_data
+   */
+  function showLaggedScatter(feat, filteredRows) {
+    const section = document.getElementById("laggedScatterSection");
+    if (!section || !_corrData) return;
+
+    // BUG-LAG-4 FIX: destroy existing scatter charts BEFORE innerHTML reset（重建 canvas 前先銷毀）
+    ChartRegistry.destroyById("laggedScatterMid");
+    ChartRegistry.destroyById("laggedScatterFinal");
+
+    const lp      = _corrData?.lagged_pearson;
+    const results = lp?.results?.[feat];
+
+    const rows = filteredRows ?? _lastFiltered ?? _allScatterData ?? _corrData.scatter_data ?? [];
+
+    // ── 取兩個散點集合 ────────────────────────────────────
+    function _buildPoints(targetCol) {
+      return (Array.isArray(rows) ? rows : [])
+        .map(row => ({ x: row.features?.[feat], y: row[targetCol], masked: row.masked_id, cluster: row.cluster || "" }))
+        .filter(p => p.x != null && p.y != null && isFinite(p.x) && isFinite(p.y));
+    }
+
+    const ptsMid   = _buildPoints("midterm_score");
+    const ptsFinal = _buildPoints("final_score");
+    const isRate   = feat.includes("rate") || feat.includes("ratio") || feat.includes("score");
+
+    const featLabel = FEAT_LABELS[feat] || feat;
+
+    // ── 組裝 header（ETL r 值摘要）────────────────────────
+    const frontR = results?.front?.r;
+    const backR  = results?.back?.r;
+    const delta  = results?.lag_delta;
+
+    const rFmtF = frontR != null ? `r = ${frontR >= 0 ? "+" : ""}${frontR.toFixed(3)}` : "—";
+    const rFmtB = backR  != null ? `r = ${backR  >= 0 ? "+" : ""}${backR .toFixed(3)}` : "—";
+    const deltaStr = delta != null
+      ? `lag_delta = ${delta >= 0 ? "+" : ""}${delta.toFixed(3)} （${Math.abs(delta) >= 0.05 ? "⚡ 顯著變化" : "微小變化"}）`
+      : "";
+
+    const nNote = `<span style="font-size:.72rem;color:var(--text-dim,#888)">
+      散佈圖 n=${ptsMid.length} / ${ptsFinal.length}（依篩選條件）
+      ${rows.length < (_allScatterData?.length ?? 0) ? "　⚑ 已篩選子集" : ""}
+    </span>`;
+
+    section.innerHTML = `
+      <div style="background:rgba(52,152,219,0.06);border:1px solid rgba(52,152,219,0.22);
+                  border-radius:10px;padding:12px 14px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <span style="font-size:.78rem;font-weight:700;color:var(--accent,#3498db)"
+                data-lag-feat="${escapeHtml(feat)}">
+            ⏱ 滯後散佈圖：${escapeHtml(featLabel)}
+          </span>
+          <span style="font-size:.72rem;background:rgba(52,152,219,0.12);border:1px solid rgba(52,152,219,0.3);
+                       border-radius:4px;padding:1px 6px;color:var(--accent,#3498db)">
+            全體 ETL
+          </span>
+          ${nNote}
+        </div>
+        <div style="font-size:.75rem;color:var(--text-dim,#888);line-height:1.7">
+          🔵 期初（W${(lp?.front_weeks||[1,2,3]).join("、")}）全期行為 × 期中成績：<strong>${rFmtF}</strong>${results?.front?.significant ? " *" : ""}
+          　🟠 期末（W${(lp?.back_weeks||[14,15,16]).join("、")}）全期行為 × 期末成績：<strong>${rFmtB}</strong>${results?.back?.significant ? " *" : ""}
+          ${deltaStr ? `　<span style="color:var(--accent3,#f7a44f)">${deltaStr}</span>` : ""}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px" id="laggedScatterGrid">
+          <div>
+            <div style="font-size:.76rem;font-weight:600;color:var(--text,#172033);margin-bottom:4px">
+              🔵 全期行為 × 期中成績
+            </div>
+            <div style="position:relative;height:260px">
+              <canvas id="laggedScatterMid"></canvas>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:.76rem;font-weight:600;color:var(--text,#172033);margin-bottom:4px">
+              🟠 全期行為 × 期末成績
+            </div>
+            <div style="position:relative;height:260px">
+              <canvas id="laggedScatterFinal"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>`;
+
+    // BUG-LAG-1 FIX: 以 id 去重，避免每次呼叫 showLaggedScatter 都 append 新 <style>
+    if (!document.getElementById("laggedScatterGridStyle")) {
+      const gridStyle = document.createElement("style");
+      gridStyle.id = "laggedScatterGridStyle";
+      gridStyle.textContent = `@media (max-width:640px){ #laggedScatterGrid{grid-template-columns:1fr!important} }`;
+      document.head.appendChild(gridStyle);
+    }
+
+    // ── Cluster 色彩對應 ──────────────────────────────────
+    const CLUSTER_COLORS = {
+      R1: "rgba(52,152,219,0.65)",  R2: "rgba(46,204,113,0.65)",
+      R3: "rgba(231,76,60,0.65)",   R4: "rgba(155,89,182,0.65)",
+      S1: "rgba(241,196,15,0.65)",  S2: "rgba(52,73,94,0.65)",
+      S3: "rgba(230,126,34,0.65)",  S4: "rgba(26,188,156,0.65)",
+    };
+    const DEFAULT_CLR = "rgba(100,120,160,0.45)";
+
+    function _makeScatterDatasets(pts, trendColor) {
+      // 依 cluster 分組
+      const clusterMap = {};
+      for (const p of pts) {
+        const cl = p.cluster || "—";
+        if (!clusterMap[cl]) clusterMap[cl] = [];
+        clusterMap[cl].push(p);
+      }
+      const datasets = Object.entries(clusterMap).map(([cl, cpts]) => ({
+        label: cl,
+        data:  cpts.map(p => ({ x: p.x, y: p.y, masked: p.masked })),
+        backgroundColor: CLUSTER_COLORS[cl] || DEFAULT_CLR,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+      }));
+      const reg = _calcRegression(pts.map(p => ({ x: p.x, y: p.y })));
+      if (reg) {
+        datasets.push({
+          label: "趨勢線",
+          data: [
+            { x: reg.xMin, y: Math.max(0, Math.min(100, reg.yAtMin)) },
+            { x: reg.xMax, y: Math.max(0, Math.min(100, reg.yAtMax)) },
+          ],
+          type: "line",
+          borderColor: trendColor,
+          borderWidth: 2,
+          borderDash: [5, 3],
+          pointRadius: 0,
+          fill: false,
+          tension: 0,
+        });
+      }
+      return datasets;
+    }
+
+    function _drawLagScatter(canvasId, pts, rVal, targetLabel, trendColor) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      if (!pts.length) {
+        canvas.parentElement.innerHTML =
+          `<div style="font-size:.78rem;color:var(--text-dim,#888);padding:8px">無符合篩選條件的資料點</div>`;
+        return;
+      }
+      const rLabel = rVal != null ? ` (r = ${rVal >= 0 ? "+" : ""}${rVal.toFixed(3)})` : "";
+      // OPT-2: destroy 已在 showLaggedScatter 頂部執行，此處不重複
+      const chart = new Chart(canvas.getContext("2d"), {
+        type: "scatter",
+        data: { datasets: _makeScatterDatasets(pts, trendColor) },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              title: { display: true, text: featLabel, font: { size: 10 } },
+              ticks: { callback: v => isRate ? `${Math.round(v * 100)}%` : v, font: { size: 9 } },
+            },
+            y: {
+              title: { display: true, text: targetLabel + rLabel, font: { size: 10 } },
+              min: 0, max: 100,
+              ticks: { font: { size: 9 } },
+            },
+          },
+          plugins: {
+            legend: { labels: { font: { size: 10 }, boxWidth: 10 } },
+            tooltip: {
+              filter: item => item.dataset.type !== "line",
+              callbacks: {
+                title: ctx => ctx.length ? `學生 ${ctx[0].raw.masked}` : "",
+                label: ctx => {
+                  const p      = ctx.raw;
+                  const xLabel = isRate ? `${(p.x * 100).toFixed(1)}%` : p.x.toFixed(2);
+                  return [` ${featLabel}：${xLabel}`, ` ${targetLabel}：${p.y} 分`];
+                },
+              },
+            },
+          },
+        },
+      });
+      ChartRegistry.register(canvasId, chart);
+    }
+
+    _drawLagScatter("laggedScatterMid",   ptsMid,   frontR, GRADE_LABELS["midterm_score"], "rgba(52,152,219,0.85)");
+    _drawLagScatter("laggedScatterFinal", ptsFinal, backR,  GRADE_LABELS["final_score"],   "rgba(230,126,34,0.85)");
   }
 
   /**
