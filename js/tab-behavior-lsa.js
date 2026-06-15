@@ -948,43 +948,79 @@ const BehaviorLsaTab = (() => {
       }
     }
 
+    // 保留上次展開狀態（跨群組切換時維持使用者選擇）
+    const wasOpen = cardEl.dataset.open === "1";
+
     cardEl.innerHTML = `
-      <div style="padding:10px 12px;background:var(--surface2,#1c2030);border-radius:8px;margin-bottom:8px">
-        <div style="font-weight:600;color:var(--text,#dde3f5);margin-bottom:6px">
-          【${groupLabel}】${n.toLocaleString()} 個行為序列對
-        </div>
-        <div style="margin-bottom:4px">
-          ⚡ 行為組成：教材閱讀（M）佔 <strong style="color:var(--accent,#3498db)">${mPct}%</strong>，
-          題庫作答（Q）佔 <strong style="color:var(--accent,#3498db)">${qPct}%</strong>
-        </div>
-        <div>
-          📐 本組所有轉移方向的 |Z| 均為 <strong style="color:var(--accent,#3498db)">${zAbs}</strong>
-          （遠大於臨界值 1.96）<br>
-          <span style="font-size:.75rem;color:var(--text-dim,#888)">
-            ※ 2×2 轉移矩陣的數學性質：|Z(M→M)| = |Z(M→Q)| = |Z(Q→M)| = |Z(Q→Q)|，正負號代表偏好或迴避。
+      <div id="lsaInterpretToggle" style="
+        display:flex;align-items:center;justify-content:space-between;
+        padding:8px 12px;background:var(--surface2,#1c2030);
+        border-radius:8px;cursor:pointer;user-select:none;
+        border:1px solid rgba(110,130,165,.18);">
+        <span style="font-size:.82rem;font-weight:600;color:var(--text,#dde3f5)">
+          📊 怎麼看這張圖？— 白話解讀
+          <span style="font-weight:400;color:var(--text-dim,#888);margin-left:8px">
+            【${groupLabel}】M ${mPct}% ／ Q ${qPct}% ／ |Z|=${zAbs}
           </span>
-        </div>
+        </span>
+        <span id="lsaInterpretChevron" style="
+          font-size:.75rem;color:var(--text-dim,#888);
+          transition:transform .2s;display:inline-block;
+          transform:${wasOpen ? "rotate(180deg)" : "rotate(0deg)"}">▼</span>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-        <div style="padding:10px 12px;background:rgba(52,152,219,0.08);border:1px solid rgba(52,152,219,0.2);border-radius:8px">
-          <div style="font-weight:600;color:var(--accent,#3498db);margin-bottom:4px">✅ 偏好：連續專注</div>
-          <div>M→M 觀察 <strong>${oMM}</strong> 次，期望僅 ${eMM} 次</div>
-          <div>Q→Q 觀察 <strong>${oQQ}</strong> 次</div>
-          <div style="margin-top:4px;font-size:.75rem">
-            白話：學生傾向「一直讀教材」或「一直刷題」，不輕易切換，專注度高。
+      <div id="lsaInterpretBody" style="
+        overflow:hidden;
+        max-height:${wasOpen ? "600px" : "0"};
+        transition:max-height .25s ease;
+        margin-top:${wasOpen ? "8px" : "0"}">
+
+        <div style="padding:10px 12px;background:var(--surface2,#1c2030);border-radius:8px;margin-bottom:8px">
+          <div style="margin-bottom:4px">
+            ⚡ 行為組成：教材閱讀（M）佔 <strong style="color:var(--accent,#3498db)">${mPct}%</strong>，
+            題庫作答（Q）佔 <strong style="color:var(--accent,#3498db)">${qPct}%</strong>
+          </div>
+          <div>
+            📐 本組所有轉移方向的 |Z| 均為 <strong style="color:var(--accent,#3498db)">${zAbs}</strong>
+            （遠大於臨界值 1.96）<br>
+            <span style="font-size:.75rem;color:var(--text-dim,#888)">
+              ※ 2×2 轉移矩陣的數學性質：|Z(M→M)| = |Z(M→Q)| = |Z(Q→M)| = |Z(Q→Q)|，正負號代表偏好或迴避。
+            </span>
           </div>
         </div>
-        <div style="padding:10px 12px;background:rgba(231,76,60,0.06);border:1px solid rgba(231,76,60,0.2);border-radius:8px">
-          <div style="font-weight:600;color:#e67e22;margin-bottom:4px">🚫 迴避：跨行為切換</div>
-          <div>M→Q 觀察 <strong>${oMQ}</strong> 次，期望應有 ${eMQ} 次</div>
-          <div>Q→M 觀察 <strong>${oQM}</strong> 次</div>
-          <div style="margin-top:4px;font-size:.75rem">
-            白話：學生極少「讀完教材馬上去做題」或「做完題馬上回去讀材料」，兩種學習模式分開進行。
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div style="padding:10px 12px;background:rgba(52,152,219,0.08);border:1px solid rgba(52,152,219,0.2);border-radius:8px">
+            <div style="font-weight:600;color:var(--accent,#3498db);margin-bottom:4px">✅ 偏好：連續專注</div>
+            <div>M→M 觀察 <strong>${oMM}</strong> 次，期望僅 ${eMM} 次</div>
+            <div>Q→Q 觀察 <strong>${oQQ}</strong> 次</div>
+            <div style="margin-top:4px;font-size:.75rem">
+              白話：學生傾向「一直讀教材」或「一直刷題」，不輕易切換，專注度高。
+            </div>
+          </div>
+          <div style="padding:10px 12px;background:rgba(231,76,60,0.06);border:1px solid rgba(231,76,60,0.2);border-radius:8px">
+            <div style="font-weight:600;color:#e67e22;margin-bottom:4px">🚫 迴避：跨行為切換</div>
+            <div>M→Q 觀察 <strong>${oMQ}</strong> 次，期望應有 ${eMQ} 次</div>
+            <div>Q→M 觀察 <strong>${oQM}</strong> 次</div>
+            <div style="margin-top:4px;font-size:.75rem">
+              白話：學生極少「讀完教材馬上去做題」或「做完題馬上回去讀材料」，兩種學習模式分開進行。
+            </div>
           </div>
         </div>
-      </div>
-      ${compareHtml}`;
+        ${compareHtml}
+      </div>`;
+
+    // 綁定收放事件（重新渲染後 DOM 已替換，需重綁）
+    document.getElementById("lsaInterpretToggle")?.addEventListener("click", () => {
+      const body    = document.getElementById("lsaInterpretBody");
+      const chevron = document.getElementById("lsaInterpretChevron");
+      if (!body) return;
+      const opening = body.style.maxHeight === "0px" || body.style.maxHeight === "0";
+      body.style.maxHeight  = opening ? "600px" : "0";
+      body.style.marginTop  = opening ? "8px"   : "0";
+      chevron.style.transform = opening ? "rotate(180deg)" : "rotate(0deg)";
+      cardEl.dataset.open   = opening ? "1" : "0";
+    });
   }
 
   // ── Graceful Degradation ──────────────────────────────────────
