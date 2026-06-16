@@ -73,8 +73,10 @@ const BehaviorWarningTab = (() => {
   }
 
   function resetFilters() {
+    // WARN-2 FIX: 未載入時不設定狀態（原 _activeFilter = "ALL" 無後續效果）
+    if (!_warningData) return;
     _activeFilter = "ALL";
-    if (_warningData) _renderAll();
+    _renderAll();
   }
 
   function _renderEmpty(msg) {
@@ -88,6 +90,8 @@ const BehaviorWarningTab = (() => {
       .forEach(id => {
         const el = document.getElementById(id);
         const card = el?.closest(".chart-card");
+        // WARN-3: 若 DOM 缺少 .chart-card 祖先，visibility toggle 靜默失效
+        if (el && !card) console.warn(`[BehaviorWarningTab] #${id} 找不到 .chart-card 祖先，_toggleMainCards 無效`);
         if (card) card.style.display = show ? "" : "none";
       });
   }

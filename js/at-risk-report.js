@@ -19,8 +19,6 @@ const AtRiskReportManager = (() => {
   let _warningData = null;
   let _warningSemester = null;
 
-  const DATA_PATH = 'data/at_risk_profile.json';
-
   // ── 內部工具 ────────────────────────────────────────────
   function _toFiniteNumber(value, fallback = 0) {
     const n = Number(value);
@@ -358,7 +356,10 @@ const AtRiskReportManager = (() => {
     });
 
     if (!Object.keys(annotationPlugin).length) {
+      // WARN-1 FIX: 清除舊備注節點，防止 switchSemester 重複 append
+      canvas.parentNode.querySelectorAll('.__midterm-note').forEach(n => n.remove());
       const note = document.createElement('div');
+      note.className = '__midterm-note';
       note.style.cssText = 'font-size:11px;color:var(--text-dim,#888);text-align:right;margin-top:4px';
       note.textContent = `▲ 紅色虛線標注不可用。期中考：Week ${td.midterm_week_num}`;
       canvas.parentNode.appendChild(note);
@@ -589,9 +590,8 @@ const AtRiskReportManager = (() => {
     rContent.style.display  = 'none';
 
     try {
-      const res = await fetch(DATA_PATH, { cache: 'no-cache' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      _data = await res.json();
+      // BUG-1 FIX: 改用 BehaviorLoader 統一 LRU 快取，移除直接 fetch
+      _data = await BehaviorLoader.load.atRisk();
 
       // 第4類紅旗資料源（不影響主流程，失敗則靜默跳過）
       try {
