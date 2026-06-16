@@ -2093,6 +2093,18 @@ body.light .behavior-range-badge {
                        background:transparent;color:var(--accent,#3498db);cursor:pointer;font-size:0.82rem">
           🔗 序列轉移
         </button>
+        <button type="button" class="behavior-sub-btn" data-sub="cross"
+                data-action="behaviorSwitchSub"
+                style="padding:5px 14px;border-radius:20px;border:1px solid var(--accent,#3498db);
+                       background:transparent;color:var(--accent,#3498db);cursor:pointer;font-size:0.82rem">
+          🎯 行為預測分析
+        </button>
+        <button type="button" class="behavior-sub-btn" data-sub="warning"
+                data-action="behaviorSwitchSub"
+                style="padding:5px 14px;border-radius:20px;border:1px solid var(--accent,#3498db);
+                       background:transparent;color:var(--accent,#3498db);cursor:pointer;font-size:0.82rem">
+          🔮 提前預警
+        </button>
       </div>
 
       <!-- ─── 子面板 A：雷達圖 ─── -->
@@ -2388,64 +2400,89 @@ body.light .behavior-range-badge {
         </div>
 
         <!-- ── 解讀說明卡片 ── -->
+        <!-- ── 解讀說明卡片（可收放，預設收合） ── -->
         <div class="chart-card" style="margin-top:12px">
-          <div class="chart-title" style="--accent-color:var(--accent2)">
-            <span class="dot"></span>怎麼看這張圖？— 白話解讀
+
+          <!-- 標題列（點擊收放） -->
+          <div id="lsaReadToggle" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none">
+            <div class="chart-title" style="--accent-color:var(--accent2);margin-bottom:0;flex:1">
+              <span class="dot"></span>怎麼看這張圖？— 白話解讀
+            </div>
+            <span id="lsaReadChevron" style="font-size:.75rem;color:var(--text-dim,#888);margin-right:2px;transition:transform .25s;display:inline-block;flex-shrink:0">▼</span>
           </div>
 
-          <!-- 怎麼看 -->
-          <div style="margin-bottom:14px">
-            <div style="font-size:.8rem;font-weight:600;color:var(--text,#dde3f5);margin-bottom:6px">📖 圖形元素說明</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.78rem;color:var(--text-mid,#9aa0b8)">
-              <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
-                <span style="color:var(--accent,#3498db);font-weight:600">🔵 圓圈（M / Q）</span><br>
-                代表一種學習行為。圓圈大小 ∝ 該行為<strong style="color:var(--text,#dde3f5)">出現總次數</strong>。
-              </div>
-              <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
-                <span style="color:var(--accent,#3498db);font-weight:600">🔄 自環（節點上方的弧形箭頭）</span><br>
-                M→M 或 Q→Q：做完某行為後，<strong style="color:var(--text,#dde3f5)">緊接著仍是同一行為</strong>。弧線的箭頭指回同個圓圈，代表連續專注。
-              </div>
-              <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
-                <span style="color:var(--accent,#3498db);font-weight:600">➡ 箭頭（M ↔ Q）</span><br>
-                兩種行為之間的切換。箭頭越粗 = Z 值越大 = 偏離隨機預期越遠。
-              </div>
-              <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
-                <span style="color:var(--accent,#3498db);font-weight:600">📊 Z 值標籤</span><br>
-                <strong style="color:var(--text,#dde3f5)">Z &gt; +1.96</strong>：顯著「偏好」此轉移。
-                <strong style="color:var(--text,#dde3f5)">Z &lt; −1.96</strong>：顯著「迴避」此轉移。
-              </div>
-            </div>
-          </div>
+          <!-- 可收放內容：max-height 900px 讓動畫流暢（實際內容約 600px） -->
+          <div id="lsaReadBody" style="overflow:hidden;max-height:0;transition:max-height .3s ease">
 
-          <!-- 實際資料白話解讀（由 JS 動態填入） -->
-          <div style="margin-bottom:14px">
-            <div style="font-size:.8rem;font-weight:600;color:var(--text,#dde3f5);margin-bottom:6px">💬 本班資料白話解讀</div>
-            <div id="lsaInterpretCard" style="font-size:.78rem;color:var(--text-mid,#9aa0b8);line-height:1.7">
-              <!-- 由 tab-behavior-lsa.js _updateInterpretCard() 填入 -->
+            <!-- 圖形元素說明 -->
+            <div style="margin-top:12px;margin-bottom:14px">
+              <div style="font-size:.8rem;font-weight:600;color:var(--text,#dde3f5);margin-bottom:6px">📖 圖形元素說明</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.78rem;color:var(--text-mid,#9aa0b8)">
+                <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
+                  <span style="color:var(--accent,#3498db);font-weight:600">🔵 圓圈（M / Q）</span><br>
+                  代表一種學習行為。圓圈大小 ∝ 該行為<strong style="color:var(--text,#dde3f5)">出現總次數</strong>。
+                </div>
+                <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
+                  <span style="color:var(--accent,#3498db);font-weight:600">🔄 自環（節點上方的弧形箭頭）</span><br>
+                  M→M 或 Q→Q：做完某行為後，<strong style="color:var(--text,#dde3f5)">緊接著仍是同一行為</strong>。弧線的箭頭指回同個圓圈，代表連續專注。
+                </div>
+                <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
+                  <span style="color:var(--accent,#3498db);font-weight:600">➡ 箭頭（M ↔ Q）</span><br>
+                  兩種行為之間的切換。箭頭越粗 = Z 值越大 = 偏離隨機預期越遠。
+                </div>
+                <div style="background:var(--surface2,#1c2030);border-radius:8px;padding:10px 12px">
+                  <span style="color:var(--accent,#3498db);font-weight:600">📊 Z 值標籤</span><br>
+                  <strong style="color:var(--text,#dde3f5)">Z &gt; +1.96</strong>：顯著「偏好」此轉移。
+                  <strong style="color:var(--text,#dde3f5)">Z &lt; −1.96</strong>：顯著「迴避」此轉移。
+                </div>
+              </div>
             </div>
-          </div>
 
-          <!-- 為何只有 M 和 Q -->
-          <details style="font-size:.77rem;color:var(--text-dim,#888);border-top:1px solid var(--border2,#2a2f45);padding-top:10px;margin-top:4px">
-            <summary style="cursor:pointer;color:var(--text-mid,#9aa0b8);font-weight:600;outline:none">
-              ℹ️ 為何只追蹤教材閱讀（M）和題庫作答（Q）兩種行為？
-            </summary>
-            <div style="margin-top:8px;padding:10px 12px;background:var(--surface2,#1c2030);border-radius:8px;line-height:1.7">
-              目前可解析的行為紀錄只有兩種，原因是<strong style="color:var(--text,#dde3f5)">本課程本身未開設相關教學活動</strong>，而非技術限制：
-              <ul style="margin:6px 0 6px 16px;padding:0">
-                <li><strong style="color:var(--text,#dde3f5)">教材閱讀（M）</strong>：來源 <code>reading_log</code>（教材閱讀紀錄）</li>
-                <li><strong style="color:var(--text,#dde3f5)">題庫作答（Q）</strong>：來源 <code>quiz</code>（測驗紀錄，篩選含「題庫」標題）</li>
-              </ul>
-              以下行為本課程無資料，已列入未來擴充，待課程開設後自動啟用：
-              <ul style="margin:6px 0 0 16px;padding:0;color:var(--text-dim,#888)">
-                <li>R（檢討解答）— 本課程無作答後解題活動</li>
-                <li>D（討論）— 本課程無課程討論活動</li>
-                <li>A（作業）— 本課程無作業繳交活動</li>
-                <li>Lag-2 分析 — 需更大樣本（期望頻率 ≥ 5）</li>
-              </ul>
+            <!-- 實際資料白話解讀（由 JS 動態填入） -->
+            <div style="margin-bottom:14px">
+              <div style="font-size:.8rem;font-weight:600;color:var(--text,#dde3f5);margin-bottom:6px">💬 本班資料白話解讀</div>
+              <div id="lsaInterpretCard" style="font-size:.78rem;color:var(--text-mid,#9aa0b8);line-height:1.7">
+                <!-- 由 tab-behavior-lsa.js _updateInterpretCard() 填入 -->
+              </div>
             </div>
-          </details>
+
+            <!-- 為何只有 M 和 Q -->
+            <details style="font-size:.77rem;color:var(--text-dim,#888);border-top:1px solid var(--border2,#2a2f45);padding-top:10px;margin-top:4px">
+              <summary style="cursor:pointer;color:var(--text-mid,#9aa0b8);font-weight:600;outline:none">
+                ℹ️ 為何只追蹤教材閱讀（M）和題庫作答（Q）兩種行為？
+              </summary>
+              <div style="margin-top:8px;padding:10px 12px;background:var(--surface2,#1c2030);border-radius:8px;line-height:1.7">
+                目前可解析的行為紀錄只有兩種，原因是<strong style="color:var(--text,#dde3f5)">本課程本身未開設相關教學活動</strong>，而非技術限制：
+                <ul style="margin:6px 0 6px 16px;padding:0">
+                  <li><strong style="color:var(--text,#dde3f5)">教材閱讀（M）</strong>：來源 <code>reading_log</code>（教材閱讀紀錄）</li>
+                  <li><strong style="color:var(--text,#dde3f5)">題庫作答（Q）</strong>：來源 <code>quiz</code>（測驗紀錄，篩選含「題庫」標題）</li>
+                </ul>
+                以下行為本課程無資料，已列入未來擴充，待課程開設後自動啟用：
+                <ul style="margin:6px 0 0 16px;padding:0;color:var(--text-dim,#888)">
+                  <li>R（檢討解答）— 本課程無作答後解題活動</li>
+                  <li>D（討論）— 本課程無課程討論活動</li>
+                  <li>A（作業）— 本課程無作業繳交活動</li>
+                  <li>Lag-2 分析 — 需更大樣本（期望頻率 ≥ 5）</li>
+                </ul>
+              </div>
+            </details>
+
+          </div><!-- /lsaReadBody -->
         </div><!-- /解讀卡片 -->
+        <script>
+        (function(){
+          var toggle  = document.getElementById("lsaReadToggle");
+          var body    = document.getElementById("lsaReadBody");
+          var chevron = document.getElementById("lsaReadChevron");
+          if (!toggle || !body) return;
+          var _open = false; // 預設收合，以 JS 變數為唯一 source of truth
+          toggle.addEventListener("click", function(){
+            _open = !_open;
+            body.style.maxHeight    = _open ? "900px" : "0";
+            chevron.style.transform = _open ? "rotate(180deg)" : "rotate(0deg)";
+          });
+        })();
+        </script>
 
         <!-- ── 行為序列分群（S1–S5）分析框架說明卡片 ── -->
         <div class="chart-card" style="margin-top:12px">
@@ -2503,6 +2540,115 @@ body.light .behavior-range-badge {
         </div><!-- /S1-S5說明卡片 -->
 
       </div><!-- /sub-lsa -->
+
+      <!-- ─── 子面板 E：行為預測分析（v1.0 MVP）─── -->
+      <div id="sub-cross" class="behavior-sub-pane" style="display:none">
+        <p style="font-size:0.82rem;color:var(--text-dim,#888);margin-bottom:8px">
+          整合 R 群（資源使用型態）與 S 群（序列轉移型態）對期中/期末成績的相關性分析，
+          並提供複合行為評分（BAS）作為早期預警依據。
+        </p>
+        <p id="crossScopeNote" style="font-size:0.78rem;color:var(--text-dim,#888);margin-bottom:12px;padding:7px 10px;border-radius:5px;background:rgba(100,160,255,0.07);border:1px solid rgba(100,160,255,0.2)">
+          ℹ️ <strong>資料範圍說明：</strong>
+          本分析僅納入正課（theory）學生，實習科目（practicum）採30分制計分且60%成績未記入學習系統，已完全排除。
+          訓練集為已有期末成績之學期；尚無期末成績的最新學期為驗證學期，不納入相關性計算，
+          可於「🔮 提前預警」分頁單獨查看其預警名單。
+        </p>
+
+        <!-- BAS / QMI 摘要卡 -->
+        <div class="chart-card" style="margin-bottom:12px">
+          <div class="chart-title" style="--accent-color:var(--accent2)">
+            <span class="dot"></span>複合行為評分（BAS）與相關係數摘要
+          </div>
+          <div id="crossSummaryCard" style="padding:10px 4px"></div>
+        </div>
+
+        <!-- Alert Card -->
+        <div class="chart-card" style="margin-bottom:12px">
+          <div class="chart-title" style="--accent-color:var(--accent2)">
+            <span class="dot"></span>高風險 R×S 組合自動偵測
+          </div>
+          <div id="crossAlertCard" style="padding:10px 4px"></div>
+        </div>
+
+        <!-- R群/S群 不及格率長條圖 -->
+        <div class="chart-card" style="margin-bottom:12px">
+          <div class="chart-title" style="--accent-color:var(--accent2)">
+            <span class="dot"></span>R群 / S群 期末不及格率比較
+          </div>
+          <div class="chart-wrap" style="height:380px;position:relative">
+            <canvas id="crossGroupChart"></canvas>
+          </div>
+        </div>
+
+        <!-- R×S 5×5 交叉熱力圖 -->
+        <div class="chart-card" style="margin-bottom:12px">
+          <div class="chart-title" style="--accent-color:var(--accent2)">
+            <span class="dot"></span>R×S 交叉矩陣（期末不及格率）
+          </div>
+          <div style="padding:10px 4px">
+            <div id="crossHeatmapGrid"></div>
+            <div id="crossHeatmapDetail" style="margin-top:10px"></div>
+          </div>
+        </div>
+
+        <!-- 期中→期末軌跡分型堆疊圖 -->
+        <div class="chart-card" style="margin-bottom:12px">
+          <div class="chart-title" style="--accent-color:var(--accent2)">
+            <span class="dot"></span>期中→期末軌跡分型（SS/FS/SF/FF）
+          </div>
+          <div class="chart-wrap" style="height:380px;position:relative">
+            <canvas id="crossTrajectoryChart"></canvas>
+          </div>
+        </div>
+
+        <!-- 學習方法三型堆疊圖 -->
+        <div class="chart-card">
+          <div class="chart-title" style="--accent-color:var(--accent2)">
+            <span class="dot"></span>學習方法三型分布（DEEP/SURFACE/MODERATE）
+          </div>
+          <div class="chart-wrap" style="height:380px;position:relative">
+            <canvas id="crossApproachChart"></canvas>
+          </div>
+        </div>
+
+      </div><!-- /sub-cross -->
+
+      <!-- ─── 子面板 F：提前預警（v1.0 MVP）─── -->
+      <div id="sub-warning" class="behavior-sub-pane" style="display:none">
+        <p style="font-size:0.82rem;color:var(--text-dim,#888);margin-bottom:8px">
+          依據訓練集（已有期末成績之學期）建立的複合行為評分（BAS）與題庫精熟指數（QMI）門檻，
+          對「目前尚未有期末成績」的最新學期學生進行提前風險分級。
+        </p>
+        <p style="font-size:0.78rem;color:var(--text-dim,#888);margin-bottom:12px;padding:7px 10px;border-radius:5px;background:rgba(100,160,255,0.07);border:1px solid rgba(100,160,255,0.2)">
+          ℹ️ <strong>說明：</strong>
+          目標學期由系統自動判定（取「尚無期末成績」學期中最新一筆），不綁定特定學期。
+          風險等級為相對於歷史資料的統計參考，非最終成績判定，請配合任課教師個別了解使用。
+        </p>
+
+        <!-- 摘要橫幅 -->
+        <div class="chart-card" style="margin-bottom:12px">
+          <div class="chart-title" style="--accent-color:var(--accent2)">
+            <span class="dot"></span>預警摘要
+          </div>
+          <div id="warningSummaryBanner" style="padding:10px 4px"></div>
+        </div>
+
+        <!-- 篩選 + 匯出 -->
+        <div class="chart-card" style="margin-bottom:12px">
+          <div class="chart-title" style="--accent-color:var(--accent2)">
+            <span class="dot"></span>學生清單
+          </div>
+          <div style="padding:10px 4px">
+            <div id="warningFilterBar" style="margin-bottom:10px"></div>
+            <div id="warningStudentList"></div>
+            <div id="warningExportBtn" style="margin-top:10px"></div>
+          </div>
+        </div>
+
+        <div id="warningContent"></div>
+
+      </div><!-- /sub-warning -->
+
 
     </div><!-- /#tab-behavior -->
 
@@ -2672,6 +2818,8 @@ body.light .behavior-range-badge {
 <script defer src="js/tab-behavior-correlation.js?v=202606131110"></script>
 <script defer src="js/tab-behavior-time.js?v=202606131110"></script>
 <script defer src="js/tab-behavior-lsa.js?v=202606131110"></script>
+<script defer src="js/tab-behavior-cross.js?v=202606131110"></script>
+<script defer src="js/tab-behavior-warning.js?v=202606131110"></script>
 
 <!-- ══ 行為初始化 + 高風險報告（依賴 behavior 模組）══ -->
 <script defer src="js/behavior-init.js?v=202606131110"></script>
