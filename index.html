@@ -2469,20 +2469,7 @@ body.light .behavior-range-badge {
 
           </div><!-- /lsaReadBody -->
         </div><!-- /解讀卡片 -->
-        <script>
-        (function(){
-          var toggle  = document.getElementById("lsaReadToggle");
-          var body    = document.getElementById("lsaReadBody");
-          var chevron = document.getElementById("lsaReadChevron");
-          if (!toggle || !body) return;
-          var _open = false; // 預設收合，以 JS 變數為唯一 source of truth
-          toggle.addEventListener("click", function(){
-            _open = !_open;
-            body.style.maxHeight    = _open ? "900px" : "0";
-            chevron.style.transform = _open ? "rotate(180deg)" : "rotate(0deg)";
-          });
-        })();
-        </script>
+        <!-- 收放事件由 tab-behavior-lsa.js _bindReadToggle() 綁定（CSP: script-src 'self'）-->
 
         <!-- ── 行為序列分群（S1–S5）分析框架說明卡片 ── -->
         <div class="chart-card" style="margin-top:12px">
