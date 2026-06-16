@@ -749,7 +749,7 @@ const BehaviorCorrelationTab = (() => {
                      display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1">
             ⏱ 【時間滯後相關性】
             <span style="font-size:.75rem;font-weight:400;color:var(--text-dim,#667085)">
-              期初（W1–3）vs 期末（W14–16）學習行為對成績預測力比較
+              期初行為 × 期中成績 vs 期末行為 × 期末成績預測力比較
             </span>
           </h6>
           <span id="laggedCorrCollapseIcon"
@@ -760,8 +760,9 @@ const BehaviorCorrelationTab = (() => {
                       padding:7px 10px;background:rgba(100,160,255,0.07);
                       border:1px solid rgba(100,160,255,0.2);border-radius:6px;line-height:1.6">
             ⚠ <strong>r 值為全體學生統計（n 見括號），散佈圖依前端篩選條件顯示子集。</strong><br>
-            🔵 <strong>期初</strong>（W1–3）× 期中成績　　🟠 <strong>期末</strong>（W14–16）× 期末成績<br>
-            ▲↓ 箭頭代表同指標從期初到期末的 <code>lag_delta</code>（預測力變化量）
+            🔵 <strong>期初行為</strong> × 期中成績　　🟠 <strong>期末行為</strong> × 期末成績<br>
+            ▲↓ 箭頭代表同指標從期初到期末的 <code>lag_delta</code>（預測力變化量）<br>
+            <span style="color:var(--text-dim,#aaa);font-size:.72rem">⚙ 此版本採整學期特徵（非逐週切分），週次標示僅供參考</span>
           </div>
           <div id="laggedCorrChartWrap" style="position:relative;height:340px;width:100%">
             <canvas id="laggedCorrBarChart"></canvas>
@@ -1055,8 +1056,8 @@ const BehaviorCorrelationTab = (() => {
 
   /**
    * 渲染 lagged_pearson 分組長條圖（Chart.js bar）。
-   * - 藍色：front（期初 W1-3 × 期中成績）
-   * - 橙色：back（期末 W14-16 × 期末成績）
+   * - 藍色：front（期初行為 × 期中成績）
+   * - 橙色：back（期末行為 × 期末成績）
    * - lag_delta 以 ▲/▼ 箭頭標示於 bar 頂部（plugin afterDatasetsDraw）
    * - 篩選器只影響下方散佈圖；bar 高度固定使用 ETL 預算 r 值。
    * @param {Array} filteredRows  - 目前篩選後的 scatter_data 列（供散佈圖使用）
@@ -1087,8 +1088,6 @@ const BehaviorCorrelationTab = (() => {
 
     const feats        = _features();
     const results      = lp.results;
-    const frontWeeks   = lp.front_weeks?.join("、") || "1–3";
-    const backWeeks    = lp.back_weeks?.join("、")  || "14–16";
     const frontTarget  = lp.front_target  || "midterm_score";
     const backTarget   = lp.back_target   || "final_score";
 
@@ -1139,7 +1138,7 @@ const BehaviorCorrelationTab = (() => {
         labels,
         datasets: [
           {
-            label: `🔵 期初（W${frontWeeks}）× ${GRADE_LABELS[frontTarget] || frontTarget}`,
+            label: `🔵 期初行為 × ${GRADE_LABELS[frontTarget] || frontTarget}`,
             data: frontData,
             backgroundColor: frontData.map((_, i) =>
               frontSig[i] ? "rgba(52,152,219,0.80)" : "rgba(52,152,219,0.30)"),
@@ -1147,7 +1146,7 @@ const BehaviorCorrelationTab = (() => {
             borderWidth: 1,
           },
           {
-            label: `🟠 期末（W${backWeeks}）× ${GRADE_LABELS[backTarget] || backTarget}`,
+            label: `🟠 期末行為 × ${GRADE_LABELS[backTarget] || backTarget}`,
             data: backData,
             backgroundColor: backData.map((_, i) =>
               backSig[i] ? "rgba(230,126,34,0.80)" : "rgba(230,126,34,0.30)"),
@@ -1294,14 +1293,15 @@ const BehaviorCorrelationTab = (() => {
           ${nNote}
         </div>
         <div style="font-size:.75rem;color:var(--text-dim,#888);line-height:1.7">
-          🔵 期初（W${(lp?.front_weeks||[1,2,3]).join("、")}）全期行為 × 期中成績：<strong>${rFmtF}</strong>${results?.front?.significant ? " *" : ""}
-          　🟠 期末（W${(lp?.back_weeks||[14,15,16]).join("、")}）全期行為 × 期末成績：<strong>${rFmtB}</strong>${results?.back?.significant ? " *" : ""}
+          🔵 期初行為 × 期中成績：<strong>${rFmtF}</strong>${results?.front?.significant ? " *" : ""}
+          　🟠 期末行為 × 期末成績：<strong>${rFmtB}</strong>${results?.back?.significant ? " *" : ""}
+          　<span style="font-size:.70rem;color:var(--text-dim,#aaa)">⚙ 此版本採整學期特徵</span>
           ${deltaStr ? `　<span style="color:var(--accent3,#f7a44f)">${deltaStr}</span>` : ""}
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px" id="laggedScatterGrid">
           <div>
             <div style="font-size:.76rem;font-weight:600;color:var(--text,#172033);margin-bottom:4px">
-              🔵 全期行為 × 期中成績
+              🔵 整學期行為 × 期中成績
             </div>
             <div style="position:relative;height:260px">
               <canvas id="laggedScatterMid"></canvas>
@@ -1309,7 +1309,7 @@ const BehaviorCorrelationTab = (() => {
           </div>
           <div>
             <div style="font-size:.76rem;font-weight:600;color:var(--text,#172033);margin-bottom:4px">
-              🟠 全期行為 × 期末成績
+              🟠 整學期行為 × 期末成績
             </div>
             <div style="position:relative;height:260px">
               <canvas id="laggedScatterFinal"></canvas>
