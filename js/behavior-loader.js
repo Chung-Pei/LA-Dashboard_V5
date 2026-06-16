@@ -21,6 +21,25 @@ const BehaviorLoader = (() => {
   const _lruCache = new Map();  // 保證插入順序（ES2015+）
   const DATA_VERSION = "202606131826"; // [Schema 3.1] by_lsa_type 修正
 
+  // ── 同時請求去重（避免多個 Tab 並發初始化時重複 fetch）─────
+  // 例：sub-warning 與 Tab R 的 lazyInit 可能在同一時刻
+  // 都呼叫 loadWarningForCurrentTarget()，若無此機制，
+  // 會在 _lruCache 尚未寫入前各自發出一次 fetch。
+  const _inflight = new Map();  // key -> Promise
+
+  async function _dedupe(key, fn) {
+    if (_inflight.has(key)) return _inflight.get(key);
+    const p = (async () => {
+      try {
+        return await fn();
+      } finally {
+        _inflight.delete(key);
+      }
+    })();
+    _inflight.set(key, p);
+    return p;
+  }
+
   function _withCacheBust(url) {
     const sep = url.includes("?") ? "&" : "?";
     return `${url}${sep}v=${DATA_VERSION}`;
@@ -71,13 +90,18 @@ const BehaviorLoader = (() => {
   async function fetchJSON(key, url) {
     const cached = _lruGet(key);
     if (cached !== undefined) return cached;
-    // BUG-2 修正：移除 cache: "no-store"，讓 Cache Busting query string 負責版本控制
-    const res = await fetch(_withCacheBust(url));
-    if (!res.ok) throw new Error(`載入失敗：${url}（${res.status}）`);
-    const text = await res.text();
-    const parsed = _parseJsonSafe(text, url);
-    _lruSet(key, parsed);
-    return parsed;
+    return _dedupe(key, async () => {
+      // 二次檢查：dedupe 等待期間可能已被其他呼叫寫入快取
+      const cached2 = _lruGet(key);
+      if (cached2 !== undefined) return cached2;
+      // BUG-2 修正：移除 cache: "no-store"，讓 Cache Busting query string 負責版本控制
+      const res = await fetch(_withCacheBust(url));
+      if (!res.ok) throw new Error(`載入失敗：${url}（${res.status}）`);
+      const text = await res.text();
+      const parsed = _parseJsonSafe(text, url);
+      _lruSet(key, parsed);
+      return parsed;
+    });
   }
 
   /**
@@ -91,30 +115,42 @@ const BehaviorLoader = (() => {
     const cached = _lruGet(key);
     if (cached !== undefined) return cached;
 
-    const gzUrl = _withCacheBust(baseUrl + ".gz");
+    return _dedupe(key, async () => {
+      const cached2 = _lruGet(key);
+      if (cached2 !== undefined) return cached2;
 
-    try {
-      const res = await fetch(gzUrl);
-      if (res.ok) {
-        const contentEncoding = res.headers.get("Content-Encoding");
-        let text;
-        if (!contentEncoding && typeof DecompressionStream !== "undefined") {
-          // 方案 B：手動解壓（Chrome 80+, Firefox 113+, Safari 16.4+）
-          const ds = new DecompressionStream("gzip");
-          const decompressed = res.body.pipeThrough(ds);
-          text = await new Response(decompressed).text();
-        } else {
-          text = await res.text();
+      const gzUrl = _withCacheBust(baseUrl + ".gz");
+
+      try {
+        const res = await fetch(gzUrl);
+        if (res.ok) {
+          const contentEncoding = res.headers.get("Content-Encoding");
+          let text;
+          if (!contentEncoding && typeof DecompressionStream !== "undefined") {
+            // 方案 B：手動解壓（Chrome 80+, Firefox 113+, Safari 16.4+）
+            const ds = new DecompressionStream("gzip");
+            const decompressed = res.body.pipeThrough(ds);
+            text = await new Response(decompressed).text();
+          } else {
+            text = await res.text();
+          }
+          const parsed = _parseJsonSafe(text, baseUrl);
+          _lruSet(key, parsed);
+          return parsed;
         }
-        const parsed = _parseJsonSafe(text, baseUrl);
-        _lruSet(key, parsed);
-        return parsed;
-      }
-    } catch (_) { /* 繼續 fallback */ }
+      } catch (_) { /* 繼續 fallback */ }
 
-    // 方案 C：最終 fallback → 原始 .json
-    console.warn(`[BehaviorLoader] gz fallback to plain JSON: ${baseUrl}`);
-    return fetchJSON(key, baseUrl);
+      // 方案 C：最終 fallback → 原始 .json
+      console.warn(`[BehaviorLoader] gz fallback to plain JSON: ${baseUrl}`);
+      // 注意：fetchJSON 內部也有自己的 _dedupe（不同 key 不會衝突，
+      // 但此處共用同一 key，故直接重用 _lruGet 已涵蓋的快取邏輯）
+      const res2 = await fetch(_withCacheBust(baseUrl));
+      if (!res2.ok) throw new Error(`載入失敗：${baseUrl}（${res2.status}）`);
+      const text2 = await res2.text();
+      const parsed2 = _parseJsonSafe(text2, baseUrl);
+      _lruSet(key, parsed2);
+      return parsed2;
+    });
   }
 
   // ── 各 JSON 檔的 lazy loader ──────────────────────────────────
@@ -129,6 +165,8 @@ const BehaviorLoader = (() => {
     quiz:        () => fetchJSON("quiz",        DATA_ROOT + "quiz_behavior.json"),
     time:        () => fetchJSON("time",        DATA_ROOT + "time_distribution.json"),
     atRisk:      () => fetchJSON("atRisk",      DATA_ROOT + "at_risk_profile.json"),
+    crossAnalysis: () => fetchJSON("crossAnalysis", DATA_ROOT + "cross_analysis.json"),
+    warning:     (semester) => fetchJSON(`warning_${semester}`, DATA_ROOT + `warning_${semester}.json`),
   };
 
   /**
@@ -172,6 +210,44 @@ const BehaviorLoader = (() => {
       </div>`;
   }
 
+  /**
+   * 取得「目前提前預警目標學期」。
+   *
+   * 設計原則（依規劃：不鎖死特定學期，以「尚未有期末成績的學期」為目標）：
+   *   - 來源為 cross_analysis.json 的 meta.incomplete_semesters_excluded，
+   *     此清單與 lms_etl.py Step 9 產生 warning_*.json 時使用的
+   *     「incomplete_semesters 取最新一筆」邏輯一致。
+   *   - 若清單為空（所有學期皆已有期末成績），回傳 null，
+   *     代表目前沒有可用的提前預警資料。
+   *
+   * @returns {Promise<string|null>} 例如 "1142"，或 null
+   */
+  async function getWarningTargetSemester() {
+    try {
+      const cross = await loaders.crossAnalysis();
+      const list = cross?.meta?.incomplete_semesters_excluded;
+      if (!Array.isArray(list) || list.length === 0) return null;
+      return [...list].sort().at(-1);
+    } catch (e) {
+      console.warn("[BehaviorLoader.getWarningTargetSemester]", e);
+      return null;
+    }
+  }
+
+  /**
+   * 載入「目前目標學期」的 warning_*.json。
+   * 內部呼叫 getWarningTargetSemester() 取得學期代碼，
+   * 若無可用目標學期則回傳 null（不發出 fetch）。
+   *
+   * @returns {Promise<{semester: string, data: object}|null>}
+   */
+  async function loadWarningForCurrentTarget() {
+    const semester = await getWarningTargetSemester();
+    if (!semester) return null;
+    const data = await loaders.warning(semester);
+    return { semester, data };
+  }
+
   // ── 公開 API ─────────────────────────────────────────────
   return {
     load: loaders,
@@ -179,6 +255,8 @@ const BehaviorLoader = (() => {
     joinByMaskedId,
     setLoading,
     showError,
+    getWarningTargetSemester,
+    loadWarningForCurrentTarget,
     /**
      * BUG-3 修正：clearCache 同步通知四個 Tab 模組重置內部狀態
      * BUG-LSA-1 修正：補加 BehaviorLsaTab（原版遺漏）
@@ -194,6 +272,7 @@ const BehaviorLoader = (() => {
           () => typeof BehaviorTimeTab        !== "undefined" && BehaviorTimeTab.resetFilters?.(),
           // BUG-LSA-1 FIX: was missing — LSA tab never received cache-clear notification
           () => typeof BehaviorLsaTab         !== "undefined" && BehaviorLsaTab.resetFilters?.(),
+          () => typeof BehaviorCrossTab       !== "undefined" && BehaviorCrossTab.resetFilters?.(),
         ].forEach(fn => { try { fn(); } catch (e) { console.warn("[BehaviorLoader.clearCache]", e); } });
       }
     },

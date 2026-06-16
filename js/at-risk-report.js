@@ -12,6 +12,13 @@ const AtRiskReportManager = (() => {
   let _currentSemData = null;
   let _radarFilter = null;
 
+  // ── 第4類紅旗：提前預警摘要（warning_*.json）────────────
+  // 與 sub-warning（tab-behavior-warning.js）共用同一份資料來源，
+  // 透過 BehaviorLoader.loadWarningForCurrentTarget() 取得「目前尚無
+  // 期末成績的最新學期」之預警摘要。若該學期非當前選取學期，不顯示。
+  let _warningData = null;
+  let _warningSemester = null;
+
   const DATA_PATH = 'data/at_risk_profile.json';
 
   // ── 內部工具 ────────────────────────────────────────────
@@ -359,6 +366,39 @@ const AtRiskReportManager = (() => {
   }
 
   // ── §5.5 紅旗警示卡 ──────────────────────────────────────
+  // ── 第4類紅旗：提前預警摘要 ────────────────────────────
+  // 僅在 _currentSem 等於目前提前預警目標學期（或 __all__）時顯示。
+  // 沿用既有紅旗的「🔎定義→📊數據→💡解讀」三段式語氣，
+  // 末段附連結引導至 sub-warning（個體層級完整清單）。
+  function _buildWarningFlag() {
+    if (!_warningData || !_warningSemester) return null;
+    if (_currentSem !== _warningSemester && _currentSem !== '__all__') return null;
+
+    const s = _warningData.summary;
+    const m = _warningData.meta;
+    if (!s) return null;
+
+    // 防呆：historical_fail_rate_ref 可能為 null（該風險等級在訓練集中無樣本）
+    const _pct = (v) => (typeof v === 'number' && !isNaN(v)) ? `約 ${(v * 100).toFixed(0)}%` : '無歷史參考值';
+
+    const body =
+      `🔎 「提前預警」依111(1)–114(1)等已有期末成績學期建立的複合行為評分（BAS）` +
+      `與題庫精熟指數（QMI）門檻，對 ${_warningSemester} 學期 ${m.total_students} 名學生` +
+      `於期中考後進行分級預測（${m.data_cutoff ?? ''}）。\n\n` +
+      `📊 高風險：${s.HIGH.count} 人（同等級歷史不及格率${_pct(s.HIGH.historical_fail_rate_ref)}）。\n` +
+      `📊 中度風險：${s.MEDIUM.count} 人（${_pct(s.MEDIUM.historical_fail_rate_ref)}）。\n` +
+      `📊 低風險：${s.LOW.count} 人（${_pct(s.LOW.historical_fail_rate_ref)}）。\n\n` +
+      `💡 解讀：建議將高風險名單與上方其他紅旗警示（低完成率、連續零活動、期中後衰退）交叉比對，` +
+      `若同一學生同時出現在多項警示中，應列為第一優先介入對象。` +
+      `完整名單與個別篩選請至「🔮 提前預警」分頁查看。`;
+
+    return {
+      icon: '🔮',
+      title: `本學期提前預警：高風險 ${s.HIGH.count} 人 / 中度風險 ${s.MEDIUM.count} 人 / 低風險 ${s.LOW.count} 人`,
+      body, color: '#3498db', multiline: true,
+    };
+  }
+
   function renderRedFlags(bm, td) {
     const el = document.getElementById('rRedFlags');
     if (!el) return;
@@ -423,6 +463,9 @@ const AtRiskReportManager = (() => {
         body, color: '#8e44ad', multiline: true,
       });
     }
+
+    const warningFlag = _buildWarningFlag();
+    if (warningFlag) flags.push(warningFlag);
 
     if (!flags.length) {
       el.innerHTML = '<div style="color:var(--text-dim,#888);font-size:13px;padding:8px 0">✅ 本學期無重大紅旗警示。</div>';
@@ -549,6 +592,20 @@ const AtRiskReportManager = (() => {
       const res = await fetch(DATA_PATH, { cache: 'no-cache' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       _data = await res.json();
+
+      // 第4類紅旗資料源（不影響主流程，失敗則靜默跳過）
+      try {
+        if (typeof BehaviorLoader !== 'undefined' &&
+            typeof BehaviorLoader.loadWarningForCurrentTarget === 'function') {
+          const w = await BehaviorLoader.loadWarningForCurrentTarget();
+          if (w) {
+            _warningSemester = w.semester;
+            _warningData     = w.data;
+          }
+        }
+      } catch (e) {
+        console.warn('[AtRiskReportManager] 提前預警資料載入失敗（不影響主流程）:', e);
+      }
 
       if (!_data.schema_version || parseFloat(_data.schema_version) < 2.0) {
         throw new Error(

@@ -1,0 +1,614 @@
+/**
+ * tab-behavior-cross.js  —  v1.0
+ *
+ * 行為預測分析 sub-tab（第5個，掛載於 sub-lsa 之後）。
+ * MVP 範圍（依規劃 Phase 3）：
+ *   ① R群 / S群 不及格率長條圖（Chart.js）
+ *   ② Alert Card：自動偵測高風險 R×S 組合（>25%）
+ *   ③ BAS / QMI 摘要卡
+ *
+ * 資料來源：BehaviorLoader.load.crossAnalysis() → data/cross_analysis.json
+ * 沿用既有色表（CLUSTER_NAMES 對應 R1-R5，與 tab-behavior-radar.js 一致）
+ */
+
+const BehaviorCrossTab = (() => {
+
+  let _crossData = null;
+  let _chart = null;
+  let _trajChart = null;
+  let _approachChart = null;
+
+  const CLUSTER_NAMES = { R1:"影音輔導型", R2:"彈性聽覺型", R3:"平均使用型", R4:"題庫刷題型", R5:"被動低參與型" };
+  const S_NAMES       = { S1:"高主動切換型", S2:"均衡切換型", S3:"教材持續型", S4:"被動序列型", S5:"序列不足" };
+
+  const COLORS = {
+    R1: "#3498db", R2: "#9b59b6", R3: "#2ecc71", R4: "#e67e22", R5: "#e74c3c",
+    S1: "#1abc9c", S2: "#3498db", S3: "#2ecc71", S4: "#e67e22", S5: "#95a5a6",
+  };
+
+  const ALERT_THRESHOLD = 0.25; // 高出基準的不及格率即列入 Alert Card
+  const LOW_SAMPLE_MIN = 5;     // n < 5 視為樣本不足（與 11_cross_analysis.py 一致）
+
+  function _safeText(s) {
+    return typeof escapeHtml === "function" ? escapeHtml(String(s)) : String(s);
+  }
+
+  function _pct(x) {
+    return (x == null) ? "—" : (x * 100).toFixed(1) + "%";
+  }
+
+  // ── 初始化 ──────────────────────────────────────────────
+  async function init() {
+    try {
+      _crossData = await BehaviorLoader.load.crossAnalysis();
+    } catch (e) {
+      console.error("[BehaviorCrossTab] load error:", e);
+      _renderEmpty("cross_analysis.json 載入失敗，請確認 ETL 是否已執行 11_cross_analysis.py。");
+      throw e;
+    }
+
+    if (!_crossData || !_crossData.overall) {
+      _renderEmpty("ETL 尚未產出跨模組分析資料，請執行 11_cross_analysis.py 後重整頁面。");
+      return;
+    }
+
+    _renderScopeNote();
+    _renderSummaryCard();
+    _renderAlertCard();
+    _renderGroupChart();
+    _renderHeatmap();
+    _renderTrajectoryChart();
+    _renderApproachChart();
+  }
+
+  // ── 動態更新資料範圍說明（不鎖死特定學期）─────────────────
+  function _renderScopeNote() {
+    const el = document.getElementById("crossScopeNote");
+    if (!el) return;
+
+    const meta = _crossData.meta || {};
+    const excluded = meta.incomplete_semesters_excluded || [];
+    const semNote = excluded.length
+      ? `尚無期末成績的最新學期（${excluded.map(_safeText).join(', ')}）為驗證學期，不納入相關性計算`
+      : `目前所有學期皆已有期末成績`;
+
+    el.innerHTML = `
+      ℹ️ <strong>資料範圍說明：</strong>
+      本分析僅納入正課（theory）學生，實習科目（practicum）採30分制計分且60%成績未記入學習系統，已完全排除。
+      訓練集為已有期末成績之學期（n=${meta.n_with_final ?? '—'}）；
+      ${semNote}，
+      可於「🔮 提前預警」分頁單獨查看其預警名單。
+    `;
+  }
+
+  function resetFilters() {
+    // MVP 無篩選器，保留接口以符合 resetBehaviorFilters 慣例
+  }
+
+  function _renderEmpty(msg) {
+    const el = document.getElementById("sub-cross");
+    if (!el) return;
+    el.innerHTML = `<p style="color:#c0392b;font-size:0.85rem;padding:12px">⚠️ ${_safeText(msg)}</p>`;
+  }
+
+  // ── ① BAS / QMI 摘要卡 ──────────────────────────────────
+  function _renderSummaryCard() {
+    const wrap = document.getElementById("crossSummaryCard");
+    if (!wrap) return;
+
+    const o = _crossData.overall;
+    const sp = _crossData.spearman;
+    const bv = _crossData.bas_validation;
+    const meta = _crossData.meta;
+
+    const q = bv.qmi_quintiles;
+    const q1 = q[0], q5 = q[q.length - 1];
+
+    wrap.innerHTML = `
+      <div style="font-size:0.82rem;line-height:1.7">
+        <div style="margin-bottom:8px;padding:8px 10px;border-radius:6px;
+                    background:rgba(100,160,255,0.07);border:1px solid rgba(100,160,255,0.2)">
+          ℹ️ 訓練集：111-1–114-1（n=${o.n}），排除實習科目與
+          ${(meta.incomplete_semesters_excluded||[]).join(', ')}（驗證學期）
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+          <div class="cross-stat-box">
+            <div class="cross-stat-label">全體不及格率</div>
+            <div class="cross-stat-value">${_pct(o.fail_rate_final)}</div>
+            <div class="cross-stat-sub">期中 ${_pct(o.fail_rate_midterm)}</div>
+          </div>
+          <div class="cross-stat-box">
+            <div class="cross-stat-label">BAS 複合評分</div>
+            <div class="cross-stat-value">r = ${bv.bas_r?.r ?? '—'}</div>
+            <div class="cross-stat-sub">QMI×0.7 + (1−被動指數)×0.3</div>
+          </div>
+          <div class="cross-stat-box">
+            <div class="cross-stat-label">QMI 五分位梯度</div>
+            <div class="cross-stat-value">${_pct(q1.fail_rate)} → ${_pct(q5.fail_rate)}</div>
+            <div class="cross-stat-sub">Q1（最低）vs Q5（最高），n=${q1.n}/${q5.n}</div>
+          </div>
+          <div class="cross-stat-box">
+            <div class="cross-stat-label">R群 × 期末 Spearman</div>
+            <div class="cross-stat-value">ρ = ${sp.r_group_vs_final.rho ?? '—'}</div>
+            <div class="cross-stat-sub">${_safeText(sp.r_group_vs_final.note || '')}</div>
+          </div>
+          <div class="cross-stat-box">
+            <div class="cross-stat-label">S群 × 期末 Spearman</div>
+            <div class="cross-stat-value">ρ = ${sp.s_group_vs_final.rho ?? '—'}</div>
+            <div class="cross-stat-sub">${_safeText(sp.s_group_vs_final.note || '')}</div>
+          </div>
+          <div class="cross-stat-box">
+            <div class="cross-stat-label">學習方法分布</div>
+            <div class="cross-stat-value" style="font-size:0.95rem">
+              DEEP ${_pct(o.approach.DEEP)} / SURFACE ${_pct(o.approach.SURFACE)}
+            </div>
+            <div class="cross-stat-sub">MODERATE ${_pct(o.approach.MODERATE)}</div>
+          </div>
+        </div>
+      </div>
+      <style>
+        .cross-stat-box{padding:10px;border-radius:6px;background:var(--surface2,#1c2030);
+                        border:1px solid var(--border2,#2a2f45)}
+        .cross-stat-label{font-size:0.72rem;color:var(--text-dim,#888);margin-bottom:4px}
+        .cross-stat-value{font-size:1.1rem;font-weight:600;color:var(--text,#eee)}
+        .cross-stat-sub{font-size:0.68rem;color:var(--text-dim,#888);margin-top:2px}
+      </style>
+    `;
+  }
+
+  // ── ② Alert Card：自動偵測高風險 R×S 組合 ────────────────
+  function _renderAlertCard() {
+    const wrap = document.getElementById("crossAlertCard");
+    if (!wrap) return;
+
+    const overall_fail = _crossData.overall.fail_rate_final;
+    const matrix = _crossData.cross_matrix || {};
+    const alerts = [];
+
+    for (const [rg, row] of Object.entries(matrix)) {
+      for (const [sg, cell] of Object.entries(row)) {
+        if (cell.low_sample || cell.note || cell.fail_rate_final == null) continue;
+        if (cell.fail_rate_final >= ALERT_THRESHOLD) {
+          alerts.push({ rg, sg, ...cell });
+        }
+      }
+    }
+    alerts.sort((a, b) => b.fail_rate_final - a.fail_rate_final);
+
+    if (alerts.length === 0) {
+      wrap.innerHTML = `<p style="font-size:0.8rem;color:var(--text-dim,#888)">
+        目前無 R×S 組合不及格率超過 ${(ALERT_THRESHOLD*100).toFixed(0)}%。</p>`;
+      return;
+    }
+
+    const rows = alerts.map(a => `
+      <div class="cross-alert-row">
+        <span class="cross-alert-badge" style="background:${COLORS[a.rg]}22;color:${COLORS[a.rg]}">
+          ${a.rg} ${CLUSTER_NAMES[a.rg] || ''}
+        </span>
+        <span style="color:var(--text-dim,#888)">×</span>
+        <span class="cross-alert-badge" style="background:${COLORS[a.sg]}22;color:${COLORS[a.sg]}">
+          ${a.sg} ${S_NAMES[a.sg] || ''}
+        </span>
+        <span class="cross-alert-stat">
+          不及格率 <strong style="color:#e74c3c">${_pct(a.fail_rate_final)}</strong>
+          （高出基準 ${_pct(a.fail_rate_final - overall_fail)}，n=${a.n}）
+        </span>
+      </div>
+    `).join('');
+
+    wrap.innerHTML = `
+      <div style="font-size:0.82rem">
+        <div style="margin-bottom:8px;font-weight:600">
+          ⚠️ 高風險 R×S 組合（不及格率 ≥ ${(ALERT_THRESHOLD*100).toFixed(0)}%）
+        </div>
+        ${rows}
+      </div>
+      <style>
+        .cross-alert-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+                         padding:8px 10px;margin-bottom:6px;border-radius:6px;
+                         background:rgba(231,76,60,0.06);border:1px solid rgba(231,76,60,0.18)}
+        .cross-alert-badge{padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600}
+        .cross-alert-stat{font-size:0.78rem;color:var(--text-dim,#888);margin-left:auto}
+      </style>
+    `;
+  }
+
+  // ── ③ R群 / S群 不及格率長條圖 ───────────────────────────
+  function _renderGroupChart() {
+    const canvas = document.getElementById("crossGroupChart");
+    if (!canvas || typeof Chart === "undefined") return;
+
+    const overall_fail = _crossData.overall.fail_rate_final;
+    const rStats = _crossData.by_r_cluster || {};
+    const sStats = _crossData.by_s_cluster || {};
+
+    const labels = [];
+    const data = [];
+    const bg = [];
+    const meta = [];
+
+    for (const code of ["R1","R2","R3","R4","R5"]) {
+      const s = rStats[code];
+      if (!s) continue;
+      labels.push(`${code} ${CLUSTER_NAMES[code]}`);
+      if (s.low_sample || s.no_baseline) {
+        data.push(0);
+        bg.push("rgba(150,150,150,0.25)");
+        meta.push(`n=${s.n}（樣本不足/無基準，不計算）`);
+      } else {
+        data.push(s.fail_rate_final * 100);
+        bg.push(COLORS[code]);
+        meta.push(`n=${s.n}，期末均值 ${s.final_mean}`);
+      }
+    }
+
+    labels.push(""); // 分隔
+    data.push(null);
+    bg.push("transparent");
+    meta.push("");
+
+    for (const code of ["S1","S2","S3","S4","S5"]) {
+      const s = sStats[code];
+      if (!s) continue;
+      labels.push(`${code} ${S_NAMES[code]}`);
+      if (s.low_sample || s.no_baseline) {
+        data.push(0);
+        bg.push("rgba(150,150,150,0.25)");
+        meta.push(`n=${s.n}（${code==='S5' ? '序列不足' : '樣本不足'}）`);
+      } else {
+        data.push(s.fail_rate_final * 100);
+        bg.push(COLORS[code]);
+        meta.push(`n=${s.n}，期末均值 ${s.final_mean}`);
+      }
+    }
+
+    if (_chart) _chart.destroy();
+    _chart = new Chart(canvas, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{
+          label: "期末不及格率 (%)",
+          data,
+          backgroundColor: bg,
+        }],
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const m = meta[ctx.dataIndex];
+                const v = ctx.parsed.x;
+                return v == null ? "" : `不及格率 ${v.toFixed(1)}%　${m}`;
+              },
+            },
+          },
+          annotation: undefined,
+        },
+        scales: {
+          x: {
+            title: { display: true, text: "期末不及格率 (%)" },
+            min: 0,
+          },
+        },
+      },
+      plugins: [{
+        // 全體基準虛線
+        id: "overallLine",
+        afterDraw: (chart) => {
+          const xScale = chart.scales.x;
+          const yScale = chart.scales.y;
+          const x = xScale.getPixelForValue(overall_fail * 100);
+          const ctx = chart.ctx;
+          ctx.save();
+          ctx.strokeStyle = "rgba(231,76,60,0.7)";
+          ctx.setLineDash([5, 4]);
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(x, yScale.top);
+          ctx.lineTo(x, yScale.bottom);
+          ctx.stroke();
+          ctx.fillStyle = "rgba(231,76,60,0.9)";
+          ctx.font = "10px sans-serif";
+          ctx.fillText(`全體基準 ${(overall_fail*100).toFixed(1)}%`, x + 4, yScale.top + 10);
+          ctx.restore();
+        },
+      }],
+    });
+  }
+
+  // ── ④ R×S 5×5 熱力圖 ──────────────────────────────────────
+  // 色階：以 fail_rate_final 相對於全體基準 (overall.fail_rate_final) 的
+  // 倍數決定顏色深淺；low_sample / S5（序列不足）格子顯示灰色斜線紋理。
+  // 點擊格子展開詳細統計（n / mean±SD / fail_rate / z）。
+  const R_CODES = ["R1","R2","R3","R4","R5"];
+  const S_CODES = ["S1","S2","S3","S4","S5"];
+
+  function _cellColor(fail_rate, overall_fail) {
+    if (fail_rate == null) return "transparent";
+    const ratio = overall_fail > 0 ? fail_rate / overall_fail : 1;
+    // ratio: <0.7 綠 / 0.7-1.3 黃 / >1.3 橘 / >1.6 紅
+    if (ratio < 0.7)  return "rgba(46,204,113,0.55)";   // 低於基準70% → 綠
+    if (ratio < 1.0)  return "rgba(46,204,113,0.25)";   // 略低於基準 → 淺綠
+    if (ratio < 1.3)  return "rgba(241,196,15,0.35)";   // 略高於基準 → 黃
+    if (ratio < 1.6)  return "rgba(230,126,34,0.45)";   // 中高 → 橘
+    return "rgba(231,76,60,0.55)";                       // 高 → 紅
+  }
+
+  function _renderHeatmap() {
+    const wrap = document.getElementById("crossHeatmapGrid");
+    const detail = document.getElementById("crossHeatmapDetail");
+    if (!wrap) return;
+
+    const matrix = _crossData.cross_matrix || {};
+    const overall_fail = _crossData.overall.fail_rate_final;
+
+    // 表頭（S群）
+    let html = `<div class="cross-heatmap-grid">`;
+    html += `<div class="cross-heatmap-cell cross-heatmap-corner"></div>`;
+    S_CODES.forEach(sg => {
+      html += `<div class="cross-heatmap-cell cross-heatmap-header">
+                 <div style="font-weight:700;color:${COLORS[sg]}">${sg}</div>
+                 <div style="font-size:0.65rem;color:var(--text-dim,#888)">${S_NAMES[sg]}</div>
+               </div>`;
+    });
+
+    // 各列（R群）
+    R_CODES.forEach(rg => {
+      html += `<div class="cross-heatmap-cell cross-heatmap-header">
+                 <div style="font-weight:700;color:${COLORS[rg]}">${rg}</div>
+                 <div style="font-size:0.65rem;color:var(--text-dim,#888)">${CLUSTER_NAMES[rg]}</div>
+               </div>`;
+
+      S_CODES.forEach(sg => {
+        const cell = (matrix[rg] && matrix[rg][sg]) || {};
+        const isS5 = sg === "S5";
+        const isLowSample = !!cell.low_sample || (cell.n ?? 0) < LOW_SAMPLE_MIN;
+        const hasStats = cell.fail_rate_final != null && !isLowSample && !isS5;
+
+        if (!hasStats) {
+          // 灰色斜線紋理：樣本不足 或 S5（序列不足）
+          const reason = isS5 ? "序列不足" : "樣本不足";
+          html += `<div class="cross-heatmap-cell cross-heatmap-empty"
+                        title="${rg}×${sg}：${reason}（n=${cell.n ?? 0}）"
+                        data-r="${rg}" data-s="${sg}">
+                     <div style="font-size:0.65rem;color:var(--text-dim,#888)">n=${cell.n ?? 0}</div>
+                     <div style="font-size:0.6rem;color:var(--text-dim,#888)">${reason}</div>
+                   </div>`;
+        } else {
+          const bg = _cellColor(cell.fail_rate_final, overall_fail);
+          html += `<div class="cross-heatmap-cell cross-heatmap-data" data-r="${rg}" data-s="${sg}"
+                        style="background:${bg}" role="button" tabindex="0"
+                        title="點擊查看 ${rg}×${sg} 詳細統計">
+                     <div style="font-weight:700;font-size:0.85rem">${_pct(cell.fail_rate_final)}</div>
+                     <div style="font-size:0.65rem;color:var(--text-dim,#888)">n=${cell.n}</div>
+                   </div>`;
+        }
+      });
+    });
+    html += `</div>`;
+
+    // 圖例
+    html += `
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:0.7rem;color:var(--text-dim,#888)">
+        <span>不及格率（相對全體基準 ${_pct(overall_fail)}）：</span>
+        <span><span class="cross-legend-swatch" style="background:rgba(46,204,113,0.55)"></span>&lt;70%</span>
+        <span><span class="cross-legend-swatch" style="background:rgba(46,204,113,0.25)"></span>70–100%</span>
+        <span><span class="cross-legend-swatch" style="background:rgba(241,196,15,0.35)"></span>100–130%</span>
+        <span><span class="cross-legend-swatch" style="background:rgba(230,126,34,0.45)"></span>130–160%</span>
+        <span><span class="cross-legend-swatch" style="background:rgba(231,76,60,0.55)"></span>&gt;160%</span>
+        <span><span class="cross-legend-swatch cross-legend-hatch"></span>樣本不足 / 序列不足</span>
+      </div>
+      <style>
+        .cross-heatmap-grid{display:grid;grid-template-columns:90px repeat(5,1fr);gap:3px}
+        .cross-heatmap-cell{padding:6px 4px;text-align:center;border-radius:4px;min-height:48px;
+                             display:flex;flex-direction:column;align-items:center;justify-content:center}
+        .cross-heatmap-corner{background:transparent}
+        .cross-heatmap-header{background:var(--surface2,#1c2030)}
+        .cross-heatmap-data{cursor:pointer;transition:transform .12s,box-shadow .12s}
+        .cross-heatmap-data:hover, .cross-heatmap-data:focus{
+          transform:scale(1.04);box-shadow:0 0 0 2px var(--accent,#3498db);outline:none}
+        .cross-heatmap-empty{
+          background:repeating-linear-gradient(45deg,rgba(150,150,150,0.12),rgba(150,150,150,0.12) 4px,
+                     transparent 4px,transparent 8px);
+          border:1px dashed rgba(150,150,150,0.3)}
+        .cross-legend-swatch{display:inline-block;width:14px;height:14px;border-radius:3px;
+                              vertical-align:middle;margin-right:2px}
+        .cross-legend-hatch{
+          background:repeating-linear-gradient(45deg,rgba(150,150,150,0.25),rgba(150,150,150,0.25) 3px,
+                     transparent 3px,transparent 6px);
+          border:1px dashed rgba(150,150,150,0.4)}
+      </style>
+    `;
+
+    wrap.innerHTML = html;
+
+    // 點擊事件：展開詳細統計
+    wrap.querySelectorAll(".cross-heatmap-data").forEach(el => {
+      el.addEventListener("click", () => _showHeatmapDetail(el.dataset.r, el.dataset.s));
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          _showHeatmapDetail(el.dataset.r, el.dataset.s);
+        }
+      });
+    });
+
+    if (detail) detail.innerHTML = `<p style="font-size:0.78rem;color:var(--text-dim,#888);padding:6px 4px">
+      點擊上方格子查看該 R×S 組合的詳細統計。</p>`;
+  }
+
+  function _severityTextColor(fail_rate, overall_fail) {
+    if (fail_rate == null || overall_fail <= 0) return "var(--text,#eee)";
+    const ratio = fail_rate / overall_fail;
+    if (ratio < 0.7) return "#2ecc71";
+    if (ratio < 1.3) return "#f1c40f";
+    if (ratio < 1.6) return "#e67e22";
+    return "#e74c3c";
+  }
+
+  function _showHeatmapDetail(rg, sg) {
+    const detail = document.getElementById("crossHeatmapDetail");
+    if (!detail) return;
+
+    const cell = (_crossData.cross_matrix[rg] || {})[sg] || {};
+    const overall = _crossData.overall;
+
+    const zNote = (z) => {
+      if (z == null) return "";
+      const abs = Math.abs(z);
+      const sig = abs >= 2.58 ? "p&lt;0.01 ***" : abs >= 1.96 ? "p&lt;0.05 *" : "未達顯著";
+      const dir = z > 0 ? "高於" : "低於";
+      return `（z=${z.toFixed(2)}，${dir}全體平均，${sig}）`;
+    };
+
+    detail.innerHTML = `
+      <div style="padding:10px 12px;border-radius:6px;background:var(--surface2,#1c2030);
+                  border:1px solid var(--border2,#2a2f45);font-size:0.82rem;line-height:1.7">
+        <div style="font-weight:700;margin-bottom:6px">
+          <span style="color:${COLORS[rg]}">${rg} ${CLUSTER_NAMES[rg]}</span>
+          ×
+          <span style="color:${COLORS[sg]}">${sg} ${S_NAMES[sg]}</span>
+        </div>
+        <div>樣本數：<strong>${cell.n ?? 0}</strong></div>
+        ${cell.final_mean != null ? `<div>期末成績：<strong>${cell.final_mean.toFixed(1)} ± ${cell.final_sd?.toFixed(1) ?? '—'}</strong></div>` : ''}
+        ${cell.fail_rate_final != null ? `
+          <div>期末不及格率：<strong style="color:${_severityTextColor(cell.fail_rate_final, overall.fail_rate_final)}">
+            ${_pct(cell.fail_rate_final)}</strong>
+            （全體基準 ${_pct(overall.fail_rate_final)}）
+            ${zNote(cell.z_vs_overall_final)}
+          </div>` : ''}
+        ${cell.note ? `<div style="color:var(--text-dim,#888)">ℹ️ ${_safeText(cell.note)}</div>` : ''}
+      </div>
+    `;
+  }
+
+  // ── ⑤ 軌跡分型堆疊圖（V-T：SS/FS/SF/FF）──────────────────
+  // 依 R群/S群分組，顯示各群組「期中→期末」四種軌跡的比例分布。
+  // R2/S5（no_baseline，無 trajectory 資料）顯示為單一灰色佔位列。
+  const TRAJ_KEYS  = ["SS", "FS", "SF", "FF"];
+  const TRAJ_NAMES = { SS: "穩定及格", FS: "自救成功", SF: "成績滑落", FF: "持續不及格" };
+  const TRAJ_COLORS = { SS: "#2ecc71", FS: "#3498db", SF: "#e67e22", FF: "#e74c3c" };
+
+  const APPROACH_KEYS  = ["DEEP", "SURFACE", "MODERATE"];
+  const APPROACH_NAMES = { DEEP: "深層學習", SURFACE: "表層學習", MODERATE: "中間型" };
+  const APPROACH_COLORS = { DEEP: "#2ecc71", SURFACE: "#e74c3c", MODERATE: "#f1c40f" };
+
+  /**
+   * 共用的分布類堆疊圖建構器（V-T / V-A）。
+   * @param {string} canvasId
+   * @param {object} chartRef  { current: Chart|null } 形式的可變參照
+   * @param {string[]} keys    例如 TRAJ_KEYS 或 APPROACH_KEYS
+   * @param {object} names     代碼 → 顯示名稱
+   * @param {object} colors    代碼 → 顏色
+   * @param {string} distField 'trajectory' 或 'approach'
+   * @param {string} legendTitle
+   */
+  function _renderDistributionStackedChart(canvasId, chartRef, keys, names, colors, distField, legendTitle) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || typeof Chart === "undefined") return;
+
+    const rStats = _crossData.by_r_cluster || {};
+    const sStats = _crossData.by_s_cluster || {};
+
+    const labels = [];
+    const rows = []; // 每列：{ dist: {key:ratio,...} | null, n, lowSample }
+
+    function pushGroup(code, statMap, nameMap) {
+      const s = statMap[code];
+      if (!s) return;
+      labels.push(`${code} ${nameMap[code]}`);
+      if (s.low_sample || s.no_baseline || !s[distField]) {
+        rows.push({ dist: null, n: s.n ?? 0, lowSample: true });
+      } else {
+        rows.push({ dist: s[distField], n: s.n, lowSample: false });
+      }
+    }
+
+    for (const code of ["R1","R2","R3","R4","R5"]) pushGroup(code, rStats, CLUSTER_NAMES);
+    labels.push(""); rows.push({ dist: null, n: null, separator: true });
+    for (const code of ["S1","S2","S3","S4","S5"]) pushGroup(code, sStats, S_NAMES);
+
+    const datasets = keys.map(key => ({
+      label: `${key} ${names[key]}`,
+      data: rows.map(r => {
+        if (r.separator) return null;
+        if (r.dist == null) return 0;
+        return (r.dist[key] ?? 0) * 100;
+      }),
+      backgroundColor: colors[key],
+      stack: "dist",
+    }));
+
+    // 樣本不足/分隔列：疊加一個灰色全幅佔位 dataset，避免空白誤判為 0%
+    datasets.push({
+      label: "樣本不足／無資料",
+      data: rows.map(r => (r.lowSample ? 100 : null)),
+      backgroundColor: "rgba(150,150,150,0.25)",
+      stack: "dist",
+    });
+
+    if (chartRef.current) chartRef.current.destroy();
+    chartRef.current = new Chart(canvas, {
+      type: "bar",
+      data: { labels, datasets },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 10 } } },
+          tooltip: {
+            callbacks: {
+              title: (items) => items[0]?.label || "",
+              label: (ctx) => {
+                const row = rows[ctx.dataIndex];
+                if (!row || row.separator) return "";
+                if (row.lowSample) {
+                  if (ctx.dataset.label !== "樣本不足／無資料") return "";
+                  return `樣本不足（n=${row.n}），無分布資料`;
+                }
+                if (ctx.dataset.label === "樣本不足／無資料") return "";
+                const v = ctx.parsed.x;
+                return `${ctx.dataset.label}：${v.toFixed(1)}%（n≈${Math.round(row.n * v / 100)}）`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            stacked: true,
+            min: 0, max: 100,
+            title: { display: true, text: `${legendTitle} (%)` },
+          },
+          y: { stacked: true },
+        },
+      },
+    });
+  }
+
+  function _renderTrajectoryChart() {
+    _renderDistributionStackedChart(
+      "crossTrajectoryChart",
+      { get current() { return _trajChart; }, set current(v) { _trajChart = v; } },
+      TRAJ_KEYS, TRAJ_NAMES, TRAJ_COLORS, "trajectory", "期中→期末軌跡分布"
+    );
+  }
+
+  function _renderApproachChart() {
+    _renderDistributionStackedChart(
+      "crossApproachChart",
+      { get current() { return _approachChart; }, set current(v) { _approachChart = v; } },
+      APPROACH_KEYS, APPROACH_NAMES, APPROACH_COLORS, "approach", "學習方法分布"
+    );
+  }
+
+  return { init, resetFilters };
+})();

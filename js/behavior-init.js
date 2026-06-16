@@ -30,11 +30,23 @@ function resetBehaviorFilters() {
         typeof BehaviorLsaTab.resetFilters === 'function')
       BehaviorLsaTab.resetFilters();
   } catch(e) { console.error('[resetBehaviorFilters] lsa:', e); }
+
+  try {
+    if (typeof BehaviorCrossTab !== 'undefined' &&
+        typeof BehaviorCrossTab.resetFilters === 'function')
+      BehaviorCrossTab.resetFilters();
+  } catch(e) { console.error('[resetBehaviorFilters] cross:', e); }
+
+  try {
+    if (typeof BehaviorWarningTab !== 'undefined' &&
+        typeof BehaviorWarningTab.resetFilters === 'function')
+      BehaviorWarningTab.resetFilters();
+  } catch(e) { console.error('[resetBehaviorFilters] warning:', e); }
 }
 
 // ── BehaviorTabManager：懶載入協調器 ────────────────────
 const BehaviorTabManager = (() => {
-  const _init    = { radar: false, correlation: false, time: false, lsa: false };
+  const _init    = { radar: false, correlation: false, time: false, lsa: false, cross: false, warning: false };
   // BUG-R5-BI-1 FIX: _loading flag prevents concurrent lazyInit invocations
   // (two rapid clicks both passed `if (_init.radar)` before first resolved)
   let   _loading = false;
@@ -163,6 +175,40 @@ const BehaviorTabManager = (() => {
         } catch (e) {
           console.error('[BehaviorTabManager] lsa init:', e);
           _showSubError('sub-lsa', 'LSA 序列分析');
+        }
+      }
+    }
+
+    if (sub === 'cross' && !_init.cross) {
+      if (typeof BehaviorCrossTab === 'undefined' ||
+          typeof BehaviorCrossTab.init !== 'function') {
+        console.error('[BehaviorTabManager] BehaviorCrossTab 模組未載入');
+        _showSubError('sub-cross', '行為預測分析');
+      } else {
+        try {
+          await BehaviorCrossTab.init();
+          _init.cross = true;
+          didInit = true;
+        } catch (e) {
+          console.error('[BehaviorTabManager] cross init:', e);
+          _showSubError('sub-cross', '行為預測分析');
+        }
+      }
+    }
+
+    if (sub === 'warning' && !_init.warning) {
+      if (typeof BehaviorWarningTab === 'undefined' ||
+          typeof BehaviorWarningTab.init !== 'function') {
+        console.error('[BehaviorTabManager] BehaviorWarningTab 模組未載入');
+        _showSubError('sub-warning', '提前預警');
+      } else {
+        try {
+          await BehaviorWarningTab.init();
+          _init.warning = true;
+          didInit = true;
+        } catch (e) {
+          console.error('[BehaviorTabManager] warning init:', e);
+          _showSubError('sub-warning', '提前預警');
         }
       }
     }
