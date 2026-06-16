@@ -63,6 +63,7 @@ const BehaviorLsaTab = (() => {
     _bindGroupButtons();
     _bindHelpButton();
     _bindExpandButton();
+    _bindReadToggle();
 
     try {
       if (typeof d3 === "undefined") {
@@ -105,6 +106,20 @@ const BehaviorLsaTab = (() => {
     const clone = btn.cloneNode(true);
     btn.parentNode.replaceChild(clone, btn);
     return clone;
+  }
+
+  // ── 解讀說明卡片收放 ──────────────────────────────────────────
+  function _bindReadToggle() {
+    const toggle  = document.getElementById("lsaReadToggle");
+    const body    = document.getElementById("lsaReadBody");
+    const chevron = document.getElementById("lsaReadChevron");
+    if (!toggle || !body || !chevron) return;
+    let _open = false;
+    toggle.addEventListener("click", function () {
+      _open = !_open;
+      body.style.maxHeight    = _open ? "900px" : "0";
+      chevron.style.transform = _open ? "rotate(180deg)" : "rotate(0deg)";
+    });
   }
 
   // ── Help 按鈕 ─────────────────────────────────────────────────
