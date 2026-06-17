@@ -13,13 +13,19 @@
  *
  * [v3.1 修正]
  *   BUG-LSA-1：clearCache 遺漏 BehaviorLsaTab 通知 → 補加第四個 fn
+ *
+ * [v3.1.1 注解補充]
+ *   WARN-LOADER-1（非 bug）：_fetchWithGzFallback 方案C fallback 繞開 deadlock
+ *   的方式有效：外層 _dedupe(key,...) 在 finally 已刪除 inflight，
+ *   故方案C 的 fetch 不會導致自我等待。語意上此段直接 fetch 而非呼叫
+ *   fetchJSON 是刻意迴避第二層 _dedupe 的設計，維持不變。
  */
 
 const BehaviorLoader = (() => {
   // ── LRU 快取（BUG-1 修正）────────────────────────────────
   const MAX_CACHE = 4;          // 最多快取 4 個 JSON key
   const _lruCache = new Map();  // 保證插入順序（ES2015+）
-  const DATA_VERSION = "202606131826"; // [Schema 3.1] by_lsa_type 修正
+  const DATA_VERSION = "202606171330"; // [Schema 3.1] by_lsa_type 修正
 
   // ── 同時請求去重（避免多個 Tab 並發初始化時重複 fetch）─────
   // 例：sub-warning 與 Tab R 的 lazyInit 可能在同一時刻
@@ -109,6 +115,8 @@ const BehaviorLoader = (() => {
    * 方案 A：伺服器送 Content-Encoding:gzip → 瀏覽器自動解壓，直接 res.text()
    * 方案 B：伺服器送裸 .gz（無 Content-Encoding）→ DecompressionStream 手動解壓
    * 方案 C：.gz 不存在或解壓失敗 → 原始 .json fallback
+   *         WARN-LOADER-1：此處直接 fetch 而非呼叫 fetchJSON，
+   *         是刻意迴避第二層 _dedupe 的設計（外層 _dedupe 在 finally 已釋放）。
    * 注意：Accept-Encoding 屬瀏覽器 forbidden header，無需手動設定
    */
   async function _fetchWithGzFallback(key, baseUrl) {
@@ -142,8 +150,6 @@ const BehaviorLoader = (() => {
 
       // 方案 C：最終 fallback → 原始 .json
       console.warn(`[BehaviorLoader] gz fallback to plain JSON: ${baseUrl}`);
-      // 注意：fetchJSON 內部也有自己的 _dedupe（不同 key 不會衝突，
-      // 但此處共用同一 key，故直接重用 _lruGet 已涵蓋的快取邏輯）
       const res2 = await fetch(_withCacheBust(baseUrl));
       if (!res2.ok) throw new Error(`載入失敗：${baseUrl}（${res2.status}）`);
       const text2 = await res2.text();
@@ -236,14 +242,47 @@ const BehaviorLoader = (() => {
 
   /**
    * 載入「目前目標學期」的 warning_*.json。
-   * 內部呼叫 getWarningTargetSemester() 取得學期代碼，
-   * 若無可用目標學期則回傳 null（不發出 fetch）。
+   * 防線3（選項B）：優先嘗試 warning_{semester}_validated.json，
+   * 不存在或失敗時 fallback 至 warning_{semester}.json。
+   * 成功載入 validated 版時，設置 window._latestWarningValidation
+   * 供 tab-behavior-cross.js 讀取。
    *
    * @returns {Promise<{semester: string, data: object}|null>}
    */
   async function loadWarningForCurrentTarget() {
     const semester = await getWarningTargetSemester();
     if (!semester) return null;
+
+    // 防線3：優先嘗試 validated 版本
+    const validatedKey = `warning_${semester}_validated`;
+    const validatedUrl = DATA_ROOT + `warning_${semester}_validated.json`;
+    try {
+      const res = await fetch(_withCacheBust(validatedUrl));
+      if (res.ok) {
+        const text = await res.text();
+        const data = _parseJsonSafe(text, validatedUrl);
+        _lruSet(validatedKey, data);
+        console.log(`[BehaviorLoader] 載入驗證版本: ${validatedUrl}`);
+
+        // 設置全域快取供 tab-behavior-cross.js 使用
+        const cal = data?.meta?.validation_summary?.calibration;
+        const validationDate = data?.meta?.validation_date;
+        if (cal && validationDate) {
+          const highErr = cal.HIGH?.calibration_error;
+          window._latestWarningValidation = {
+            semester,
+            date: new Date(validationDate).toLocaleDateString("zh-TW"),
+            highErrorPp: highErr != null ? `${highErr >= 0 ? "+" : ""}${(highErr * 100).toFixed(1)}` : "N/A",
+          };
+        }
+        return { semester, data };
+      }
+    } catch (_) {
+      // validated 版本不存在，繼續 fallback
+    }
+
+    // fallback：載入一般預測版本
+    console.log(`[BehaviorLoader] 載入預測版本（尚未驗證）: warning_${semester}.json`);
     const data = await loaders.warning(semester);
     return { semester, data };
   }
@@ -263,7 +302,6 @@ const BehaviorLoader = (() => {
      * @param {boolean} notifyTabs 預設 true，傳 false 可靜默清除
      */
     clearCache: (notifyTabs = true) => {
-      // 清除所有 key（Map 的 clear 保留物件參照不泄漏）
       _lruCache.clear();
       if (notifyTabs) {
         [

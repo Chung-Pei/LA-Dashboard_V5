@@ -36,7 +36,31 @@ const BehaviorWarningTab = (() => {
     LOW:    { label: "低風險",   color: "#2ecc71", bg: "rgba(46,204,113,0.08)" },
   };
 
-  function _safeText(s) {
+  // ── 樣式防重複注入（ARCH-3 FIX）────────────────────────────
+  // 每個 <style> 區塊只注入一次；使用 id 作為防重複 key。
+  function _injectStyleOnce(id, css) {
+    if (document.getElementById(id)) return;
+    const el = document.createElement("style");
+    el.id = id;
+    el.textContent = css;
+    document.head.appendChild(el);
+  }
+
+  const _STYLES = {
+    summaryBanner: `
+      .warning-stat-box{padding:10px 12px;border-radius:6px;background:var(--surface2,#1c2030)}
+      .warning-stat-label{font-size:0.75rem;font-weight:600;margin-bottom:4px}
+      .warning-stat-value{font-size:1.15rem;font-weight:700;color:var(--text,#eee)}
+      .warning-stat-sub{font-size:0.68rem;color:var(--text-dim,#888);margin-top:2px}`,
+    studentList: `
+      .warning-table{width:100%;border-collapse:collapse;font-size:0.76rem}
+      .warning-table th{text-align:left;padding:6px 8px;border-bottom:2px solid var(--border2,#2a2f45);
+                         color:var(--text-dim,#888);font-weight:600;white-space:nowrap}
+      .warning-table td{padding:5px 8px;border-bottom:1px solid var(--border2,#2a2f45);white-space:nowrap}
+      .warning-level-pill{padding:1px 8px;border-radius:10px;font-size:0.72rem;font-weight:600}
+      .warning-rule-badge{display:inline-block;padding:1px 6px;margin:1px;border-radius:4px;
+                           background:rgba(150,150,150,0.15);font-size:0.68rem;color:var(--text-dim,#888)}`,
+  };
     return typeof escapeHtml === "function" ? escapeHtml(String(s)) : String(s);
   }
 
@@ -109,7 +133,8 @@ const BehaviorWarningTab = (() => {
 
   function _renderAll() {
     _toggleMainCards(true);
-    document.getElementById("warningContent").innerHTML = "";
+    // WARN-WARNING-1 FIX: warningContent 不是任何子函式的目標容器，
+    // 清空此節點對後續 render 無效果，移除冗餘操作。
     _renderSummaryBanner();
     _renderFilterBar();
     _renderStudentList();
@@ -135,6 +160,47 @@ const BehaviorWarningTab = (() => {
         </div>`;
     }).join("");
 
+    // 防線3：驗證結果區塊（schema 1.1 才有 validation_date key）
+    let validationHtml = "";
+    if ("validation_date" in (m ?? {})) {
+      const cal  = m.validation_summary?.calibration ?? {};
+      const auc  = m.validation_summary?.auc;
+      const date = new Date(m.validation_date).toLocaleDateString("zh-TW");
+      const calRows = ["HIGH", "MEDIUM", "LOW"].map(lvl => {
+        const c = cal[lvl] ?? {};
+        const sign = (c.calibration_error ?? 0) >= 0 ? "+" : "";
+        const errPp = c.calibration_error != null ? (c.calibration_error * 100).toFixed(1) : "—";
+        const errClass = c.calibration_error != null && Math.abs(c.calibration_error) > 0.05
+          ? "color:#e74c3c;font-weight:600" : "color:#2ecc71";
+        return `<tr>
+          <td style="padding:3px 8px">${lvl}</td>
+          <td style="padding:3px 8px">${c.predicted_fail_rate != null ? (c.predicted_fail_rate * 100).toFixed(1) + "%" : "—"}</td>
+          <td style="padding:3px 8px">${c.actual_fail_rate    != null ? (c.actual_fail_rate    * 100).toFixed(1) + "%" : "—"}</td>
+          <td style="padding:3px 8px;${errClass}">${sign}${errPp}pp</td>
+        </tr>`;
+      }).join("");
+      const aucHtml = auc != null
+        ? `<div style="margin-top:6px;font-size:0.72rem;color:var(--text-dim,#888)">模型區辨力 AUC = ${auc.toFixed(3)}</div>`
+        : `<div style="margin-top:6px;font-size:0.72rem;color:var(--text-dim,#888)">AUC：樣本不足，無法計算</div>`;
+      validationHtml = `
+        <div style="margin-top:12px;padding:10px 12px;border-radius:6px;
+                    background:rgba(46,204,113,0.06);border:1px solid rgba(46,204,113,0.25)">
+          <div style="font-size:0.75rem;font-weight:600;color:#2ecc71;margin-bottom:6px">
+            ✅ 前瞻性驗證結果（${_safeText(date)}，${_safeText(_semester)}學期期末成績）
+          </div>
+          <table style="width:100%;font-size:0.72rem;border-collapse:collapse">
+            <thead><tr style="color:var(--text-dim,#888)">
+              <th style="padding:3px 8px;text-align:left;font-weight:600">風險等級</th>
+              <th style="padding:3px 8px;text-align:left;font-weight:600">預測不及格率</th>
+              <th style="padding:3px 8px;text-align:left;font-weight:600">實際不及格率</th>
+              <th style="padding:3px 8px;text-align:left;font-weight:600">校準誤差</th>
+            </tr></thead>
+            <tbody>${calRows}</tbody>
+          </table>
+          ${aucHtml}
+        </div>`;
+    }
+
     wrap.innerHTML = `
       <div style="font-size:0.82rem;line-height:1.7">
         <div style="margin-bottom:10px;padding:8px 10px;border-radius:6px;
@@ -150,14 +216,10 @@ const BehaviorWarningTab = (() => {
           主規則：${_safeText(m.primary_rule || '')}　|　
           參考資料：${_safeText(m.reference_data || '')}
         </div>
+        ${validationHtml}
       </div>
-      <style>
-        .warning-stat-box{padding:10px 12px;border-radius:6px;background:var(--surface2,#1c2030)}
-        .warning-stat-label{font-size:0.75rem;font-weight:600;margin-bottom:4px}
-        .warning-stat-value{font-size:1.15rem;font-weight:700;color:var(--text,#eee)}
-        .warning-stat-sub{font-size:0.68rem;color:var(--text-dim,#888);margin-top:2px}
-      </style>
     `;
+    _injectStyleOnce("__warning-style-banner", _STYLES.summaryBanner);
   }
 
   // ── ② 風險等級篩選 ───────────────────────────────────────
@@ -210,11 +272,23 @@ const BehaviorWarningTab = (() => {
       return;
     }
 
+    const hasValidation = "validation_date" in (_warningData?.meta ?? {});
     const rows = students.map(s => {
       const meta = LEVEL_META[s.risk_level] || {};
       const rules = (s.triggered_rules || []).map(r =>
         `<span class="warning-rule-badge">${_safeText(r)}</span>`
       ).join("");
+
+      const finalScoreCell = hasValidation
+        ? `<td>${s.actual_final_score !== undefined ? s.actual_final_score.toFixed(1) : "—"}</td>`
+        : "";
+      const outcomeCell = hasValidation
+        ? `<td>${
+            s.actual_outcome === "FAIL" ? '<span style="color:#e74c3c;font-weight:600">不及格</span>' :
+            s.actual_outcome === "PASS" ? '<span style="color:#2ecc71">及格</span>' :
+            "—"
+          }</td>`
+        : "";
 
       return `
         <tr style="border-left:3px solid ${meta.color || '#888'}">
@@ -229,9 +303,13 @@ const BehaviorWarningTab = (() => {
           <td>${s.qmi != null ? s.qmi.toFixed(3) : '—'}</td>
           <td>${s.bas_score != null ? s.bas_score.toFixed(2) : '—'}</td>
           <td>${rules}</td>
+          ${finalScoreCell}${outcomeCell}
         </tr>`;
     }).join("");
 
+    const validationHeaders = hasValidation
+        ? `<th>期末成績</th><th>實際結果</th>`
+        : "";
     wrap.innerHTML = `
       <div style="overflow-x:auto">
         <table class="warning-table">
@@ -239,21 +317,14 @@ const BehaviorWarningTab = (() => {
             <tr>
               <th>學號</th><th>風險等級</th><th>R群</th><th>S群</th>
               <th>學習方法</th><th>期中成績</th><th>QMI</th><th>BAS</th><th>觸發規則</th>
+              ${validationHeaders}
             </tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
-      <style>
-        .warning-table{width:100%;border-collapse:collapse;font-size:0.76rem}
-        .warning-table th{text-align:left;padding:6px 8px;border-bottom:2px solid var(--border2,#2a2f45);
-                           color:var(--text-dim,#888);font-weight:600;white-space:nowrap}
-        .warning-table td{padding:5px 8px;border-bottom:1px solid var(--border2,#2a2f45);white-space:nowrap}
-        .warning-level-pill{padding:1px 8px;border-radius:10px;font-size:0.72rem;font-weight:600}
-        .warning-rule-badge{display:inline-block;padding:1px 6px;margin:1px;border-radius:4px;
-                             background:rgba(150,150,150,0.15);font-size:0.68rem;color:var(--text-dim,#888)}
-      </style>
     `;
+    _injectStyleOnce("__warning-style-table", _STYLES.studentList);
   }
 
   // ── ④ CSV 匯出 ───────────────────────────────────────────
@@ -272,15 +343,26 @@ const BehaviorWarningTab = (() => {
     if (btn) btn.addEventListener("click", _exportCsv);
   }
 
+  // BUG-WARNING-1 FIX: RFC 4180 compliant CSV escaping
+  // 若欄位含逗號、雙引號或換行，以雙引號包覆；內部雙引號 escape 為 ""
+  function _csvCell(v) {
+    const s = v == null ? "" : String(v);
+    return /[,"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }
+
   function _exportCsv() {
     let students = _warningData.students || [];
     if (_activeFilter !== "ALL") {
       students = students.filter(s => s.risk_level === _activeFilter);
     }
 
-    const headers = ["masked_id","risk_level","r_cluster","s_cluster",
-                      "learning_approach","midterm_score","midterm_status",
-                      "qmi","bas_score","triggered_rules"];
+    const hasValidation = "validation_date" in (_warningData?.meta ?? {});
+    const headers = [
+      "masked_id","risk_level","r_cluster","s_cluster",
+      "learning_approach","midterm_score","midterm_status",
+      "qmi","bas_score","triggered_rules",
+      ...(hasValidation ? ["actual_final_score","actual_outcome"] : [])
+    ];
     const lines = [headers.join(",")];
 
     students.forEach(s => {
@@ -288,8 +370,12 @@ const BehaviorWarningTab = (() => {
         s.masked_id, s.risk_level, s.r_cluster, s.s_cluster,
         s.learning_approach, s.midterm_score ?? "", s.midterm_status ?? "",
         s.qmi ?? "", s.bas_score ?? "",
-        `"${(s.triggered_rules || []).join("; ")}"`,
-      ];
+        (s.triggered_rules || []).join("; "),
+        ...(hasValidation ? [
+          s.actual_final_score !== undefined ? s.actual_final_score : "",
+          s.actual_outcome ?? "",
+        ] : []),
+      ].map(_csvCell);
       lines.push(row.join(","));
     });
 
@@ -302,7 +388,9 @@ const BehaviorWarningTab = (() => {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // WARN-EXPORT-1 FIX: a.click() 觸發下載為非同步，
+    // 需在 setTimeout 中釋放 URL，確保下載已開始再回收記憶體。
+    setTimeout(() => URL.revokeObjectURL(url), 100);
   }
 
   return { init, resetFilters };

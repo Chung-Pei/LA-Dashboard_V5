@@ -29,12 +29,98 @@ const BehaviorCrossTab = (() => {
   const ALERT_THRESHOLD = 0.25; // 高出基準的不及格率即列入 Alert Card
   const LOW_SAMPLE_MIN = 5;     // n < 5 視為樣本不足（與 11_cross_analysis.py 一致）
 
+  // ── 樣式防重複注入（ARCH-3 FIX）────────────────────────────
+  function _injectStyleOnce(id, css) {
+    if (document.getElementById(id)) return;
+    const el = document.createElement("style");
+    el.id = id;
+    el.textContent = css;
+    document.head.appendChild(el);
+  }
+
+  const _STYLES = {
+    summaryCard: `
+      .cross-stat-box{padding:10px;border-radius:6px;background:var(--surface2,#1c2030);
+                      border:1px solid var(--border2,#2a2f45)}
+      .cross-stat-label{font-size:0.72rem;color:var(--text-dim,#888);margin-bottom:4px}
+      .cross-stat-value{font-size:1.1rem;font-weight:600;color:var(--text,#eee)}
+      .cross-stat-sub{font-size:0.68rem;color:var(--text-dim,#888);margin-top:2px}`,
+    alertCard: `
+      .cross-alert-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+                       padding:8px 10px;margin-bottom:6px;border-radius:6px;
+                       background:rgba(231,76,60,0.06);border:1px solid rgba(231,76,60,0.18)}
+      .cross-alert-badge{padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600}
+      .cross-alert-stat{font-size:0.78rem;color:var(--text-dim,#888);margin-left:auto}`,
+    heatmap: `
+      .cross-heatmap-grid{display:grid;grid-template-columns:90px repeat(5,1fr);gap:3px}
+      .cross-heatmap-cell{padding:6px 4px;text-align:center;border-radius:4px;min-height:48px;
+                           display:flex;flex-direction:column;align-items:center;justify-content:center}
+      .cross-heatmap-corner{background:transparent}
+      .cross-heatmap-header{background:var(--surface2,#1c2030)}
+      .cross-heatmap-data{cursor:pointer;transition:transform .12s,box-shadow .12s}
+      .cross-heatmap-data:hover,.cross-heatmap-data:focus{
+        transform:scale(1.04);box-shadow:0 0 0 2px var(--accent,#3498db);outline:none}
+      .cross-heatmap-empty{
+        background:repeating-linear-gradient(45deg,rgba(150,150,150,0.12),rgba(150,150,150,0.12) 4px,
+                   transparent 4px,transparent 8px);
+        border:1px dashed rgba(150,150,150,0.3)}
+      .cross-legend-swatch{display:inline-block;width:14px;height:14px;border-radius:3px;
+                            vertical-align:middle;margin-right:2px}
+      .cross-legend-hatch{
+        background:repeating-linear-gradient(45deg,rgba(150,150,150,0.25),rgba(150,150,150,0.25) 3px,
+                   transparent 3px,transparent 6px);
+        border:1px dashed rgba(150,150,150,0.4)}`,
+    legend: `
+      .cross-legend-card{
+        margin:12px 0;border-radius:8px;overflow:hidden;
+        border:1px solid var(--border2,#2a2f45);background:var(--surface2,#1c2030)}
+      .cross-legend-summary{
+        display:flex;align-items:center;gap:8px;padding:9px 14px;
+        font-size:0.82rem;font-weight:600;color:var(--text-dim,#aaa);
+        cursor:pointer;user-select:none;list-style:none;border-radius:8px;
+        transition:background .15s,color .15s}
+      .cross-legend-summary::-webkit-details-marker{display:none}
+      .cross-legend-summary:hover{background:rgba(255,255,255,.04);color:var(--text,#eee)}
+      .cross-legend-card[open]>.cross-legend-summary{
+        color:var(--text,#eee);border-radius:8px 8px 0 0;
+        border-bottom:1px solid var(--border2,#2a2f45)}
+      .cross-legend-summary-icon{
+        display:inline-block;font-size:0.65rem;
+        transition:transform .2s ease;color:var(--accent,#3498db)}
+      .cross-legend-card[open] .cross-legend-summary-icon{transform:rotate(90deg)}
+      .cross-legend-body{padding:12px 14px;overflow-x:auto}
+      .cross-legend-table{width:100%;border-collapse:collapse;font-size:0.8rem;line-height:1.55}
+      .cross-legend-table th{
+        text-align:left;padding:6px 10px;font-size:0.75rem;font-weight:600;
+        color:var(--text-dim,#888);border-bottom:1px solid var(--border2,#2a2f45);white-space:nowrap}
+      .cross-legend-table td{
+        padding:7px 10px;color:var(--text,#eee);vertical-align:top;
+        border-bottom:1px solid rgba(255,255,255,.04)}
+      .cross-legend-table tr:last-child td{border-bottom:none}
+      .cross-legend-table tbody tr:hover td{background:rgba(255,255,255,.03)}
+      .cross-legend-code{font-weight:700;font-size:0.85rem;white-space:nowrap}
+      .cross-legend-note{margin:8px 0 0;font-size:0.72rem;color:var(--text-dim,#777);line-height:1.5}`,
+  };
+
   function _safeText(s) {
     return typeof escapeHtml === "function" ? escapeHtml(String(s)) : String(s);
   }
 
   function _pct(x) {
     return (x == null) ? "—" : (x * 100).toFixed(1) + "%";
+  }
+
+  // ── ARCH-4 FIX: 渲染階段容錯隔離 ──────────────────────────
+  // 原版 init() 內各 _render* 函式無獨立保護，任一函式因資料欄位
+  // 缺失（如 bas_validation / spearman 結構不符預期）拋出例外時，
+  // 會中斷 init() 同步呼叫鏈，導致後續所有圖表「無聲消失」且
+  // 畫面無任何錯誤提示。改為逐一隔離執行，單一卡片失敗不影響其他。
+  function _safeRender(label, fn) {
+    try {
+      fn();
+    } catch (e) {
+      console.error(`[BehaviorCrossTab] ${label} 渲染失敗:`, e);
+    }
   }
 
   // ── 初始化 ──────────────────────────────────────────────
@@ -52,13 +138,14 @@ const BehaviorCrossTab = (() => {
       return;
     }
 
-    _renderScopeNote();
-    _renderSummaryCard();
-    _renderAlertCard();
-    _renderGroupChart();
-    _renderHeatmap();
-    _renderTrajectoryChart();
-    _renderApproachChart();
+    _safeRender("資料範圍說明", _renderScopeNote);
+    _safeRender("BAS/QMI 摘要卡", _renderSummaryCard);
+    _safeRender("高風險組合警示", _renderAlertCard);
+    _safeRender("R群/S群長條圖", _renderGroupChart);
+    _safeRender("R×S 熱力圖", _renderHeatmap);
+    _safeRender("分析框架說明卡", _renderLegendCards);
+    _safeRender("軌跡分型堆疊圖", _renderTrajectoryChart);
+    _safeRender("學習方法堆疊圖", _renderApproachChart);
   }
 
   // ── 動態更新資料範圍說明（不鎖死特定學期）─────────────────
@@ -97,12 +184,17 @@ const BehaviorCrossTab = (() => {
     if (!wrap) return;
 
     const o = _crossData.overall;
-    const sp = _crossData.spearman;
-    const bv = _crossData.bas_validation;
-    const meta = _crossData.meta;
+    const sp = _crossData.spearman || {};
+    const bv = _crossData.bas_validation || {};
+    const meta = _crossData.meta || {};
 
-    const q = bv.qmi_quintiles;
-    const q1 = q[0], q5 = q[q.length - 1];
+    // ARCH-4 FIX: qmi_quintiles 缺失或為空陣列時降級顯示，
+    // 而非直接存取 q[0] 拋出 TypeError 拖垮整個 init() 呼叫鏈。
+    const q = Array.isArray(bv.qmi_quintiles) ? bv.qmi_quintiles : [];
+    const q1 = q[0] ?? null, q5 = q[q.length - 1] ?? null;
+    const rSp = sp.r_group_vs_final || {};
+    const sSp = sp.s_group_vs_final || {};
+    const approach = o.approach || {};
 
     wrap.innerHTML = `
       <div style="font-size:0.82rem;line-height:1.7">
@@ -125,36 +217,30 @@ const BehaviorCrossTab = (() => {
           </div>
           <div class="cross-stat-box">
             <div class="cross-stat-label">QMI 五分位梯度</div>
-            <div class="cross-stat-value">${_pct(q1.fail_rate)} → ${_pct(q5.fail_rate)}</div>
-            <div class="cross-stat-sub">Q1（最低）vs Q5（最高），n=${q1.n}/${q5.n}</div>
+            <div class="cross-stat-value">${q1 && q5 ? `${_pct(q1.fail_rate)} → ${_pct(q5.fail_rate)}` : '—'}</div>
+            <div class="cross-stat-sub">${q1 && q5 ? `Q1（最低）vs Q5（最高），n=${q1.n}/${q5.n}` : '資料不足'}</div>
           </div>
           <div class="cross-stat-box">
             <div class="cross-stat-label">R群 × 期末 Spearman</div>
-            <div class="cross-stat-value">ρ = ${sp.r_group_vs_final.rho ?? '—'}</div>
-            <div class="cross-stat-sub">${_safeText(sp.r_group_vs_final.note || '')}</div>
+            <div class="cross-stat-value">ρ = ${rSp.rho ?? '—'}</div>
+            <div class="cross-stat-sub">${_safeText(rSp.note || '')}</div>
           </div>
           <div class="cross-stat-box">
             <div class="cross-stat-label">S群 × 期末 Spearman</div>
-            <div class="cross-stat-value">ρ = ${sp.s_group_vs_final.rho ?? '—'}</div>
-            <div class="cross-stat-sub">${_safeText(sp.s_group_vs_final.note || '')}</div>
+            <div class="cross-stat-value">ρ = ${sSp.rho ?? '—'}</div>
+            <div class="cross-stat-sub">${_safeText(sSp.note || '')}</div>
           </div>
           <div class="cross-stat-box">
             <div class="cross-stat-label">學習方法分布</div>
             <div class="cross-stat-value" style="font-size:0.95rem">
-              DEEP ${_pct(o.approach.DEEP)} / SURFACE ${_pct(o.approach.SURFACE)}
+              DEEP ${_pct(approach.DEEP)} / SURFACE ${_pct(approach.SURFACE)}
             </div>
-            <div class="cross-stat-sub">MODERATE ${_pct(o.approach.MODERATE)}</div>
+            <div class="cross-stat-sub">MODERATE ${_pct(approach.MODERATE)}</div>
           </div>
         </div>
       </div>
-      <style>
-        .cross-stat-box{padding:10px;border-radius:6px;background:var(--surface2,#1c2030);
-                        border:1px solid var(--border2,#2a2f45)}
-        .cross-stat-label{font-size:0.72rem;color:var(--text-dim,#888);margin-bottom:4px}
-        .cross-stat-value{font-size:1.1rem;font-weight:600;color:var(--text,#eee)}
-        .cross-stat-sub{font-size:0.68rem;color:var(--text-dim,#888);margin-top:2px}
-      </style>
     `;
+    _injectStyleOnce("__cross-style-summary", _STYLES.summaryCard);
   }
 
   // ── ② Alert Card：自動偵測高風險 R×S 組合 ────────────────
@@ -205,14 +291,8 @@ const BehaviorCrossTab = (() => {
         </div>
         ${rows}
       </div>
-      <style>
-        .cross-alert-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
-                         padding:8px 10px;margin-bottom:6px;border-radius:6px;
-                         background:rgba(231,76,60,0.06);border:1px solid rgba(231,76,60,0.18)}
-        .cross-alert-badge{padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600}
-        .cross-alert-stat{font-size:0.78rem;color:var(--text-dim,#888);margin-left:auto}
-      </style>
     `;
+    _injectStyleOnce("__cross-style-alert", _STYLES.alertCard);
   }
 
   // ── ③ R群 / S群 不及格率長條圖 ───────────────────────────
@@ -290,7 +370,7 @@ const BehaviorCrossTab = (() => {
               },
             },
           },
-          annotation: undefined,
+          // [垃圾碼已移除] annotation: undefined 對 Chart.js 無效果
         },
         scales: {
           x: {
@@ -406,29 +486,10 @@ const BehaviorCrossTab = (() => {
         <span><span class="cross-legend-swatch" style="background:rgba(231,76,60,0.55)"></span>&gt;160%</span>
         <span><span class="cross-legend-swatch cross-legend-hatch"></span>樣本不足 / 序列不足</span>
       </div>
-      <style>
-        .cross-heatmap-grid{display:grid;grid-template-columns:90px repeat(5,1fr);gap:3px}
-        .cross-heatmap-cell{padding:6px 4px;text-align:center;border-radius:4px;min-height:48px;
-                             display:flex;flex-direction:column;align-items:center;justify-content:center}
-        .cross-heatmap-corner{background:transparent}
-        .cross-heatmap-header{background:var(--surface2,#1c2030)}
-        .cross-heatmap-data{cursor:pointer;transition:transform .12s,box-shadow .12s}
-        .cross-heatmap-data:hover, .cross-heatmap-data:focus{
-          transform:scale(1.04);box-shadow:0 0 0 2px var(--accent,#3498db);outline:none}
-        .cross-heatmap-empty{
-          background:repeating-linear-gradient(45deg,rgba(150,150,150,0.12),rgba(150,150,150,0.12) 4px,
-                     transparent 4px,transparent 8px);
-          border:1px dashed rgba(150,150,150,0.3)}
-        .cross-legend-swatch{display:inline-block;width:14px;height:14px;border-radius:3px;
-                              vertical-align:middle;margin-right:2px}
-        .cross-legend-hatch{
-          background:repeating-linear-gradient(45deg,rgba(150,150,150,0.25),rgba(150,150,150,0.25) 3px,
-                     transparent 3px,transparent 6px);
-          border:1px dashed rgba(150,150,150,0.4)}
-      </style>
     `;
 
     wrap.innerHTML = html;
+    _injectStyleOnce("__cross-style-heatmap", _STYLES.heatmap);
 
     // 點擊事件：展開詳細統計
     wrap.querySelectorAll(".cross-heatmap-data").forEach(el => {
@@ -458,7 +519,7 @@ const BehaviorCrossTab = (() => {
     const detail = document.getElementById("crossHeatmapDetail");
     if (!detail) return;
 
-    const cell = (_crossData.cross_matrix[rg] || {})[sg] || {};
+    const cell = ((_crossData.cross_matrix || {})[rg] || {})[sg] || {};
     const overall = _crossData.overall;
 
     const zNote = (z) => {
@@ -490,7 +551,102 @@ const BehaviorCrossTab = (() => {
     `;
   }
 
-  // ── ⑤ 軌跡分型堆疊圖（V-T：SS/FS/SF/FF）──────────────────
+  // ── ⑤ 軌跡分型 & 學習方法說明卡（可收折）────────────────────
+  function _renderLegendCards() {
+    _injectStyleOnce("__cross-style-legend", _STYLES.legend);
+
+    const trajWrap = document.getElementById("crossTrajLegend");
+    if (trajWrap && !trajWrap.dataset.ready) {
+      trajWrap.dataset.ready = "1";
+      trajWrap.innerHTML = `<summary class="cross-legend-summary">
+          <span class="cross-legend-summary-icon">▶</span>
+          分析框架說明 — 期中→期末軌跡分型（SS / FS / SF / FF）
+        </summary>
+        <div class="cross-legend-body">
+          <table class="cross-legend-table">
+            <thead><tr><th>代碼</th><th>名稱</th><th>行為特徵</th><th>量化判斷條件</th><th>教學建議</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="cross-legend-code" style="color:#2ecc71">SS</td>
+                <td>穩定及格</td>
+                <td>期中、期末皆及格，學習軌跡穩定</td>
+                <td>期中成績 ≥ 60 且 期末成績 ≥ 60</td>
+                <td>正向強化，鼓勵維持節奏與自主學習習慣</td>
+              </tr>
+              <tr>
+                <td class="cross-legend-code" style="color:#3498db">FS</td>
+                <td>自救成功</td>
+                <td>期中不及格但期末翻轉，屬高韌性學習者</td>
+                <td>期中成績 &lt; 60 且 期末成績 ≥ 60</td>
+                <td>分析翻轉策略，複製成功模式，強化學生信心</td>
+              </tr>
+              <tr>
+                <td class="cross-legend-code" style="color:#e67e22">SF</td>
+                <td>成績滑落</td>
+                <td>期中及格但期末退步，後期投入下降</td>
+                <td>期中成績 ≥ 60 且 期末成績 &lt; 60</td>
+                <td>關注後半學期出勤與作答頻率，主動介入追蹤</td>
+              </tr>
+              <tr>
+                <td class="cross-legend-code" style="color:#e74c3c">FF</td>
+                <td>持續不及格</td>
+                <td>期中、期末皆不及格，高風險長期低效</td>
+                <td>期中成績 &lt; 60 且 期末成績 &lt; 60</td>
+                <td>優先介入，轉介學習支援資源，評估學習障礙</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="cross-legend-note">
+            ※ 基準：期中／期末成績及格線均為 60 分；S5（序列不足）與低樣本群（n &lt; 5）不計入軌跡分布。
+          </p>
+        </div>
+      `;
+    }
+
+    const appWrap = document.getElementById("crossApproachLegend");
+    if (appWrap && !appWrap.dataset.ready) {
+      appWrap.dataset.ready = "1";
+      appWrap.innerHTML = `<summary class="cross-legend-summary">
+          <span class="cross-legend-summary-icon">▶</span>
+          分析框架說明 — 學習方法三型分布（DEEP / SURFACE / MODERATE）
+        </summary>
+        <div class="cross-legend-body">
+          <table class="cross-legend-table">
+            <thead><tr><th>代碼</th><th>名稱</th><th>行為特徵</th><th>量化判斷條件</th><th>教學建議</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="cross-legend-code" style="color:#2ecc71">DEEP</td>
+                <td>深層學習</td>
+                <td>主動切換資源，影音與閱讀兼用，序列多元</td>
+                <td>QMI ≥ 0.6 且 被動指數 &lt; 0.4（主動切換率高）</td>
+                <td>引導自主探究，鼓勵跨資源整合與知識建構</td>
+              </tr>
+              <tr>
+                <td class="cross-legend-code" style="color:#e74c3c">SURFACE</td>
+                <td>表層學習</td>
+                <td>固著單一資源（多為閱讀或題庫），被動指數高</td>
+                <td>QMI &lt; 0.4 或 被動指數 ≥ 0.6（切換率低）</td>
+                <td>強化學習計畫與策略指導，提供多元資源引導</td>
+              </tr>
+              <tr>
+                <td class="cross-legend-code" style="color:#f1c40f">MODERATE</td>
+                <td>中間型</td>
+                <td>介於深層與表層之間，行為模式尚未穩定</td>
+                <td>QMI 0.4–0.6 或 被動指數 0.4–0.6（混合型）</td>
+                <td>引導提升學習深度，追蹤是否向深層或表層偏移</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="cross-legend-note">
+            ※ QMI（品質動機指數）＝ 切換率 × 活躍天數比例；被動指數 ＝ 被動觀看時長 / 總學習時長。
+            各群閾值依全體中位數動態計算，非固定常數。
+          </p>
+        </div>
+      `;
+    }
+  }
+
+  // ── ⑥ 軌跡分型堆疊圖（V-T：SS/FS/SF/FF）──────────────────
   // 依 R群/S群分組，顯示各群組「期中→期末」四種軌跡的比例分布。
   // R2/S5（no_baseline，無 trajectory 資料）顯示為單一灰色佔位列。
   const TRAJ_KEYS  = ["SS", "FS", "SF", "FF"];
@@ -503,15 +659,18 @@ const BehaviorCrossTab = (() => {
 
   /**
    * 共用的分布類堆疊圖建構器（V-T / V-A）。
-   * @param {string} canvasId
-   * @param {object} chartRef  { current: Chart|null } 形式的可變參照
-   * @param {string[]} keys    例如 TRAJ_KEYS 或 APPROACH_KEYS
-   * @param {object} names     代碼 → 顯示名稱
-   * @param {object} colors    代碼 → 顏色
-   * @param {string} distField 'trajectory' 或 'approach'
-   * @param {string} legendTitle
+   * @param {string}   canvasId
+   * @param {function} getChart     () => Chart|null  取得外部模組變數
+   * @param {function} setChart     (Chart) => void   回寫外部模組變數
+   * @param {string[]} keys         例如 TRAJ_KEYS 或 APPROACH_KEYS
+   * @param {object}   names        代碼 → 顯示名稱
+   * @param {object}   colors       代碼 → 顏色
+   * @param {string}   distField    'trajectory' 或 'approach'
+   * @param {string}   legendTitle
    */
-  function _renderDistributionStackedChart(canvasId, chartRef, keys, names, colors, distField, legendTitle) {
+  // ARCH-2 FIX: 原版使用 getter/setter wrapper 物件（反模式），
+  // 改為 getChart/setChart callback，語意清晰且無 closure 陷阱。
+  function _renderDistributionStackedChart(canvasId, getChart, setChart, keys, names, colors, distField, legendTitle) {
     const canvas = document.getElementById(canvasId);
     if (!canvas || typeof Chart === "undefined") return;
 
@@ -555,8 +714,9 @@ const BehaviorCrossTab = (() => {
       stack: "dist",
     });
 
-    if (chartRef.current) chartRef.current.destroy();
-    chartRef.current = new Chart(canvas, {
+    const existing = getChart();
+    if (existing) existing.destroy();
+    setChart(new Chart(canvas, {
       type: "bar",
       data: { labels, datasets },
       options: {
@@ -591,13 +751,14 @@ const BehaviorCrossTab = (() => {
           y: { stacked: true },
         },
       },
-    });
+    }));
   }
 
   function _renderTrajectoryChart() {
     _renderDistributionStackedChart(
       "crossTrajectoryChart",
-      { get current() { return _trajChart; }, set current(v) { _trajChart = v; } },
+      () => _trajChart,
+      (c) => { _trajChart = c; },
       TRAJ_KEYS, TRAJ_NAMES, TRAJ_COLORS, "trajectory", "期中→期末軌跡分布"
     );
   }
@@ -605,7 +766,8 @@ const BehaviorCrossTab = (() => {
   function _renderApproachChart() {
     _renderDistributionStackedChart(
       "crossApproachChart",
-      { get current() { return _approachChart; }, set current(v) { _approachChart = v; } },
+      () => _approachChart,
+      (c) => { _approachChart = c; },
       APPROACH_KEYS, APPROACH_NAMES, APPROACH_COLORS, "approach", "學習方法分布"
     );
   }

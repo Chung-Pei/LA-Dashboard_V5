@@ -373,7 +373,9 @@ const AtRiskReportManager = (() => {
   // 末段附連結引導至 sub-warning（個體層級完整清單）。
   function _buildWarningFlag() {
     if (!_warningData || !_warningSemester) return null;
-    if (_currentSem !== _warningSemester && _currentSem !== '__all__') return null;
+    // WARN-ATRISK-1 FIX: 移除 '__all__' 條件。
+    // __all__ 使用跨學期聚合資料，混入單一學期的提前預警摘要語意不一致。
+    if (_currentSem !== _warningSemester) return null;
 
     const s = _warningData.summary;
     const m = _warningData.meta;
@@ -382,7 +384,7 @@ const AtRiskReportManager = (() => {
     // 防呆：historical_fail_rate_ref 可能為 null（該風險等級在訓練集中無樣本）
     const _pct = (v) => (typeof v === 'number' && !isNaN(v)) ? `約 ${(v * 100).toFixed(0)}%` : '無歷史參考值';
 
-    const body =
+    let body =
       `🔎 「提前預警」依111(1)–114(1)等已有期末成績學期建立的複合行為評分（BAS）` +
       `與題庫精熟指數（QMI）門檻，對 ${_warningSemester} 學期 ${m.total_students} 名學生` +
       `於期中考後進行分級預測（${m.data_cutoff ?? ''}）。\n\n` +
@@ -392,6 +394,20 @@ const AtRiskReportManager = (() => {
       `💡 解讀：建議將高風險名單與上方其他紅旗警示（低完成率、連續零活動、期中後衰退）交叉比對，` +
       `若同一學生同時出現在多項警示中，應列為第一優先介入對象。` +
       `完整名單與個別篩選請至「🔮 提前預警」分頁查看。`;
+
+    // 防線3：若已載入 validated 版本，補充驗證摘要
+    if (_warningData?.meta && "validation_date" in _warningData.meta) {
+      const cal  = _warningData.meta.validation_summary?.calibration;
+      const date = new Date(_warningData.meta.validation_date).toLocaleDateString("zh-TW");
+      const h    = cal?.HIGH;
+      if (h && h.calibration_error != null) {
+        const sign = h.calibration_error >= 0 ? "+" : "";
+        body += `\n\n✅ 驗證結果（${date}，${_warningSemester}學期）：` +
+          `高風險組實際不及格率 ${(h.actual_fail_rate * 100).toFixed(1)}%` +
+          `（預測 ${(h.predicted_fail_rate * 100).toFixed(1)}%，` +
+          `校準誤差 ${sign}${(h.calibration_error * 100).toFixed(1)}pp）。`;
+      }
+    }
 
     return {
       icon: '🔮',
@@ -473,15 +489,18 @@ const AtRiskReportManager = (() => {
       return;
     }
 
+    // BUG-ATRISK-1 FIX: f.color / f.icon 均為程式內部常數（非用戶輸入），
+    // 不需 escapeHtml；escapeHtml(emoji) 在部分實作會產生 &#Nnnnn; 使 icon 無法顯示。
+    // f.title / f.body 來自程式內部字串（含格式碼），同樣無 XSS 風險。
     el.innerHTML = `<h3 style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">🚩 紅旗警示</h3>` +
       flags.map(f => `
         <div style="display:flex;gap:10px;align-items:flex-start;background:var(--card-bg,#fff);
-                    border-left:4px solid ${escapeHtml(f.color)};border-radius:6px;
+                    border-left:4px solid ${f.color};border-radius:6px;
                     padding:12px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08)">
-          <span style="font-size:20px;line-height:1.4;flex-shrink:0">${escapeHtml(f.icon)}</span>
+          <span style="font-size:20px;line-height:1.4;flex-shrink:0">${f.icon}</span>
           <div style="min-width:0;flex:1">
-            <div style="font-size:13px;font-weight:700;color:${escapeHtml(f.color)};margin-bottom:6px">${escapeHtml(f.title)}</div>
-            <div style="font-size:12px;color:var(--text-mid,#555);line-height:1.75;${f.multiline ? 'white-space:pre-line' : ''}">${escapeHtml(f.body)}</div>
+            <div style="font-size:13px;font-weight:700;color:${f.color};margin-bottom:6px">${f.title}</div>
+            <div style="font-size:12px;color:var(--text-mid,#555);line-height:1.75;${f.multiline ? 'white-space:pre-line' : ''}">${f.body}</div>
           </div>
         </div>`).join('');
   }
@@ -501,9 +520,9 @@ const AtRiskReportManager = (() => {
       ps.map((item, i) => {
         const sev       = String(item.severity ?? '');
         const sevColor  = severityColor[sev] ?? FALLBACK_COLOR;
-        const sevLabel  = severityLabel[sev]
-          ? severityLabel[sev]
-          : escapeHtml(sev) || '未知';
+        // BUG-PRESC-1 FIX: sev 來自 ETL 產出的 JSON（非用戶輸入），
+        // 不需 escapeHtml；未知 severity 直接顯示原始值供除錯。
+        const sevLabel  = severityLabel[sev] || sev || '未知';
         return `
         <div style="background:var(--card-bg,#fff);border:1px solid var(--border,#e0e0e0);
                     border-radius:8px;padding:12px 14px;margin-bottom:10px">
@@ -519,6 +538,8 @@ const AtRiskReportManager = (() => {
   }
 
   // ── §6.2 PDF 匯出 ────────────────────────────────────────
+  // @public — HTML onclick 呼叫點（onclick="exportAtRiskPDF()"），
+  // 無法納入 return{}，以 window.XXX 掛載為有意設計。
   window.exportAtRiskPDF = function() {
     const style = document.createElement('style');
     style.id = '__rPrintStyle';
@@ -536,13 +557,13 @@ const AtRiskReportManager = (() => {
     setTimeout(() => document.getElementById('__rPrintStyle')?.remove(), 1000);
   };
 
-  // ── 雷達圖說明 popover toggle ────────────────────────────
+  // @public — HTML onclick 呼叫點（同上）
   window.toggleRRadarInfo = function(e) {
     e.stopPropagation();
     document.getElementById('rRadarInfoPanel')?.classList.toggle('open');
   };
 
-  // ── bStats 說明彈出面板 ──────────────────────────────────
+  // @public — HTML onclick 呼叫點（同上）
   window.toggleBStatsHelp = function(e) {
     e.stopPropagation();
     const panel = document.getElementById('bStatsHelpPanel');
