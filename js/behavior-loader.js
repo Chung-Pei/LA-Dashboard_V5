@@ -1,4 +1,4 @@
-﻿/**
+/**
  * behavior-loader.js
  * Phase 2 前端非同步資料載入框架
  * 負責：lazy load JSON、masked_id join、快取管理
@@ -25,7 +25,7 @@ const BehaviorLoader = (() => {
   // ── LRU 快取（BUG-1 修正）────────────────────────────────
   const MAX_CACHE = 4;          // 最多快取 4 個 JSON key
   const _lruCache = new Map();  // 保證插入順序（ES2015+）
-  const DATA_VERSION = "202606171330"; // [Schema 3.1] by_lsa_type 修正
+  const DATA_VERSION = "202606171412"; // [Schema 3.1] by_lsa_type 修正
 
   // ── 同時請求去重（避免多個 Tab 並發初始化時重複 fetch）─────
   // 例：sub-warning 與 Tab R 的 lazyInit 可能在同一時刻
