@@ -159,12 +159,23 @@ const BehaviorCrossTab = (() => {
       ? `尚無期末成績的最新學期（${excluded.map(_safeText).join(', ')}）為驗證學期，不納入相關性計算`
       : `目前所有學期皆已有期末成績`;
 
+    // INTEG-1: 被動讀取 BehaviorLoader.loadWarningForCurrentTarget() 設置的
+    // window._latestWarningValidation（原版寫入後從未被任何 Tab 讀取的死碼）。
+    // 此處不主動呼叫 loadWarningForCurrentTarget()，因該載入屬「🔮 提前預警」
+    // 分頁的職責；若使用者尚未開過該分頁，此全域變數會是 undefined，此時
+    // 略過顯示而非顯示「尚未驗證」字樣，避免誤導為模型本身未經驗證。
+    const wv = typeof window !== "undefined" ? window._latestWarningValidation : null;
+    const validationNote = wv
+      ? `<br>🎯 <strong>預警模型驗證：</strong>第 ${_safeText(wv.semester)} 學期，
+         驗證日期 ${_safeText(wv.date)}，HIGH 風險組校準誤差 ${_safeText(wv.highErrorPp)}pp`
+      : "";
+
     el.innerHTML = `
       ℹ️ <strong>資料範圍說明：</strong>
       本分析僅納入正課（theory）學生，實習科目（practicum）採30分制計分且60%成績未記入學習系統，已完全排除。
       訓練集為已有期末成績之學期（n=${meta.n_with_final ?? '—'}）；
       ${semNote}，
-      可於「🔮 提前預警」分頁單獨查看其預警名單。
+      可於「🔮 提前預警」分頁單獨查看其預警名單。${validationNote}
     `;
   }
 

@@ -23,9 +23,12 @@
 
 const BehaviorLoader = (() => {
   // ── LRU 快取（BUG-1 修正）────────────────────────────────
-  const MAX_CACHE = 4;          // 最多快取 4 個 JSON key
+  const MAX_CACHE = 10;         // 容量需 ≥ 固定 loader key 數（7個）+ 動態 warning key 預留空間
+                                 // BUG-LOADER-2 FIX: 原值 4 小於固定 key 數，使用者依序瀏覽
+                                 // 5+ 個分頁即觸發淘汰，導致切回先看過的分頁需重新 fetch，
+                                 // 與此快取機制設計目的（避免重複 fetch）相違背。
   const _lruCache = new Map();  // 保證插入順序（ES2015+）
-  const DATA_VERSION = "202606171412"; // [Schema 3.1] by_lsa_type 修正
+  const DATA_VERSION = "202606131826"; // [Schema 3.1] by_lsa_type 修正
 
   // ── 同時請求去重（避免多個 Tab 並發初始化時重複 fetch）─────
   // 例：sub-warning 與 Tab R 的 lazyInit 可能在同一時刻
@@ -146,7 +149,12 @@ const BehaviorLoader = (() => {
           _lruSet(key, parsed);
           return parsed;
         }
-      } catch (_) { /* 繼續 fallback */ }
+      } catch (e) {
+        // BUG-LOADER-3 FIX: 原版靜默吞錯誤（catch(_){}），.gz 解壓或解析失敗時
+        // 除錯者完全看不到原因，只會在 fallback 也失敗時看到不相關的最終錯誤。
+        // 改為留下警告線索，再繼續走方案 C fallback（行為不變，僅補可觀測性）。
+        console.warn(`[BehaviorLoader] gz fetch/decompress/parse failed for ${gzUrl}，fallback to plain JSON:`, e.message);
+      }
 
       // 方案 C：最終 fallback → 原始 .json
       console.warn(`[BehaviorLoader] gz fallback to plain JSON: ${baseUrl}`);
@@ -233,7 +241,9 @@ const BehaviorLoader = (() => {
       const cross = await loaders.crossAnalysis();
       const list = cross?.meta?.incomplete_semesters_excluded;
       if (!Array.isArray(list) || list.length === 0) return null;
-      return [...list].sort().at(-1);
+      // BUG-LOADER-4 FIX: 原版用字串 sort()（字典序），僅在學期格式
+      // 固定位數時恰好與數值序一致；改用數值排序消除此隱性假設。
+      return [...list].sort((a, b) => Number(a) - Number(b)).at(-1);
     } catch (e) {
       console.warn("[BehaviorLoader.getWarningTargetSemester]", e);
       return null;
