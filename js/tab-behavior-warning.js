@@ -36,31 +36,7 @@ const BehaviorWarningTab = (() => {
     LOW:    { label: "低風險",   color: "#2ecc71", bg: "rgba(46,204,113,0.08)" },
   };
 
-  // ── 樣式防重複注入（ARCH-3 FIX）────────────────────────────
-  // 每個 <style> 區塊只注入一次；使用 id 作為防重複 key。
-  function _injectStyleOnce(id, css) {
-    if (document.getElementById(id)) return;
-    const el = document.createElement("style");
-    el.id = id;
-    el.textContent = css;
-    document.head.appendChild(el);
-  }
-
-  const _STYLES = {
-    summaryBanner: `
-      .warning-stat-box{padding:10px 12px;border-radius:6px;background:var(--surface2,#1c2030)}
-      .warning-stat-label{font-size:0.75rem;font-weight:600;margin-bottom:4px}
-      .warning-stat-value{font-size:1.15rem;font-weight:700;color:var(--text,#eee)}
-      .warning-stat-sub{font-size:0.68rem;color:var(--text-dim,#888);margin-top:2px}`,
-    studentList: `
-      .warning-table{width:100%;border-collapse:collapse;font-size:0.76rem}
-      .warning-table th{text-align:left;padding:6px 8px;border-bottom:2px solid var(--border2,#2a2f45);
-                         color:var(--text-dim,#888);font-weight:600;white-space:nowrap}
-      .warning-table td{padding:5px 8px;border-bottom:1px solid var(--border2,#2a2f45);white-space:nowrap}
-      .warning-level-pill{padding:1px 8px;border-radius:10px;font-size:0.72rem;font-weight:600}
-      .warning-rule-badge{display:inline-block;padding:1px 6px;margin:1px;border-radius:4px;
-                           background:rgba(150,150,150,0.15);font-size:0.68rem;color:var(--text-dim,#888)}`,
-  };
+  function _safeText(s) {
     return typeof escapeHtml === "function" ? escapeHtml(String(s)) : String(s);
   }
 
@@ -133,8 +109,7 @@ const BehaviorWarningTab = (() => {
 
   function _renderAll() {
     _toggleMainCards(true);
-    // WARN-WARNING-1 FIX: warningContent 不是任何子函式的目標容器，
-    // 清空此節點對後續 render 無效果，移除冗餘操作。
+    document.getElementById("warningContent").innerHTML = "";
     _renderSummaryBanner();
     _renderFilterBar();
     _renderStudentList();
@@ -218,8 +193,13 @@ const BehaviorWarningTab = (() => {
         </div>
         ${validationHtml}
       </div>
+      <style>
+        .warning-stat-box{padding:10px 12px;border-radius:6px;background:var(--surface2,#1c2030)}
+        .warning-stat-label{font-size:0.75rem;font-weight:600;margin-bottom:4px}
+        .warning-stat-value{font-size:1.15rem;font-weight:700;color:var(--text,#eee)}
+        .warning-stat-sub{font-size:0.68rem;color:var(--text-dim,#888);margin-top:2px}
+      </style>
     `;
-    _injectStyleOnce("__warning-style-banner", _STYLES.summaryBanner);
   }
 
   // ── ② 風險等級篩選 ───────────────────────────────────────
@@ -323,8 +303,16 @@ const BehaviorWarningTab = (() => {
           <tbody>${rows}</tbody>
         </table>
       </div>
+      <style>
+        .warning-table{width:100%;border-collapse:collapse;font-size:0.76rem}
+        .warning-table th{text-align:left;padding:6px 8px;border-bottom:2px solid var(--border2,#2a2f45);
+                           color:var(--text-dim,#888);font-weight:600;white-space:nowrap}
+        .warning-table td{padding:5px 8px;border-bottom:1px solid var(--border2,#2a2f45);white-space:nowrap}
+        .warning-level-pill{padding:1px 8px;border-radius:10px;font-size:0.72rem;font-weight:600}
+        .warning-rule-badge{display:inline-block;padding:1px 6px;margin:1px;border-radius:4px;
+                             background:rgba(150,150,150,0.15);font-size:0.68rem;color:var(--text-dim,#888)}
+      </style>
     `;
-    _injectStyleOnce("__warning-style-table", _STYLES.studentList);
   }
 
   // ── ④ CSV 匯出 ───────────────────────────────────────────
@@ -341,13 +329,6 @@ const BehaviorWarningTab = (() => {
 
     const btn = document.getElementById("warningCsvBtn");
     if (btn) btn.addEventListener("click", _exportCsv);
-  }
-
-  // BUG-WARNING-1 FIX: RFC 4180 compliant CSV escaping
-  // 若欄位含逗號、雙引號或換行，以雙引號包覆；內部雙引號 escape 為 ""
-  function _csvCell(v) {
-    const s = v == null ? "" : String(v);
-    return /[,"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   }
 
   function _exportCsv() {
@@ -370,12 +351,12 @@ const BehaviorWarningTab = (() => {
         s.masked_id, s.risk_level, s.r_cluster, s.s_cluster,
         s.learning_approach, s.midterm_score ?? "", s.midterm_status ?? "",
         s.qmi ?? "", s.bas_score ?? "",
-        (s.triggered_rules || []).join("; "),
+        `"${(s.triggered_rules || []).join("; ")}"`,
         ...(hasValidation ? [
           s.actual_final_score !== undefined ? s.actual_final_score : "",
           s.actual_outcome ?? "",
         ] : []),
-      ].map(_csvCell);
+      ];
       lines.push(row.join(","));
     });
 
@@ -388,9 +369,7 @@ const BehaviorWarningTab = (() => {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    // WARN-EXPORT-1 FIX: a.click() 觸發下載為非同步，
-    // 需在 setTimeout 中釋放 URL，確保下載已開始再回收記憶體。
-    setTimeout(() => URL.revokeObjectURL(url), 100);
+    URL.revokeObjectURL(url);
   }
 
   return { init, resetFilters };
