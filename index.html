@@ -2578,6 +2578,9 @@ body.light .behavior-range-badge {
           </div>
         </div>
 
+        <!-- 期中→期末軌跡分型 說明卡（可收折） -->
+        <details class="cross-legend-card" id="crossTrajLegend"></details>
+
         <!-- 期中→期末軌跡分型堆疊圖 -->
         <div class="chart-card" style="margin-bottom:12px">
           <div class="chart-title" style="--accent-color:var(--accent2)">
@@ -2587,6 +2590,9 @@ body.light .behavior-range-badge {
             <canvas id="crossTrajectoryChart"></canvas>
           </div>
         </div>
+
+        <!-- 學習方法三型 說明卡（可收折） -->
+        <details class="cross-legend-card" id="crossApproachLegend"></details>
 
         <!-- 學習方法三型堆疊圖 -->
         <div class="chart-card">
@@ -2799,21 +2805,21 @@ body.light .behavior-range-badge {
 <script src="js/vendor/d3.min.js"></script>
 
 <!-- ══ 學習行為模組（依賴 main.js 全域變數）══ -->
-<script defer src="js/chart-registry.js?v=202606131110"></script>
-<script defer src="js/behavior-loader.js?v=202606131110"></script>
-<script defer src="js/tab-behavior-radar.js?v=202606131110"></script>
-<script defer src="js/tab-behavior-correlation.js?v=202606131110"></script>
-<script defer src="js/tab-behavior-time.js?v=202606131110"></script>
-<script defer src="js/tab-behavior-lsa.js?v=202606131110"></script>
-<script defer src="js/tab-behavior-cross.js?v=202606131110"></script>
-<script defer src="js/tab-behavior-warning.js?v=202606131110"></script>
+<script defer src="js/chart-registry.js?v=202606171330"></script>
+<script defer src="js/behavior-loader.js?v=202606171330"></script>
+<script defer src="js/tab-behavior-radar.js?v=202606171330"></script>
+<script defer src="js/tab-behavior-correlation.js?v=202606171330"></script>
+<script defer src="js/tab-behavior-time.js?v=202606171330"></script>
+<script defer src="js/tab-behavior-lsa.js?v=202606171330"></script>
+<script defer src="js/tab-behavior-cross.js?v=202606171330"></script>
+<script defer src="js/tab-behavior-warning.js?v=202606171330"></script>
 
 <!-- ══ 行為初始化 + 高風險報告（依賴 behavior 模組）══ -->
-<script defer src="js/behavior-init.js?v=202606131110"></script>
-<script defer src="js/at-risk-report.js?v=202606131110"></script>
+<script defer src="js/behavior-init.js?v=202606171330"></script>
+<script defer src="js/at-risk-report.js?v=202606171330"></script>
 <!-- ══ 列印面板（依賴所有 behavior 模組與 ChartRegistry）══ -->
-<script defer src="js/print-panel.js?v=202606131110"></script>
-<script defer src="js/ui-toggles.js?v=202606131110"></script>
+<script defer src="js/print-panel.js?v=202606171330"></script>
+<script defer src="js/ui-toggles.js?v=202606171330"></script>
 
 <!-- R2 排除資料說明 popover（body 層，position:fixed 避免被 table overflow 裁切）-->
 <div id="r2ExcludePopover" data-maxw="360"
