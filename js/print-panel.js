@@ -1,456 +1,611 @@
 /**
- * print-panel.js  —  LA DASH 列印面板
+ * Print panel controller for the V10 docs4 dashboard.
  *
- * 功能：
- *   - 動態生成 printSelections 勾選清單（21 個圖表項目）
- *   - 學期範圍篩選（printYearStart / printYearEnd）
- *   - 預覽列印：在 printPreviewArea 渲染靜態 HTML
- *   - 直接列印 / 另存 PDF：開啟獨立視窗呼叫 window.print()
- *   - 捕捉方式：
- *       Chart.js canvas → toBase64Image()（或 canvas.toDataURL()）
- *       SVG / HTML DOM  → cloneNode(true) 序列化
- *
- * 依賴（均為全域變數，由先行 defer 腳本提供）：
- *   Chart               — Chart.js v3+（static Chart.getChart(canvas)）
- *   BehaviorLoader      — behavior-loader.js
- *   ChartRegistry       — chart-registry.js（可選；備援用 Chart.getChart）
- *
- * 初始化：
- *   - 以 MutationObserver 偵測 panelP 的 display 切換
- *   - 首次顯示時自動執行 _init()（只初始化一次）
- *
- * 版本：v1.0  2026-06-08
+ * This file intentionally owns the print panel UI because the dashboard has
+ * changed faster than the older print block in main.js. It intercepts print
+ * panel actions in the capture phase, rebuilds the item list, renders hidden
+ * panels when needed, and captures Chart.js canvas/SVG/DOM content into a
+ * printable report.
  */
-
 const PrintPanel = (() => {
-  'use strict';
+  "use strict";
 
-  // ── 列印項目定義表 ────────────────────────────────────────────
-  // type: 'canvas' → 用 Chart.js toBase64Image()
-  //       'svg'    → 直接 cloneNode SVG 容器 innerHTML
-  //       'dom'    → cloneNode HTML 元素 outerHTML
-  // domId: 要擷取的 DOM 元素 id
-  // label: 顯示名稱
-  // tab: 所屬頁籤（僅供 print-choice 標籤顯示）
   const PRINT_ITEMS = [
-    // ── 整體分析（Panel D）──────────────────────────────────────
-    { id: 'chartCohortTrend',   label: '整屆跨學期趨勢',       tab: '整體',   type: 'canvas' },
-    { id: 'chartPassRateRange', label: '各學期及格率分布',     tab: '整體',   type: 'canvas' },
-    { id: 'heatmapWrap',        label: '學期成績熱力圖',       tab: '整體',   type: 'dom'    },
-    { id: 'boxplotWrap',        label: '成績箱型圖',           tab: '整體',   type: 'dom'    },
-    { id: 'chartCorrelation',   label: '與行為指標相關性',     tab: '整體',   type: 'canvas' },
-    // ── 單學期分析（Panel A）────────────────────────────────────
-    { id: 'chartDist',          label: '成績分布直方圖',       tab: '單學期', type: 'canvas' },
-    { id: 'chartMidFinal',      label: '期中／期末對比',       tab: '單學期', type: 'canvas' },
-    { id: 'chartTrend',         label: '各班趨勢折線',         tab: '單學期', type: 'canvas' },
-    { id: 'chartNormalOverlay', label: '常態分布疊加',         tab: '單學期', type: 'canvas' },
-    { id: 'chartRegression',    label: '迴歸分析',             tab: '單學期', type: 'canvas' },
-    { id: 'chartVariance',      label: '變異分析',             tab: '單學期', type: 'canvas' },
-    // ── 行為分群雷達（Panel L / sub-radar）──────────────────────
-    { id: 'radarChart',         label: '學習行為分群雷達圖',   tab: '行為',   type: 'canvas' },
-    // ── 行為相關性（Panel L / sub-correlation）──────────────────
-    { id: 'corrHeatmap',        label: '行為相關係數矩陣',     tab: '行為',   type: 'dom'    },
-    { id: 'scatterChart',       label: '行為相關性散佈圖',     tab: '行為',   type: 'canvas' },
-    // ── 時間分析（Panel L / sub-time）───────────────────────────
-    { id: 'weeklyQuizChart',    label: '各週題庫作答強度',     tab: '時間',   type: 'canvas' },
-    { id: 'preExamChart',       label: '平時及考前學習強度',   tab: '時間',   type: 'canvas' },
-    { id: 'timeSlotChart',      label: '學習時段分布',         tab: '時間',   type: 'canvas' },
-    { id: 'studyHeatmapWrap',   label: '學習規律熱力圖',       tab: '時間',   type: 'svg'    },
-    { id: 'hourlyLineChart',    label: '24 小時學習趨勢',      tab: '時間',   type: 'canvas' },
-    // ── LSA 行為序列（Panel L / sub-lsa）───────────────────────
-    { id: 'lsaGraphWrap',       label: 'LSA 行為序列轉移圖',   tab: 'LSA',    type: 'svg'    },
-    { id: 'lsaInterpretCard',   label: 'LSA 白話解讀',         tab: 'LSA',    type: 'dom'    },
+    { id: "chartCohortTrend", label: "跨學期成績趨勢", tab: "D 成績總覽", type: "canvas", checked: true },
+    { id: "chartProgramBar", label: "各學制成績比較", tab: "D 成績總覽", type: "canvas", checked: true },
+    { id: "chartPassRate", label: "各學制及格率比較", tab: "D 成績總覽", type: "canvas", checked: true },
+    { id: "chartPassRateRange", label: "及格率趨勢", tab: "D 成績總覽", type: "canvas", checked: false },
+    { id: "heatmapWrap", label: "學期與班級成績熱圖", tab: "D 成績總覽", type: "dom", checked: true },
+    { id: "boxplotWrap", label: "學制成績箱型圖", tab: "D 成績總覽", type: "dom", checked: true },
+    { id: "chartCorrelation", label: "修課人數與及格率關聯", tab: "D 成績總覽", type: "canvas", checked: false },
+    { id: "dDetailTable", label: "班級明細表", tab: "D 成績總覽", type: "dom", checked: false },
+
+    { id: "chartDist", label: "班級成績分布", tab: "A 單班分析", type: "canvas", checked: false },
+    { id: "chartMidFinal", label: "期中期末與學期成績", tab: "A 單班分析", type: "canvas", checked: false },
+    { id: "chartTrend", label: "單班歷年趨勢", tab: "A 單班分析", type: "canvas", checked: false },
+    { id: "chartNormalOverlay", label: "常態分布疊圖", tab: "A 單班分析", type: "canvas", checked: false },
+    { id: "chartRegression", label: "期中期末迴歸", tab: "A 單班分析", type: "canvas", checked: false },
+    { id: "chartVariance", label: "變異與離散分析", tab: "A 單班分析", type: "canvas", checked: false },
+
+    { id: "cChartDist", label: "全體學生分布", tab: "C 學生/重修", type: "canvas", checked: false },
+    { id: "chartAnomalyDensity", label: "異常密度分布", tab: "C 學生/重修", type: "canvas", checked: false },
+    { id: "chartRetakerFirstDist", label: "重修生初修成績分布", tab: "C 學生/重修", type: "canvas", checked: false },
+    { id: "slopeChart", label: "重修前後斜率圖", tab: "C 學生/重修", type: "svg", checked: false },
+    { id: "chartDelta", label: "重修前後差異", tab: "C 學生/重修", type: "canvas", checked: false },
+    { id: "chartQuadrant", label: "重修象限分析", tab: "C 學生/重修", type: "canvas", checked: false },
+    { id: "chartDeltaByProgram", label: "重修改善幅度依學制", tab: "C 學生/重修", type: "canvas", checked: false },
+    { id: "chartRetakeCount", label: "重修次數分布", tab: "C 學生/重修", type: "canvas", checked: false },
+    { id: "chartFirstVsDelta", label: "初修成績與改善幅度", tab: "C 學生/重修", type: "canvas", checked: false },
+
+    { id: "radarChart", label: "學習行為雷達圖", tab: "L 行為雷達", type: "canvas", checked: false },
+    { id: "radarInsightsPanel", label: "雷達圖洞察", tab: "L 行為雷達", type: "dom", checked: false },
+    { id: "corrHeatmap", label: "行為關聯熱圖", tab: "L 行為關聯", type: "dom", checked: false },
+    { id: "scatterChart", label: "行為關聯散點圖", tab: "L 行為關聯", type: "canvas", checked: false },
+    { id: "weeklyQuizChart", label: "每週測驗與學習分布", tab: "L 時間行為", type: "canvas", checked: false },
+    { id: "preExamChart", label: "考前學習時間", tab: "L 時間行為", type: "canvas", checked: false },
+    { id: "timeSlotChart", label: "學習時段分布", tab: "L 時間行為", type: "canvas", checked: false },
+    { id: "studyHeatmapWrap", label: "學習時間熱圖", tab: "L 時間行為", type: "dom", checked: false },
+    { id: "hourlyLineChart", label: "24 小時學習趨勢", tab: "L 時間行為", type: "canvas", checked: false },
+    { id: "lsaGraphWrap", label: "LSA 行為序列圖", tab: "L LSA", type: "dom", checked: false },
+    { id: "lsaInterpretCard", label: "LSA 解讀摘要", tab: "L LSA", type: "dom", checked: false },
+    { id: "crossSummaryCard", label: "行為與成績交叉摘要", tab: "L 交叉分析", type: "dom", checked: false },
+    { id: "crossAlertCard", label: "交叉分析警示", tab: "L 交叉分析", type: "dom", checked: false },
+    { id: "crossGroupChart", label: "行為群組與成績", tab: "L 交叉分析", type: "canvas", checked: false },
+    { id: "crossTrajectoryChart", label: "行為軌跡與成績", tab: "L 交叉分析", type: "canvas", checked: false },
+    { id: "crossApproachChart", label: "學習策略與成績", tab: "L 交叉分析", type: "canvas", checked: false },
+
+    { id: "rRadarChart", label: "高風險學生雷達圖", tab: "R 高風險", type: "canvas", checked: false },
+    { id: "rTemporalChart", label: "高風險時間趨勢", tab: "R 高風險", type: "canvas", checked: false },
+    { id: "rRedFlags", label: "高風險紅旗摘要", tab: "R 高風險", type: "dom", checked: false },
+    { id: "rPrescriptions", label: "教學介入建議", tab: "R 高風險", type: "dom", checked: false },
   ];
 
-  // ── 狀態 ─────────────────────────────────────────────────────
-  let _initialized = false;
+  const PREVIEW_STYLE_ID = "print-panel-preview-style";
+  let initialized = false;
 
-  // ── 公開 API ──────────────────────────────────────────────────
   function init() {
-    if (_initialized) return;
-    _initialized = true;
-    _buildCheckboxes();
-    _populateYearSelects();
-    _bindActions();
+    if (initialized) return;
+    initialized = true;
+    renderPanel();
+    bindActions();
+    installGlobalFallbacks();
   }
 
-  // ── 建立勾選清單 ──────────────────────────────────────────────
-  function _buildCheckboxes() {
-    const container = document.getElementById('printSelections');
+  function installGlobalFallbacks() {
+    window.PrintPanel = api;
+  }
+
+  function renderPanel() {
+    populateYearFilters();
+    buildCheckboxes();
+    updateSummary();
+  }
+
+  function buildCheckboxes() {
+    const container = document.getElementById("printSelections");
     if (!container) return;
 
-    container.innerHTML = PRINT_ITEMS.map(item => `
-      <label class="print-choice selected" data-print-id="${item.id}">
-        <input type="checkbox" value="${item.id}" checked>
-        <span class="print-tab">${item.tab}</span>
-        <span class="print-label">${item.label}</span>
-      </label>`).join('');
+    container.innerHTML = PRINT_ITEMS.map((item) => `
+      <label class="print-choice ${item.checked ? "selected" : ""}" data-print-id="${escapeAttr(item.id)}">
+        <input type="checkbox" value="${escapeAttr(item.id)}" ${item.checked ? "checked" : ""}>
+        <span class="print-tab">${escapeHtml(item.tab)}</span>
+        <span class="print-label">${escapeHtml(item.label)}</span>
+      </label>`).join("");
 
-    // 勾選/取消 → 更新 .selected 樣式 + 摘要
-    container.addEventListener('change', e => {
-      if (e.target.type !== 'checkbox') return;
-      const label = e.target.closest('.print-choice');
-      if (label) label.classList.toggle('selected', e.target.checked);
-      _updateSummary();
+    container.addEventListener("change", (event) => {
+      const input = event.target;
+      if (!(input instanceof HTMLInputElement) || input.type !== "checkbox") return;
+      const label = input.closest(".print-choice");
+      if (label) label.classList.toggle("selected", input.checked);
+      updateSummary();
     });
-
-    _updateSummary();
   }
 
-  // ── 更新摘要文字 ──────────────────────────────────────────────
-  function _updateSummary() {
-    const el = document.getElementById('printSummary');
-    if (!el) return;
-    const total    = PRINT_ITEMS.length;
-    const selected = document.querySelectorAll('#printSelections input[type="checkbox"]:checked').length;
-    el.textContent = `已選 ${selected} / ${total} 個項目`;
-  }
+  function bindActions() {
+    document.addEventListener("click", (event) => {
+      const panel = document.getElementById("panelP");
+      if (panel && !panel.contains(event.target)) return;
 
-  // ── 填入學期下拉清單 ──────────────────────────────────────────
-  // 從 corrSemFilter（行為相關性頁籤初始化後注入的學期下拉）讀取學期清單。
-  // 若相關性頁籤尚未初始化，sems=[] → 顯示「全部學期」佔位選項。
-  function _populateYearSelects() {
-    const startEl = document.getElementById('printYearStart');
-    const endEl   = document.getElementById('printYearEnd');
-    if (!startEl || !endEl) return;
-
-    // 從 corrSemFilter（行為相關性頁籤已渲染的學期下拉）讀取學期清單
-    // 比存取私有 BehaviorLoader._cache 更可靠
-    const corrSemSel = document.getElementById('corrSemFilter');
-    const sems = corrSemSel
-      ? [...corrSemSel.options]
-          .map(o => o.value)
-          .filter(v => v && v !== 'all')
-      : [];
-
-    if (!sems.length) {
-      [startEl, endEl].forEach(el => {
-        el.innerHTML = '<option value="">（全部學期）</option>';
-      });
-      return;
-    }
-
-    const opts = sems.map(s => `<option value="${s}">${_formatSem(s)}</option>`).join('');
-    startEl.innerHTML = opts;
-    endEl.innerHTML   = opts;
-    endEl.selectedIndex = endEl.options.length - 1;   // 預設 end = 最新學期
-  }
-
-  // 學期代碼格式化：1111 → 111(1)、1112 → 111(2)
-  function _formatSem(sem) {
-    const s = String(sem);
-    if (s.length === 4) return `${s.slice(0, 3)}(${s.slice(3)})`;
-    return s;
-  }
-
-  // ── 綁定 data-action 按鈕 ─────────────────────────────────────
-  // main.js 的事件委派已處理全域 click；這裡在 panelP 內額外綁定，
-  // 以防 main.js 沒有實作 doPrintPreview / doPrint。
-  function _bindActions() {
-    const panel = document.getElementById('panelP');
-    document.addEventListener('click', e => {
-      if (panel && !panel.contains(e.target)) return;  // 只處理 panelP 內的點擊
-      const action = e.target.closest('[data-action]')?.dataset.action;
+      const action = event.target.closest("[data-action]")?.dataset.action;
       if (!action) return;
-      if (action === 'doPrintPreview')    { e.stopImmediatePropagation(); _doPreview(); }
-      if (action === 'doPrint')           { e.stopImmediatePropagation(); _doPrint();   }
-      if (action === 'printSelectAll')    { _setAllChecked(true);  }
-      if (action === 'printClearAll')     { _setAllChecked(false); }
-      if (action === 'closePrintPreview') {
-        const area = document.getElementById('printPreviewArea');
-        if (area) area.style.display = 'none';
+
+      if (action === "doPrintPreview") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        doPreview();
+      } else if (action === "doPrint") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        doPrint();
+      } else if (action === "printSelectAll") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        setAllChecked(true);
+      } else if (action === "printClearAll") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        setAllChecked(false);
+      } else if (action === "closePrintPreview") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const area = document.getElementById("printPreviewArea");
+        if (area) area.style.display = "none";
       }
     }, true);
   }
 
-  function _setAllChecked(checked) {
-    document.querySelectorAll('#printSelections input[type="checkbox"]').forEach(cb => {
-      cb.checked = checked;
-      const label = cb.closest('.print-choice');
-      if (label) label.classList.toggle('selected', checked);
-    });
-    _updateSummary();
+  function populateYearFilters() {
+    const start = document.getElementById("printYearStart");
+    const end = document.getElementById("printYearEnd");
+    if (!start || !end) return;
+
+    const years = getAvailableYears();
+    if (!years.length) {
+      start.innerHTML = '<option value="">無資料</option>';
+      end.innerHTML = '<option value="">無資料</option>';
+      return;
+    }
+
+    const prevStart = start.value;
+    const prevEnd = end.value;
+    const options = years.map((year) => `<option value="${escapeAttr(year)}">${escapeHtml(year)} 學年</option>`).join("");
+    start.innerHTML = options;
+    end.innerHTML = options;
+
+    const ascending = [...years].sort((a, b) => Number(a) - Number(b));
+    start.value = years.includes(prevStart) ? prevStart : ascending[0];
+    end.value = years.includes(prevEnd) ? prevEnd : ascending.at(-1);
+    syncYearRange();
+
+    start.onchange = () => syncYearRange();
+    end.onchange = () => syncYearRange();
   }
 
-  // ── 取得勾選的項目 id 清單 ────────────────────────────────────
-  function _selectedIds() {
-    return [...document.querySelectorAll('#printSelections input[type="checkbox"]:checked')]
-      .map(cb => cb.value);
-  }
-
-  // ── 取得有效學期範圍 ──────────────────────────────────────────
-  function _semRange() {
-    const s = document.getElementById('printYearStart')?.value;
-    const e = document.getElementById('printYearEnd')?.value;
-    return { start: s || null, end: e || null };
-  }
-
-  // ── 擷取單一項目為 HTML 字串 ──────────────────────────────────
-  function _captureItem(item) {
-    const el = document.getElementById(item.id);
-    if (!el) return null;
-
-    if (item.type === 'canvas') {
-      // 用 Chart.js 靜態方法取得 chart 實例（v3.x API）
-      let dataUrl = null;
+  function getAvailableYears() {
+    if (typeof window.printYears === "function") {
       try {
-        const chart = Chart.getChart(el);
-        if (chart) {
-          dataUrl = chart.toBase64Image('image/png', 1);
-        }
-      } catch (_) { /* Chart.js 未就緒 */ }
-
-      // 備援：直接讀 canvas
-      if (!dataUrl) {
-        try { dataUrl = el.toDataURL('image/png'); } catch (_) { return null; }
-      }
-      if (!dataUrl || dataUrl === 'data:,') return null;
-
-      return `<img src="${dataUrl}" style="max-width:100%;height:auto;display:block" alt="${item.label}">`;
+        const years = window.printYears().map(String).filter(Boolean);
+        if (years.length) return [...new Set(years)].sort((a, b) => Number(a) - Number(b));
+      } catch (_) {}
     }
 
-    if (item.type === 'svg') {
-      // studyHeatmapWrap / lsaGraphWrap：取 innerHTML（含 SVG 標籤）
-      const inner = el.innerHTML.trim();
-      if (!inner) return null;
-      return `<div style="overflow-x:auto">${inner}</div>`;
-    }
-
-    if (item.type === 'dom') {
-      // corrHeatmap / heatmapWrap / boxplotWrap / lsaInterpretCard 等
-      const clone = el.cloneNode(true);
-      // 移除互動用屬性避免列印干擾
-      clone.querySelectorAll('[data-tip],[data-action]').forEach(node => {
-        node.removeAttribute('data-tip');
-        node.removeAttribute('data-action');
-      });
-      clone.querySelectorAll('.chart-expand-btn,.chart-info-btn,.chart-popover').forEach(n => n.remove());
-      return clone.outerHTML;
-    }
-
-    return null;
+    const yearSet = new Set();
+    document.querySelectorAll("[data-sem], [data-semester], option[value]").forEach((node) => {
+      const value = node.dataset?.sem || node.dataset?.semester || node.value || "";
+      const match = String(value).match(/^(\d{3})(?:[12])?$/);
+      if (match) yearSet.add(match[1]);
+    });
+    return [...yearSet].sort((a, b) => Number(a) - Number(b));
   }
 
-  // ── 組裝完整列印 HTML ─────────────────────────────────────────
-  const _PREVIEW_STYLE_ID = 'print-panel-preview-style';
-
-  function _injectPreviewStyles() {
-    if (document.getElementById(_PREVIEW_STYLE_ID)) return;
-    const s = document.createElement('style');
-    s.id = _PREVIEW_STYLE_ID;
-    s.textContent = _previewCSS();
-    document.head.appendChild(s);
+  function syncYearRange() {
+    const start = document.getElementById("printYearStart");
+    const end = document.getElementById("printYearEnd");
+    if (!start || !end || !start.value || !end.value) return;
+    if (Number(start.value) > Number(end.value)) {
+      if (document.activeElement === start) end.value = start.value;
+      else start.value = end.value;
+    }
   }
 
-  function _buildPrintHTML(selectedIds, forWindow = false) {
-    const { start, end } = _semRange();
-    const semLabel = (start && end) ? `學期範圍：${_formatSem(start)} – ${_formatSem(end)}` : '全部學期';
-    const now = new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  function selectedIds() {
+    return [...document.querySelectorAll('#printSelections input[type="checkbox"]:checked')]
+      .map((input) => input.value);
+  }
 
-    const pages = [];
+  function selectedItems() {
+    const ids = new Set(selectedIds());
+    return PRINT_ITEMS.filter((item) => ids.has(item.id));
+  }
 
-    for (const id of selectedIds) {
-      const item = PRINT_ITEMS.find(i => i.id === id);
-      if (!item) continue;
+  function setAllChecked(checked) {
+    document.querySelectorAll('#printSelections input[type="checkbox"]').forEach((input) => {
+      input.checked = checked;
+      input.closest(".print-choice")?.classList.toggle("selected", checked);
+    });
+    updateSummary();
+  }
 
-      const content = _captureItem(item);
-      if (!content) {
-        // 項目存在但無內容（頁籤未渲染）
-        pages.push(`
-          <div class="print-page">
-            <div class="print-page-header">
-              <span class="print-page-tab">${item.tab}</span>
-              <span class="print-page-title">${item.label}</span>
-            </div>
-            <div class="print-empty">⚠️ 此圖表尚未載入，請先切換至對應頁籤再執行列印。</div>
-          </div>`);
-        continue;
+  function updateSummary() {
+    const summary = document.getElementById("printSummary");
+    if (!summary) return;
+    const selected = selectedIds().length;
+    summary.textContent = `已選 ${selected} / ${PRINT_ITEMS.length} 個列印項目`;
+  }
+
+  function getRangeLabel() {
+    const start = document.getElementById("printYearStart")?.value || "";
+    const end = document.getElementById("printYearEnd")?.value || "";
+    if (!start || !end) return "全部學年";
+    return start === end ? `${start} 學年` : `${start} 至 ${end} 學年`;
+  }
+
+  function getSubjectLabel() {
+    return document.getElementById("subjectInput")?.textContent?.trim()
+      || window.BEHAVIOR_SUMMARY?.course_name
+      || "微生物免疫學成績與學習行為儀表板";
+  }
+
+  async function preparePrintableContent(task) {
+    await lazyInitDynamicPanels();
+    const runWithRange = typeof window.withPrintDataRange === "function"
+      ? window.withPrintDataRange
+      : (fn) => fn();
+    const runVisible = typeof window.withPrintablePanelsVisible === "function"
+      ? window.withPrintablePanelsVisible
+      : withPanelsTemporarilyVisible;
+
+    return runWithRange(() => runVisible(() => {
+      if (typeof window.renderPrintCharts === "function") {
+        try { window.renderPrintCharts(); } catch (error) { console.warn("[PrintPanel] renderPrintCharts failed", error); }
       }
+      resizeKnownCharts();
+      return task();
+    }));
+  }
 
-      pages.push(`
-        <div class="print-page">
-          <div class="print-page-header">
-            <span class="print-page-tab">${item.tab}</span>
-            <span class="print-page-title">${item.label}</span>
-          </div>
-          <div class="print-page-body">${content}</div>
-        </div>`);
+  async function lazyInitDynamicPanels() {
+    const jobs = [];
+    if (typeof window.BehaviorTabManager?.lazyInit === "function") {
+      jobs.push(window.BehaviorTabManager.lazyInit());
     }
-
-    if (!pages.length) {
-      return '<p style="padding:20px;color:#888">未選擇任何列印項目。</p>';
+    if (typeof window.AtRiskReportManager?.lazyInit === "function") {
+      jobs.push(window.AtRiskReportManager.lazyInit());
     }
+    await Promise.allSettled(jobs);
+  }
 
-    const header = `
-      <div class="print-doc-header">
-        <strong>LA DASH 學習分析儀表板</strong>
-        <span>${semLabel}</span>
-        <span>列印日期：${now}</span>
+  function withPanelsTemporarilyVisible(task) {
+    const panels = [...document.querySelectorAll(".panel")].filter((panel) => panel.id !== "panelP");
+    const panelStyles = panels.map((el) => ({
+      el,
+      display: el.style.display,
+      visibility: el.style.visibility,
+      position: el.style.position,
+      left: el.style.left,
+      top: el.style.top,
+      width: el.style.width,
+      pointerEvents: el.style.pointerEvents,
+    }));
+    const panes = [...document.querySelectorAll(".behavior-sub-pane")];
+    const paneStyles = panes.map((el) => ({ el, display: el.style.display }));
+
+    panels.forEach((el) => {
+      el.style.display = "block";
+      el.style.visibility = "hidden";
+      el.style.position = "absolute";
+      el.style.left = "-10000px";
+      el.style.top = "0";
+      el.style.width = "1200px";
+      el.style.pointerEvents = "none";
+    });
+    panes.forEach((el) => { el.style.display = "block"; });
+
+    try {
+      return task();
+    } finally {
+      panelStyles.forEach(({ el, ...style }) => Object.assign(el.style, style));
+      paneStyles.forEach(({ el, display }) => { el.style.display = display; });
+    }
+  }
+
+  function resizeKnownCharts() {
+    PRINT_ITEMS.filter((item) => item.type === "canvas").forEach((item) => {
+      const canvas = document.getElementById(item.id);
+      const chart = getChartInstance(canvas);
+      if (!chart) return;
+      try {
+        chart.resize();
+        chart.update("none");
+      } catch (_) {}
+    });
+  }
+
+  function captureItem(item) {
+    const title = `
+      <div class="print-page-header">
+        <span class="print-page-tab">${escapeHtml(item.tab)}</span>
+        <span class="print-page-title">${escapeHtml(item.label)}</span>
       </div>`;
 
-    if (forWindow) {
-      return `<!DOCTYPE html><html lang="zh-TW"><head>
-        <meta charset="UTF-8">
-        <title>LA DASH 列印</title>
-        <style>${_windowCSS()}</style>
-      </head><body>${header}${pages.join('')}</body></html>`;
+    let body = "";
+    if (item.type === "canvas") body = captureCanvas(item);
+    else if (item.type === "svg") body = captureSvg(item);
+    else body = captureDom(item);
+
+    if (!body) {
+      body = '<div class="print-empty">此項目目前沒有可列印內容，請先切換到相關分頁讓圖表完成載入。</div>';
     }
 
-    // 預覽模式：樣式由 _injectPreviewStyles() 寫入 <head>
-    return `${header}${pages.join('')}`;
+    return `<section class="print-page">${title}<div class="print-page-body">${body}</div></section>`;
   }
 
-  // ── CSS ───────────────────────────────────────────────────────
-  // _previewCSS(): 所有規則 scope 至 #printPreviewContent，
-  //   安全注入 <head> 而不污染 app 全域樣式（body / svg 等）
-  // _windowCSS():  獨立列印視窗用，全域無 scope，包含 @media print
-  function _previewCSS() {
+  function captureCanvas(item) {
+    const canvas = document.getElementById(item.id);
+    if (!(canvas instanceof HTMLCanvasElement)) return "";
+
+    const chart = getChartInstance(canvas);
+    try {
+      if (chart) {
+        chart.stop?.();
+        chart.resize(1100, 520);
+        chart.update("none");
+      }
+      const dataUrl = chart?.toBase64Image?.("image/png", 1) || canvas.toDataURL("image/png");
+      if (!dataUrl || dataUrl === "data:,") return "";
+      return `<figure class="print-figure"><img src="${dataUrl}" alt="${escapeAttr(item.label)}"></figure>`;
+    } catch (error) {
+      console.warn("[PrintPanel] canvas capture failed", item.id, error);
+      return "";
+    } finally {
+      if (chart) {
+        try {
+          chart.resize();
+          chart.update("none");
+        } catch (_) {}
+      }
+    }
+  }
+
+  function getChartInstance(canvas) {
+    if (!canvas || typeof Chart === "undefined") return null;
+    try {
+      return Chart.getChart(canvas) || Chart.getChart(canvas.id) || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function captureSvg(item) {
+    const el = document.getElementById(item.id);
+    if (!el) return "";
+    const svg = el.tagName?.toLowerCase() === "svg" ? el : el.querySelector("svg");
+    if (!svg) return "";
+    const clone = svg.cloneNode(true);
+    if (!clone.getAttribute("viewBox")) {
+      const width = parseFloat(svg.getAttribute("width") || svg.getBoundingClientRect().width) || 900;
+      const height = parseFloat(svg.getAttribute("height") || svg.getBoundingClientRect().height) || 420;
+      clone.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    }
+    clone.removeAttribute("width");
+    clone.removeAttribute("height");
+    clone.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    clone.style.width = "100%";
+    clone.style.height = "auto";
+    return `<figure class="print-figure">${clone.outerHTML}</figure>`;
+  }
+
+  function captureDom(item) {
+    const el = document.getElementById(item.id);
+    if (!el) return "";
+
+    const svgHtml = captureSvg(item);
+    if (svgHtml) return svgHtml;
+
+    const canvas = el.querySelector?.("canvas");
+    if (canvas) {
+      const nestedItem = { ...item, id: canvas.id || item.id, label: item.label };
+      const captured = captureCanvas(nestedItem);
+      if (captured) return captured;
+    }
+
+    const clone = el.cloneNode(true);
+    sanitizeClone(clone);
+    const content = clone.outerHTML || clone.innerHTML;
+    return content?.trim() ? `<div class="print-dom">${content}</div>` : "";
+  }
+
+  function sanitizeClone(root) {
+    root.querySelectorAll("script, button, .chart-popover, .chart-expand-btn, .chart-info-btn").forEach((node) => node.remove());
+    root.querySelectorAll("[id]").forEach((node) => node.removeAttribute("id"));
+    root.querySelectorAll("[data-action], [data-tip], [onclick]").forEach((node) => {
+      node.removeAttribute("data-action");
+      node.removeAttribute("data-tip");
+      node.removeAttribute("onclick");
+    });
+    root.querySelectorAll('[style*="display:none"], [style*="display: none"]').forEach((node) => {
+      if (!node.textContent.trim() && !node.querySelector("canvas,svg,img,table")) node.remove();
+    });
+  }
+
+  async function buildPrintHTML(items) {
+    let pages = "";
+    await preparePrintableContent(() => {
+      pages = items.map(captureItem).join("");
+    });
+
+    if (!pages) {
+      pages = '<section class="print-page"><div class="print-empty">尚未選取任何可列印項目。</div></section>';
+    }
+
+    const date = new Date().toLocaleDateString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit" });
     return `
-      #printPreviewContent * { box-sizing: border-box; }
-      #printPreviewContent {
-        font-family: 'Noto Sans TC', 'PingFang TC', sans-serif;
-        color: #1a1a2e; background: #fff;
-      }
-      #printPreviewContent .print-doc-header {
-        display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
-        padding: 10px 16px; border-bottom: 2px solid #3498db;
-        font-size: 12px; color: #555; margin-bottom: 12px;
-      }
-      #printPreviewContent .print-doc-header strong { font-size: 14px; color: #1a1a2e; }
-      #printPreviewContent .print-page {
-        background: #fff; border: 1px solid #dde; border-radius: 6px;
-        margin-bottom: 16px; padding: 14px 16px;
-      }
-      #printPreviewContent .print-page-header {
-        display: flex; align-items: center; gap: 8px;
-        border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 12px;
-      }
-      #printPreviewContent .print-page-tab {
-        font-size: 10px; background: #e8f0fe; color: #3498db;
-        border-radius: 4px; padding: 2px 7px; font-weight: 600; white-space: nowrap;
-      }
-      #printPreviewContent .print-page-title { font-size: 13px; font-weight: 600; color: #1a1a2e; }
-      #printPreviewContent .print-page-body img { max-width: 100%; height: auto; display: block; border-radius: 4px; }
-      #printPreviewContent .print-page-body table { width: 100%; border-collapse: collapse; font-size: 11px; }
-      #printPreviewContent .print-page-body td,
-      #printPreviewContent .print-page-body th { border: 1px solid #dde; padding: 4px 8px; }
-      #printPreviewContent .print-page-body th { background: #f5f7fa; font-weight: 600; }
-      #printPreviewContent .print-empty { color: #e67e22; font-size: 12px; padding: 12px 0; }
-      #printPreviewContent svg { max-width: 100%; height: auto; }
-    `;
+      <div class="print-doc">
+        <header class="print-doc-header">
+          <div>
+            <h1>微免成績與學習行為儀表板</h1>
+            <p>${escapeHtml(getSubjectLabel())}</p>
+          </div>
+          <dl>
+            <div><dt>範圍</dt><dd>${escapeHtml(getRangeLabel())}</dd></div>
+            <div><dt>日期</dt><dd>${escapeHtml(date)}</dd></div>
+            <div><dt>項目</dt><dd>${items.length}</dd></div>
+          </dl>
+        </header>
+        <main class="print-pages">${pages}</main>
+      </div>`;
   }
 
-  function _windowCSS() {
-    return `
-      * { box-sizing: border-box; }
-      body { font-family: 'Noto Sans TC', 'PingFang TC', sans-serif; color: #1a1a2e; background: #fff; margin: 0; padding: 0; }
-      .print-doc-header {
-        display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
-        padding: 10px 16px; border-bottom: 2px solid #3498db;
-        font-size: 12px; color: #555; margin-bottom: 12px;
-      }
-      .print-doc-header strong { font-size: 14px; color: #1a1a2e; }
-      .print-page {
-        background: #fff; border: 1px solid #dde; border-radius: 6px;
-        margin-bottom: 16px; padding: 14px 16px; break-inside: avoid; page-break-inside: avoid;
-      }
-      .print-page-header {
-        display: flex; align-items: center; gap: 8px;
-        border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 12px;
-      }
-      .print-page-tab {
-        font-size: 10px; background: #e8f0fe; color: #3498db;
-        border-radius: 4px; padding: 2px 7px; font-weight: 600; white-space: nowrap;
-      }
-      .print-page-title { font-size: 13px; font-weight: 600; color: #1a1a2e; }
-      .print-page-body img { max-width: 100%; height: auto; display: block; border-radius: 4px; }
-      .print-page-body table { width: 100%; border-collapse: collapse; font-size: 11px; }
-      .print-page-body td, .print-page-body th { border: 1px solid #dde; padding: 4px 8px; }
-      .print-page-body th { background: #f5f7fa; font-weight: 600; }
-      .print-empty { color: #e67e22; font-size: 12px; padding: 12px 0; }
-      svg { max-width: 100%; height: auto; }
-      @media print {
-        body { padding: 0; }
-        .print-page { border: none; page-break-after: always; margin: 0; padding: 10px 0; }
-        .print-page:last-child { page-break-after: avoid; }
-        @page { margin: 15mm 12mm; size: A4 landscape; }
-      }
-    `;
+  function injectPreviewStyles() {
+    if (document.getElementById(PREVIEW_STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = PREVIEW_STYLE_ID;
+    style.textContent = previewCss();
+    document.head.appendChild(style);
   }
 
-  // ── 預覽列印 ──────────────────────────────────────────────────
-  function _doPreview() {
-    const ids = _selectedIds();
-    const area    = document.getElementById('printPreviewArea');
-    const content = document.getElementById('printPreviewContent');
+  async function doPreview() {
+    const items = selectedItems();
+    const area = document.getElementById("printPreviewArea");
+    const content = document.getElementById("printPreviewContent");
     if (!area || !content) return;
 
-    if (!ids.length) {
-      content.innerHTML = '<p style="padding:20px;color:#e67e22">請先勾選至少一個列印項目。</p>';
-      area.style.display = 'block';
+    if (!items.length) {
+      content.innerHTML = '<p style="padding:20px;color:#b45309">請至少選擇一個列印項目。</p>';
+      area.style.display = "block";
       return;
     }
 
-    content.innerHTML = '<p style="padding:20px;color:#888">⏳ 正在擷取圖表...</p>';
-    area.style.display = 'block';
-    _injectPreviewStyles();   // 樣式寫入 <head>，不污染 innerHTML
+    injectPreviewStyles();
+    content.innerHTML = '<p style="padding:20px;color:#555">正在產生列印預覽...</p>';
+    area.style.display = "block";
+    await nextFrame();
+    content.innerHTML = await buildPrintHTML(items);
+    area.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
-    // 非同步讓瀏覽器先繪製「正在擷取」提示
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        content.innerHTML = _buildPrintHTML(ids, false);
-        area.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  async function doPrint() {
+    const items = selectedItems();
+    if (!items.length) {
+      alert("請至少選擇一個列印項目。");
+      return;
+    }
+
+    const html = await buildPrintHTML(items);
+    const doc = `<!DOCTYPE html><html lang="zh-TW"><head>
+      <meta charset="UTF-8">
+      <title>微免儀表板列印報告</title>
+      <style>${windowCss()}</style>
+    </head><body>${html}</body></html>`;
+
+    const blob = new Blob([doc], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank", "width=1200,height=850,noopener,noreferrer");
+    if (!win) {
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "dashboard-print-report.html";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      return;
+    }
+
+    win.addEventListener("load", () => {
+      waitForImages(win.document).then(() => {
+        win.focus();
+        win.print();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
       });
     });
   }
 
-  // ── 直接列印 ─────────────────────────────────────────────────
-  function _doPrint() {
-    const ids = _selectedIds();
-    if (!ids.length) {
-      alert('請先勾選至少一個列印項目。');
+  function waitForImages(doc) {
+    const images = [...doc.images];
+    if (!images.length) return Promise.resolve();
+    return Promise.allSettled(images.map((image) => {
+      if (image.complete) return Promise.resolve();
+      return new Promise((resolve) => {
+        image.onload = resolve;
+        image.onerror = resolve;
+      });
+    }));
+  }
+
+  function nextFrame() {
+    return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  }
+
+  function previewCss() {
+    return `
+      #printPreviewContent { min-width: 900px; }
+      #printPreviewContent .print-doc { background:#fff; color:#111827; font-family:"Noto Sans TC","Microsoft JhengHei",Arial,sans-serif; }
+      ${sharedCss("#printPreviewContent ")}
+    `;
+  }
+
+  function windowCss() {
+    return `
+      * { box-sizing:border-box; }
+      body { margin:0; padding:18px; background:#fff; color:#111827; font-family:"Noto Sans TC","Microsoft JhengHei",Arial,sans-serif; }
+      ${sharedCss("")}
+      @page { size:A4 landscape; margin:12mm; }
+      @media print {
+        body { padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+        .print-page { break-inside:avoid; page-break-inside:avoid; }
+      }
+    `;
+  }
+
+  function sharedCss(scope) {
+    return `
+      ${scope}.print-doc-header {
+        display:flex; justify-content:space-between; gap:20px; align-items:flex-end;
+        padding:0 0 14px; margin:0 0 18px; border-bottom:2px solid #2563eb;
+      }
+      ${scope}.print-doc-header h1 { margin:0 0 6px; font-size:20px; line-height:1.25; color:#111827; }
+      ${scope}.print-doc-header p { margin:0; font-size:12px; color:#4b5563; }
+      ${scope}.print-doc-header dl { display:flex; gap:12px; flex-wrap:wrap; justify-content:flex-end; margin:0; }
+      ${scope}.print-doc-header dl div { min-width:84px; padding:6px 9px; border:1px solid #dbe3ef; border-radius:6px; background:#f8fafc; }
+      ${scope}.print-doc-header dt { margin:0 0 2px; font-size:10px; color:#64748b; }
+      ${scope}.print-doc-header dd { margin:0; font-size:12px; color:#0f172a; font-weight:600; }
+      ${scope}.print-pages { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; align-items:start; }
+      ${scope}.print-page { border:1px solid #dbe3ef; border-radius:8px; padding:12px; background:#fff; overflow:hidden; }
+      ${scope}.print-page-header { display:flex; gap:8px; align-items:center; padding-bottom:8px; margin-bottom:10px; border-bottom:1px solid #e5e7eb; }
+      ${scope}.print-page-tab { flex:0 0 auto; padding:2px 7px; border-radius:999px; background:#dbeafe; color:#1d4ed8; font-size:10px; font-weight:700; }
+      ${scope}.print-page-title { min-width:0; font-size:13px; font-weight:700; color:#111827; }
+      ${scope}.print-figure { margin:0; width:100%; overflow:visible; }
+      ${scope}.print-figure img,
+      ${scope}.print-figure svg { display:block; width:100%; height:auto; max-width:100%; }
+      ${scope}.print-dom { width:100%; overflow:auto; font-size:11px; line-height:1.5; }
+      ${scope}.print-dom table { width:100%; border-collapse:collapse; font-size:10px; }
+      ${scope}.print-dom th,
+      ${scope}.print-dom td { border:1px solid #dbe3ef; padding:5px 7px; color:#111827; }
+      ${scope}.print-dom th { background:#f1f5f9; font-weight:700; }
+      ${scope}.print-empty { padding:18px 0; color:#b45309; font-size:12px; }
+    `;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    }[char]));
+  }
+
+  function escapeAttr(value) {
+    return escapeHtml(value).replace(/`/g, "&#96;");
+  }
+
+  function observePanel() {
+    const panel = document.getElementById("panelP");
+    if (!panel) return;
+
+    const visible = () => panel.classList.contains("active") || getComputedStyle(panel).display !== "none";
+    if (visible()) {
+      init();
       return;
     }
 
-    const html = _buildPrintHTML(ids, true);
-    const win  = window.open('', '_blank', 'width=1100,height=800');
-    if (!win) { alert('彈出視窗被封鎖，請允許本頁開啟新視窗後重試。'); return; }
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-
-    win.addEventListener('load', () => {
-      setTimeout(() => { win.focus(); win.print(); }, 300);
+    const observer = new MutationObserver(() => {
+      if (!visible()) return;
+      observer.disconnect();
+      init();
     });
+    observer.observe(panel, { attributes: true, attributeFilter: ["class", "style"] });
   }
 
-  // ── 以 MutationObserver 偵測 panelP 首次顯示 ─────────────────
-  function _observePanelP() {
-    const panel = document.getElementById('panelP');
-    if (!panel) return;
+  const api = { init, renderPanel, doPreview, doPrint };
 
-    // 若已是 active，直接初始化
-    if (panel.classList.contains('active') ||
-        getComputedStyle(panel).display !== 'none') {
-      init(); return;
-    }
-
-    const obs = new MutationObserver(() => {
-      if (panel.classList.contains('active') ||
-          getComputedStyle(panel).display !== 'none') {
-        obs.disconnect();
-        init();
-      }
-    });
-    obs.observe(panel, { attributes: true, attributeFilter: ['class', 'style'] });
-  }
-
-  // ── 啟動 ─────────────────────────────────────────────────────
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', _observePanelP);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", observePanel);
   } else {
-    _observePanelP();
+    observePanel();
   }
 
-  return { init };
+  return api;
 })();
