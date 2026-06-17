@@ -1,143 +1,129 @@
-﻿// ══════════════════════════════════════════════════════════
-// sw.js — 學習數據分析儀表板 Service Worker
-// 策略：App Shell (Cache First) + data/*.json (Network First)
-//       帶 ?v= 版本參數的 JS → Cache First（版本號即 cache key）
-//       index.html → Network First（避免先吐舊 index.html）
-// 更新：2026-05-24 效能優化：JS 模組改 Cache First
-// ══════════════════════════════════════════════════════════
+// ==========================================================
+// sw.js - 學習數據分析儀表板 Service Worker
+// 策略：
+//   - HTML / 未版本化 JS：Network First，避免舊殼卡住新版
+//   - 帶 ?v= 的 JS / vendor / icons：Cache First
+//   - data/*.json 與 data/*.json.gz：Network First + 離線資料快取
+// 更新：2026-06-17 docs4 新版模組與 warning/cross 資料支援
+// ==========================================================
 
-const CACHE_VERSION = 'la-dash-v6-202606171330';
-const DATA_CACHE    = 'la-dash-data-v6-202606171330';
+const CACHE_PREFIX = 'la-dash-v10-docs4';
+const DATA_CACHE_PREFIX = 'la-dash-v10-docs4-data';
+const BUILD_VERSION = '202606171412';
 
-// App Shell：靜態資源，安裝時全部快取
-// ⚠ CDN 資源釘定版本號，確保快取與 HTML 引用一致
-const CHARTJS_URL = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+const CACHE_VERSION = `${CACHE_PREFIX}-${BUILD_VERSION}`;
+const DATA_CACHE = `${DATA_CACHE_PREFIX}-${BUILD_VERSION}`;
 
 const APP_SHELL = [
+  './',
   './index.html',
   './manifest.json',
-  // Icons（含新增 167/120）
+  './icons/icon-120.png',
+  './icons/icon-167.png',
+  './icons/icon-180.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  './icons/icon-180.png',
-  './icons/icon-167.png',
-  './icons/icon-120.png',
-  // Vendor (本地化)
+  './js/vendor/pwacompat.min.js',
   './js/vendor/chart.umd.min.js',
   './js/vendor/chartjs-plugin-annotation.min.js',
-  './js/vendor/pwacompat.min.js',
-  // 安全模組（同步載入，無版本參數）
   './js/frame-guard.js',
-  // 篩選引擎（無版本參數）
   './js/filter-engine.js',
-  // 主應用邏輯
   './js/main.js',
-  // 學習行為模組（版本釘定 ?v=202606171330）
-  './js/chart-registry.js?v=202606171330',
-  './js/behavior-loader.js?v=202606171330',
-  './js/tab-behavior-radar.js?v=202606171330',
-  './js/tab-behavior-correlation.js?v=202606171330',
-  './js/tab-behavior-time.js?v=202606171330',
-  './js/behavior-init.js?v=202606171330',
-  './js/at-risk-report.js?v=202606171330',
-  // CDN 備援（版本釘定）
-  CHARTJS_URL,
+  './js/vendor/d3.min.js',
+  './js/chart-registry.js?v=202606171412',
+  './js/behavior-loader.js?v=202606171412',
+  './js/tab-behavior-radar.js?v=202606171412',
+  './js/tab-behavior-correlation.js?v=202606171412',
+  './js/tab-behavior-time.js?v=202606171412',
+  './js/tab-behavior-lsa.js?v=202606171412',
+  './js/tab-behavior-cross.js?v=202606171412',
+  './js/tab-behavior-warning.js?v=202606171412',
+  './js/behavior-init.js?v=202606171412',
+  './js/at-risk-report.js?v=202606171412',
+  './js/print-panel.js?v=202606171412',
+  './js/ui-toggles.js?v=202606171412',
 ];
 
-// ── 安裝：快取 App Shell ──────────────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION)
-      .then(cache => cache.addAll(APP_SHELL))
+      .then((cache) => cache.addAll(APP_SHELL))
       .then(() => self.skipWaiting())
-      .catch(err => console.warn('[SW] Install cache failed:', err))
+      .catch((err) => {
+        console.warn('[SW] App shell cache failed:', err);
+        return self.skipWaiting();
+      })
   );
 });
 
-// ── 啟動：清除舊快取 ──────────────────────────────────────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
+    caches.keys()
+      .then((keys) => Promise.all(
         keys
-          .filter(key => key !== CACHE_VERSION && key !== DATA_CACHE)
-          .map(key => {
+          .filter((key) => key.startsWith(CACHE_PREFIX) || key.startsWith(DATA_CACHE_PREFIX))
+          .filter((key) => key !== CACHE_VERSION && key !== DATA_CACHE)
+          .map((key) => {
             console.log('[SW] Deleting old cache:', key);
             return caches.delete(key);
           })
-      )
-    ).then(() => self.clients.claim())
+      ))
+      .then(() => self.clients.claim())
   );
 });
 
-// ── 攔截請求 ─────────────────────────────────────────────
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-
-  // 只處理 GET
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
 
-  // HTML 導覽頁 → Network First，避免重新載入時先拿到舊 index.html
+  if (url.origin !== self.location.origin) {
+    event.respondWith(cacheFirst(request));
+    return;
+  }
+
   if (request.mode === 'navigate' || url.pathname.endsWith('.html')) {
     event.respondWith(networkFirst(request));
     return;
   }
 
-  // data/*.json → Network First（確保每次取得最新資料）
-  if (url.pathname.endsWith('data.json') || /\/data\/.+\.json$/.test(url.pathname)) {
+  if (isDataRequest(url)) {
     event.respondWith(networkFirstData(request));
     return;
   }
 
-  // Chart.js CDN → Cache First（版本已釘定）
-  if (url.href === CHARTJS_URL) {
-    event.respondWith(cacheFirst(request));
-    return;
-  }
-
-  // Google Fonts → Cache First
-  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
-    event.respondWith(cacheFirst(request));
-    return;
-  }
-
-  // js/vendor/* → Cache First（本地化版本釘定）
-  if (url.pathname.includes('/js/vendor/')) {
-    event.respondWith(cacheFirst(request));
-    return;
-  }
-
-  // frame-guard.js 同步載入 → Network First（安全關鍵，優先取新版）
   if (url.pathname.endsWith('frame-guard.js')) {
     event.respondWith(networkFirst(request));
     return;
   }
 
-  // ★ 帶 ?v= 版本參數的 JS → Cache First（版本號已確保唯一性，無需網路驗證）
-  if (url.pathname.endsWith('.js') && url.search.includes('v=')) {
+  if (url.pathname.endsWith('.js') && url.searchParams.has('v')) {
     event.respondWith(cacheFirst(request));
     return;
   }
 
-  // 其他 JS（無版本參數，如 main.js、filter-engine.js）→ Stale-While-Revalidate
+  if (url.pathname.includes('/js/vendor/') || isStaticAsset(url)) {
+    event.respondWith(cacheFirst(request));
+    return;
+  }
+
   if (url.pathname.endsWith('.js')) {
-    event.respondWith(staleWhileRevalidate(request));
+    event.respondWith(networkFirst(request));
     return;
   }
 
-  // 其他 App Shell 靜態資源 → Cache First
-  if (url.pathname.match(/\.(css|png|svg|ico|webmanifest|json)$/)) {
-    event.respondWith(cacheFirst(request));
-    return;
-  }
-
-  // 其他 → Network First
   event.respondWith(networkFirst(request));
 });
 
-// ── Cache First 策略 ──────────────────────────────────────
+function isDataRequest(url) {
+  return /\/data\/.+\.(json|json\.gz)$/i.test(url.pathname);
+}
+
+function isStaticAsset(url) {
+  return /\.(css|png|svg|ico|webmanifest|manifest|woff2?)$/i.test(url.pathname);
+}
+
 async function cacheFirst(request) {
   const cached = await caches.match(request);
   if (cached) return cached;
@@ -152,34 +138,11 @@ async function cacheFirst(request) {
   } catch {
     return new Response('離線中，此資源尚未快取', {
       status: 503,
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     });
   }
 }
 
-// ── Stale-While-Revalidate 策略 ──────────────────────────
-// 立即回傳快取（消除白屏），同時背景更新快取
-async function staleWhileRevalidate(request) {
-  const cache = await caches.open(CACHE_VERSION);
-  const cached = await cache.match(request);
-
-  // 背景更新（不阻塞回應）
-  const fetchPromise = fetch(request).then(response => {
-    if (response.ok) {
-      safePut(cache, request, response.clone());
-    }
-    return response;
-  }).catch(err => {
-    // Bug B fix: log instead of silently swallowing
-    console.warn('[SW] staleWhileRevalidate background fetch failed:', request.url, err?.message);
-    return null;
-  });
-
-  // 有快取就立即回傳，無快取才等網路
-  return cached || fetchPromise;
-}
-
-// ── Network First（資料 JSON 專用，帶離線回退）────────────
 async function networkFirstData(request) {
   try {
     const response = await fetch(request);
@@ -189,23 +152,22 @@ async function networkFirstData(request) {
     }
     return response;
   } catch {
-    // 離線：嘗試回傳上次快取的資料 JSON
     const cached = await caches.match(request, { cacheName: DATA_CACHE });
     if (cached) {
-      console.log('[SW] Offline: serving cached data JSON');
+      console.log('[SW] Offline: serving cached data:', request.url);
       return cached;
     }
+
     return new Response(JSON.stringify({
       error: 'offline',
-      message: '目前離線且無快取資料，請連線後重新整理'
+      message: '目前離線且無快取資料，請連線後重新整理',
     }), {
       status: 503,
-      headers: { 'Content-Type': 'application/json; charset=utf-8' }
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
     });
   }
 }
 
-// ── Network First 通用 ────────────────────────────────────
 async function networkFirst(request) {
   try {
     const response = await fetch(request);
@@ -217,38 +179,43 @@ async function networkFirst(request) {
   } catch {
     const cached = await caches.match(request);
     if (cached) return cached;
-    return new Response('離線中', { status: 503 });
+    return new Response('離線中', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    });
   }
 }
 
-// ── 安全快取（避免 QuotaExceededError）───────────────────
 async function safePut(cache, request, response) {
   try {
     await cache.put(request, response);
   } catch (e) {
-    if (e.name === 'QuotaExceededError') {
+    if (e?.name === 'QuotaExceededError') {
       console.warn('[SW] Cache quota exceeded, pruning...');
       await pruneCache(cache);
-      // Bug A fix: retry put after pruning to actually persist the resource
-      try { await cache.put(request, response); } catch { /* give up gracefully */ }
+      try {
+        await cache.put(request, response);
+      } catch (err) {
+        console.warn('[SW] Cache put failed after pruning:', err);
+      }
+    } else {
+      console.warn('[SW] Cache put failed:', e);
     }
   }
 }
 
 async function pruneCache(cache) {
   const keys = await cache.keys();
-  if (keys.length > 30) {                          // Bug A fix: tighter threshold (30 vs 40)
-    const toDelete = keys.slice(0, keys.length - 30);
-    await Promise.all(toDelete.map(k => cache.delete(k)));
-  }
+  if (keys.length <= 40) return;
+  await Promise.all(keys.slice(0, keys.length - 40).map((key) => cache.delete(key)));
 }
 
-// ── 接收來自主頁面的訊息 ──────────────────────────────────
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
-  if (event.data?.type === 'GET_VERSION') {
-    event.ports[0].postMessage({ version: CACHE_VERSION });
+
+  if (event.data?.type === 'GET_VERSION' && event.ports?.[0]) {
+    event.ports[0].postMessage({ version: CACHE_VERSION, build: BUILD_VERSION });
   }
 });
