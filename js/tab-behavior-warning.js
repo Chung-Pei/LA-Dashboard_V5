@@ -16,21 +16,6 @@ const BehaviorWarningTab = (() => {
   let _semester = null;
   let _activeFilter = "ALL"; // ALL | HIGH | MEDIUM | LOW
 
-  const CLUSTER_NAMES = {
-    R1: "R1",
-    R2: "R2",
-    R3: "R3",
-    R4: "R4",
-    R5: "R5",
-  };
-
-  const S_NAMES = {
-    S1: "S1",
-    S2: "S2",
-    S3: "S3",
-    S4: "S4",
-    S5: "S5",
-  };
 
   const APPROACH_NAMES = {
     DEEP: "Deep",
@@ -341,8 +326,8 @@ const BehaviorWarningTab = (() => {
         <tr style="border-left:3px solid ${meta.color}">
           <td>${_safeText(student.masked_id)}</td>
           <td><span class="warning-level-pill" style="background:${meta.bg};color:${meta.color}">${meta.label}</span></td>
-          <td>${_safeText(student.r_cluster)} ${_safeText(CLUSTER_NAMES[student.r_cluster] || "")}</td>
-          <td>${_safeText(student.s_cluster)} ${_safeText(S_NAMES[student.s_cluster] || "")}</td>
+          <td>${_safeText(student.r_cluster)}</td>
+          <td>${_safeText(student.s_cluster)}</td>
           <td>${_safeText(APPROACH_NAMES[student.learning_approach] || student.learning_approach || "--")}</td>
           <td>${student.midterm_score != null ? Number(student.midterm_score).toFixed(1) : "--"}${student.midterm_status === "FAIL" ? ' <span style="color:#e74c3c">(不及格)</span>' : ""}</td>
           <td>${student.qmi != null ? Number(student.qmi).toFixed(3) : "--"}</td>
