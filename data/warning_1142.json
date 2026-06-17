@@ -12,7 +12,8 @@
       "W-MIDTERM-FAIL",
       "W-R-NO-BASELINE",
       "W-S-NO-BASELINE"
-    ]
+    ],
+    "generated_at": "2026-06-17T09:17:50"
   },
   "summary": {
     "HIGH": {
@@ -985,27 +986,6 @@
       }
     },
     {
-      "masked_id": "141****09",
-      "risk_level": "HIGH",
-      "r_cluster": "R3",
-      "s_cluster": "S3",
-      "learning_approach": "SURFACE",
-      "midterm_score": 44.0,
-      "midterm_status": "FAIL",
-      "qmi": 0.1406,
-      "bas_score": -0.7205,
-      "triggered_rules": [
-        "W-QMI-Q1",
-        "W-MIDTERM-FAIL"
-      ],
-      "evidence": {
-        "qmi_quintile": 1,
-        "r_cluster_historical_fail_rate": 0.1583,
-        "s_cluster_historical_fail_rate": 0.1867,
-        "r_cluster_rescue_rate": 0.7555
-      }
-    },
-    {
       "masked_id": "131****40",
       "risk_level": "MEDIUM",
       "r_cluster": "R1",
@@ -1025,6 +1005,27 @@
         "r_cluster_historical_fail_rate": 0.234,
         "s_cluster_historical_fail_rate": 0.1867,
         "r_cluster_rescue_rate": 0.6517
+      }
+    },
+    {
+      "masked_id": "141****09",
+      "risk_level": "HIGH",
+      "r_cluster": "R3",
+      "s_cluster": "S3",
+      "learning_approach": "SURFACE",
+      "midterm_score": 44.0,
+      "midterm_status": "FAIL",
+      "qmi": 0.1406,
+      "bas_score": -0.7205,
+      "triggered_rules": [
+        "W-QMI-Q1",
+        "W-MIDTERM-FAIL"
+      ],
+      "evidence": {
+        "qmi_quintile": 1,
+        "r_cluster_historical_fail_rate": 0.1583,
+        "s_cluster_historical_fail_rate": 0.1867,
+        "r_cluster_rescue_rate": 0.7555
       }
     },
     {
@@ -1561,26 +1562,6 @@
       }
     },
     {
-      "masked_id": "141****07",
-      "risk_level": "MEDIUM",
-      "r_cluster": "R4",
-      "s_cluster": "S2",
-      "learning_approach": "SURFACE",
-      "midterm_score": 62.0,
-      "midterm_status": "PASS",
-      "qmi": 0.2222,
-      "bas_score": -0.5457,
-      "triggered_rules": [
-        "W-QMI-Q2"
-      ],
-      "evidence": {
-        "qmi_quintile": 2,
-        "r_cluster_historical_fail_rate": 0.158,
-        "s_cluster_historical_fail_rate": 0.1713,
-        "r_cluster_rescue_rate": 0.6895
-      }
-    },
-    {
       "masked_id": "141****03",
       "risk_level": "LOW",
       "r_cluster": "R3",
@@ -1598,6 +1579,26 @@
         "r_cluster_historical_fail_rate": 0.1583,
         "s_cluster_historical_fail_rate": 0.1713,
         "r_cluster_rescue_rate": 0.7555
+      }
+    },
+    {
+      "masked_id": "141****07",
+      "risk_level": "MEDIUM",
+      "r_cluster": "R4",
+      "s_cluster": "S2",
+      "learning_approach": "SURFACE",
+      "midterm_score": 62.0,
+      "midterm_status": "PASS",
+      "qmi": 0.2222,
+      "bas_score": -0.5457,
+      "triggered_rules": [
+        "W-QMI-Q2"
+      ],
+      "evidence": {
+        "qmi_quintile": 2,
+        "r_cluster_historical_fail_rate": 0.158,
+        "s_cluster_historical_fail_rate": 0.1713,
+        "r_cluster_rescue_rate": 0.6895
       }
     },
     {
