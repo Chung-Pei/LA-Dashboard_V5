@@ -785,9 +785,9 @@ function attachInfoButtons() {
         <span>${info.title}</span>
         <button class="chart-popover-close" data-action="closePopover">✕</button>
       </div>
-      <div class="csp-style-202">${info.desc}</div>
+      <div style="color:var(--text-mid);font-size:11px;margin-bottom:6px">${info.desc}</div>
       <ul>${pointsHtml}</ul>
-      ${info.use ? `<div class="csp-style-203">💡 ${info.use}</div>` : ''}
+      ${info.use ? `<div style="margin-top:8px;font-size:10px;color:var(--accent3);border-top:1px solid var(--border);padding-top:6px">💡 ${info.use}</div>` : ''}
     `;
 
     chartTitleActions(titleEl).appendChild(btn);
@@ -1270,7 +1270,7 @@ function onAFilterChange(changedField) {
   if (emptyCheck.empty) {
     _showAEmptyHint(emptyCheck.reason);
     document.getElementById('aStats').innerHTML =
-      `<div class="empty-state csp-style-204">⚠ ${emptyCheck.reason}</div>`;
+      `<div class="empty-state" style="padding:12px;color:var(--red)">⚠ ${emptyCheck.reason}</div>`;
     return;
   }
   _hideAEmptyHint();
@@ -1434,27 +1434,27 @@ function renderA() {
 
   const passColor = cls.pass_rate >= 0.9 ? 'var(--green)' : cls.pass_rate >= 0.7 ? 'var(--accent3)' : 'var(--red)';
   document.getElementById('aStats').innerHTML = `
-    <div class="stat-card csp-style-007">
+    <div class="stat-card" style="--accent-color:var(--accent)">
       <div class="val">${cls.count}</div>
       <div class="lbl">人數 Students</div>
     </div>
-    <div class="stat-card csp-style-010">
+    <div class="stat-card" style="--accent-color:var(--accent2)">
       <div class="val">${cls.avg_semester ?? '–'}</div>
       <div class="lbl">學期平均 Avg Score</div>
     </div>
-    <div class="stat-card" data-csp-style="--accent-color:${passColor}">
+    <div class="stat-card" style="--accent-color:${passColor}">
       <div class="val">${cls.pass_rate != null ? (cls.pass_rate*100).toFixed(1)+'%' : '–'}</div>
       <div class="lbl">及格率 Pass Rate</div>
     </div>
-    <div class="stat-card csp-style-017">
+    <div class="stat-card" style="--accent-color:var(--accent4)">
       <div class="val">${cls.retaker_rate != null ? (cls.retaker_rate*100).toFixed(1)+'%' : '–'}</div>
       <div class="lbl">重修率 Retaker Rate</div>
     </div>
-    <div class="stat-card csp-style-009">
+    <div class="stat-card" style="--accent-color:var(--accent3)">
       <div class="val">${cls.avg_midterm ?? '–'}</div>
       <div class="lbl">期中平均 Midterm Avg</div>
     </div>
-    <div class="stat-card csp-style-007">
+    <div class="stat-card" style="--accent-color:var(--accent)">
       <div class="val">${cls.avg_final ?? '–'}</div>
       <div class="lbl">期末平均 Final Avg</div>
     </div>
@@ -2029,16 +2029,16 @@ function renderCStats() {
   const examLabel = { semester_score:'學期', midterm:'期中', final:'期末' }[cCurrentExam] || '學期';
   const passColor = parseFloat(passRate) >= 90 ? 'var(--green)' : parseFloat(passRate) >= 70 ? 'var(--accent3)' : 'var(--red)';
   document.getElementById('cStats').innerHTML = `
-    <div class="stat-card csp-style-007">
+    <div class="stat-card" style="--accent-color:var(--accent)">
       <div class="val">${uniqueStudents}</div><div class="lbl">學生人數 Students</div>
     </div>
-    <div class="stat-card csp-style-017">
+    <div class="stat-card" style="--accent-color:var(--accent4)">
       <div class="val">${scores.length}</div><div class="lbl">記錄筆數 Records</div>
     </div>
-    <div class="stat-card csp-style-010">
+    <div class="stat-card" style="--accent-color:var(--accent2)">
       <div class="val">${avg}</div><div class="lbl">${examLabel}平均分 Avg</div>
     </div>
-    <div class="stat-card" data-csp-style="--accent-color:${passColor}">
+    <div class="stat-card" style="--accent-color:${passColor}">
       <div class="val">${passRate}%</div><div class="lbl">及格率 Pass Rate</div>
     </div>
   `;
@@ -2051,16 +2051,16 @@ function renderCRetakeStats() {
   const worsened = allDeltas.filter(d=>d<0).length;
   const avgDelta = allDeltas.length ? (allDeltas.reduce((a,b)=>a+b,0)/allDeltas.length).toFixed(1) : '–';
   document.getElementById('cStats').innerHTML = `
-    <div class="stat-card csp-style-017">
+    <div class="stat-card" style="--accent-color:var(--accent4)">
       <div class="val">${retakers.length}</div><div class="lbl">重修學生</div>
     </div>
-    <div class="stat-card csp-style-205">
+    <div class="stat-card" style="--accent-color:var(--green)">
       <div class="val">${improved}</div><div class="lbl">進步 Δ &gt; 0</div>
     </div>
-    <div class="stat-card csp-style-206">
+    <div class="stat-card" style="--accent-color:var(--red)">
       <div class="val">${worsened}</div><div class="lbl">退步 Δ &lt; 0</div>
     </div>
-    <div class="stat-card csp-style-009">
+    <div class="stat-card" style="--accent-color:var(--accent3)">
       <div class="val">${avgDelta}</div><div class="lbl">平均 Δ</div>
     </div>
   `;
@@ -2086,21 +2086,21 @@ function renderB() {
   const avgDelta = allDeltas.length ? (allDeltas.reduce((a,b)=>a+b,0)/allDeltas.length).toFixed(1) : '–';
 
   document.getElementById('bStats').innerHTML = `
-    <div class="stat-card csp-style-017">
+    <div class="stat-card" style="--accent-color:var(--accent4)">
       <div class="val">${retakers.length}</div>
       <div class="lbl">重修學生 Retakers</div>
     </div>
-    <div class="stat-card csp-style-205">
+    <div class="stat-card" style="--accent-color:var(--green)">
       <div class="val">${improved}</div>
       <div class="lbl">進步 Improved</div>
       <div class="sub">Δ &gt; 0</div>
     </div>
-    <div class="stat-card csp-style-206">
+    <div class="stat-card" style="--accent-color:var(--red)">
       <div class="val">${worsened}</div>
       <div class="lbl">退步 Declined</div>
       <div class="sub">Δ &lt; 0</div>
     </div>
-    <div class="stat-card csp-style-009">
+    <div class="stat-card" style="--accent-color:var(--accent3)">
       <div class="val">${avgDelta}</div>
       <div class="lbl">平均 Δ Avg Delta</div>
       <div class="sub">首修 → 重修</div>
@@ -2171,8 +2171,8 @@ function renderSlope(retakers) {
     svgHtml += `
       <line x1="${x1}" y1="${y1s}" x2="${x2}" y2="${y2s}"
         stroke="${color}" stroke-width="1.5" stroke-opacity="0.6"/>
-      <circle ${tipAttr} cx="${x1}" cy="${y1s}" r="5" fill="${color}" opacity="0.8"/ class="csp-style-207">
-      <circle ${tipAttr} cx="${x2}" cy="${y2s}" r="5" fill="${color}" opacity="0.8"/ class="csp-style-207">
+      <circle ${tipAttr} cx="${x1}" cy="${y1s}" r="5" fill="${color}" opacity="0.8" style="cursor:pointer"/>
+      <circle ${tipAttr} cx="${x2}" cy="${y2s}" r="5" fill="${color}" opacity="0.8" style="cursor:pointer"/>
     `;
   });
 
@@ -2293,15 +2293,15 @@ function searchStudent() {
   }
 
   if (results.length === 0) {
-    box.innerHTML = '<div class="search-item csp-style-039">無符合結果</div>';
+    box.innerHTML = '<div class="search-item" style="color:var(--text-dim)">無符合結果</div>';
   } else {
     box.innerHTML = results.map(r => `
       <div class="search-item" data-sid="${escapeHtml(r.sid)}">
         <span>${escapeHtml(r.masked)}</span>
         <span class="s-info">
           ${r.rCount} 筆記錄
-          ${r.isRet ? '· <span class="csp-style-208">重修</span>' : ''}
-          ${r.hasExc ? '· <span class="csp-style-209">⚑</span>' : ''}
+          ${r.isRet ? '· <span style="color:var(--accent4)">重修</span>' : ''}
+          ${r.hasExc ? '· <span style="color:var(--yellow)">⚑</span>' : ''}
         </span>
       </div>
     `).join('');
@@ -2333,8 +2333,8 @@ function renderProfile(sid) {
   allExc.forEach(e => excCounts[e.color] = (excCounts[e.color]||0)+1);
 
   let html = `
-    <div data-student-profile class="csp-style-210">
-      <div class="csp-style-211">${escapeHtml(data.name_masked)}</div>
+    <div data-student-profile style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="font-family:'Space Mono',monospace;font-size:20px;color:var(--text)">${escapeHtml(data.name_masked)}</div>
       ${isRetaker ? '<span class="tag tag-red">重修生 Retaker</span>' : ''}
       ${excCounts.red    ? `<span class="tag tag-red">🔴 ${excCounts.red} 重大違規</span>` : ''}
       ${excCounts.yellow ? `<span class="tag tag-yellow">🟡 ${excCounts.yellow} 態度異常</span>` : ''}
@@ -2363,7 +2363,7 @@ function renderProfile(sid) {
           ${r.midterm != null ? `<div class="tl-score"><span class="s-lbl">期中 Mid</span><span class="s-val ${scoreColor(r.midterm)}">${r.midterm}</span></div>` : ''}
           ${r.final   != null ? `<div class="tl-score"><span class="s-lbl">期末 Final</span><span class="s-val ${scoreColor(r.final)}">${r.final}</span></div>` : ''}
           ${r.semester_score != null ? `<div class="tl-score"><span class="s-lbl">學期 Sem</span><span class="s-val ${scoreColor(r.semester_score)}">${r.semester_score}</span></div>` : ''}
-          ${r.adjusted != null ? `<div class="tl-score"><span class="s-lbl">調整 Adj</span><span class="s-val csp-style-049">${r.adjusted}</span></div>` : ''}
+          ${r.adjusted != null ? `<div class="tl-score"><span class="s-lbl">調整 Adj</span><span class="s-val" style="color:var(--accent3)">${r.adjusted}</span></div>` : ''}
           ${r.reading_pct != null ? `<div class="tl-score"><span class="s-lbl">閱讀% Read</span><span class="s-val">${r.reading_pct}%</span></div>` : ''}
         </div>
         ${r.exceptions.length ? `<div class="tl-tags">${r.exceptions.map(e =>
@@ -2374,11 +2374,11 @@ function renderProfile(sid) {
   html += '</div>';
 
   html += `
-    <div class="chart-card csp-style-014">
-      <div class="chart-title csp-style-007">
+    <div class="chart-card" style="margin-top:14px">
+      <div class="chart-title" style="--accent-color:var(--accent)">
         <div class="dot"></div>成績軌跡 Score Trajectory
       </div>
-      <div class="chart-wrap csp-style-212">
+      <div class="chart-wrap" style="height:180px">
         <canvas id="chartProfile"></canvas>
       </div>
     </div>
@@ -2844,7 +2844,7 @@ function renderHeatmap(filtered) {
   const dimCol='#6b748f';
   const bgCol=isDark?'#13161f':'#ffffff';
 
-  let svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" class="csp-style-213">`;
+  let svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" style="display:block">`;
   svg+=`<rect width="${W}" height="${H}" fill="${bgCol}" rx="8"/>`;
   sems.forEach((s,i)=>{
     svg+=`<text x="${labelW+i*cellW+cellW/2}" y="${headerH-8}" text-anchor="middle" fill="${dimCol}" font-size="9" font-family="monospace">${safeSvgAttr(semLabel(s))}</text>`;
@@ -2861,7 +2861,7 @@ function renderHeatmap(filtered) {
       const tipData = v!=null
         ? `data-svgtip="1" data-cls="${safeSvgAttr(cls)}" data-sem="${safeSvgAttr(sem)}" data-avg="${v.toFixed(1)}" data-pass="${rec.pass_rate!=null?(rec.pass_rate*100).toFixed(1)+'%':'–'}" data-n="${rec.count}"`
         : `data-svgtip="1" data-cls="${safeSvgAttr(cls)}" data-sem="${safeSvgAttr(sem)}" data-avg="無資料"`;
-      svg+=`<rect ${tipData} x="${labelW+ci*cellW+1}" y="${y+1}" width="${cellW-2}" height="${cellH-2}" fill="${fill}" rx="3"/ class="csp-style-214">`;
+      svg+=`<rect ${tipData} x="${labelW+ci*cellW+1}" y="${y+1}" width="${cellW-2}" height="${cellH-2}" fill="${fill}" rx="3" style="cursor:crosshair"/>`;
       if(v!=null) svg+=`<text pointer-events="none" x="${labelW+ci*cellW+cellW/2}" y="${y+cellH/2+4}" text-anchor="middle" fill="${txtFill}" font-size="10" font-weight="600" font-family="monospace">${v.toFixed(1)}</text>`;
     });
   });
@@ -2907,7 +2907,7 @@ function renderBoxPlot(allClasses, filterProg) {
   const gridCol=isDark?'#242840':'#e0e4f0';
 
   // viewBox + width:100% 讓 SVG 隨容器縮放；min-width 防止過窄
-  let svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" data-csp-style="display:block;min-width:${W}px;height:100%">`;
+  let svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" style="display:block;min-width:${W}px;height:100%">`;
   svg+=`<rect width="${W}" height="${H}" fill="${bgCol}" rx="8"/>`;
 
   [0,25,50,60,75,100].forEach(v=>{
@@ -2937,10 +2937,10 @@ function renderBoxPlot(allClasses, filterProg) {
     svg+=`<line x1="${x}" y1="${scaleY(q3)}" x2="${x}" y2="${scaleY(hi)}" stroke="${col}" stroke-width="1.5"/>`;
     svg+=`<line x1="${x-bw/3}" y1="${scaleY(lo)}" x2="${x+bw/3}" y2="${scaleY(lo)}" stroke="${col}" stroke-width="1.5"/>`;
     svg+=`<line x1="${x-bw/3}" y1="${scaleY(hi)}" x2="${x+bw/3}" y2="${scaleY(hi)}" stroke="${col}" stroke-width="1.5"/>`;
-    svg+=`<rect ${tipAttr} x="${x-bw/2}" y="${scaleY(q3)}" width="${bw}" height="${scaleY(q1)-scaleY(q3)}" fill="${col}33" stroke="${col}" stroke-width="1.5" rx="2"/ class="csp-style-214">`;
+    svg+=`<rect ${tipAttr} x="${x-bw/2}" y="${scaleY(q3)}" width="${bw}" height="${scaleY(q1)-scaleY(q3)}" fill="${col}33" stroke="${col}" stroke-width="1.5" rx="2" style="cursor:crosshair"/>`;
     svg+=`<line x1="${x-bw/2}" y1="${scaleY(med)}" x2="${x+bw/2}" y2="${scaleY(med)}" stroke="${col}" stroke-width="2.5"/>`;
     outliers.forEach(v=>{
-      svg+=`<circle ${tipAttr} cx="${x}" cy="${scaleY(v)}" r="4" fill="${col}" opacity="0.5"/ class="csp-style-214">`;
+      svg+=`<circle ${tipAttr} cx="${x}" cy="${scaleY(v)}" r="4" fill="${col}" opacity="0.5" style="cursor:crosshair"/>`;
     });
     svg+=`<text x="${x}" y="${H-pad.b+14}" text-anchor="middle" fill="${textCol}" font-size="9" font-family="sans-serif">${PROGRAM_LABELS[p].slice(0,4)}</text>`;
     svg+=`<text x="${x}" y="${H-pad.b+24}" text-anchor="middle" fill="${textCol}" font-size="8" font-family="monospace" opacity="0.7">n=${scores.length}</text>`;
@@ -3170,24 +3170,24 @@ function _renderEnrollmentSummary(programs, optData) {
 
     if (opt.available) {
       const clamped  = opt.in_range ? '' :
-        `<span class="csp-style-215"> →夾緊至 ${opt.optimal_count_clamped} 人</span>`;
+        `<span style="color:var(--text-dim);font-size:10px"> →夾緊至 ${opt.optimal_count_clamped} 人</span>`;
       const inRange  = opt.in_range
-        ? '<span class="csp-style-216">✓</span>'
-        : '<span class="csp-style-217">⚠</span>';
+        ? '<span style="color:#64d4a8">✓</span>'
+        : '<span style="color:#f0c85b">⚠</span>';
       return `<tr>
-        <td><span data-csp-style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px"></span>${label}</td>
-        <td class="csp-style-218">${opt.optimal_count_clamped} 人${clamped}</td>
-        <td class="csp-style-218">${opt.optimal_passrate}%</td>
-        <td class="csp-style-218">${opt.n} 筆</td>
-        <td class="csp-style-218">${opt.x_min}–${opt.x_max}</td>
-        <td class="csp-style-218">${inRange}</td>
+        <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px"></span>${label}</td>
+        <td style="text-align:center">${opt.optimal_count_clamped} 人${clamped}</td>
+        <td style="text-align:center">${opt.optimal_passrate}%</td>
+        <td style="text-align:center">${opt.n} 筆</td>
+        <td style="text-align:center">${opt.x_min}–${opt.x_max}</td>
+        <td style="text-align:center">${inRange}</td>
       </tr>`;
     } else {
       const reason = reasonText[opt.reason] ?? escapeHtml(opt.reason ?? '–');
-      return `<tr class="csp-style-219">
-        <td><span data-csp-style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px"></span>${label}</td>
-        <td colspan="4" class="csp-style-220">⚠ ${reason}</td>
-        <td class="csp-style-218">${opt.n ?? '–'} 筆</td>
+      return `<tr style="opacity:0.55">
+        <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px"></span>${label}</td>
+        <td colspan="4" style="color:var(--text-dim);font-style:italic">⚠ ${reason}</td>
+        <td style="text-align:center">${opt.n ?? '–'} 筆</td>
       </tr>`;
     }
   }).join('');
@@ -3515,9 +3515,11 @@ function initDSemFilter() {
 
   const wrap = document.getElementById('dSemMultiWrap');
   wrap.innerHTML = sems.map(s => `
-    <button class="sem-capsule csp-style-221" data-sem="${escapeHtml(s)}"
+    <button class="sem-capsule" data-sem="${escapeHtml(s)}"
             data-action="toggleDSemCapsule"
-           >
+            style="padding:3px 10px;border-radius:14px;border:1px solid var(--border2);
+                   background:var(--surface2);color:var(--text-dim);font-size:10px;
+                   font-family:'JetBrains Mono',monospace;cursor:pointer;transition:all 0.15s">
       ${escapeHtml(semLabel(s))}
     </button>`).join('');
 
@@ -3540,9 +3542,9 @@ function setDSemMode(mode) {
 
   const hint = document.getElementById('dModeHint');
   if (mode === 'multi') {
-    hint.innerHTML = '📊 <strong class="csp-style-062">多選模式</strong> — 點選學期膠囊（最多 5 個）進行並排長條圖比較。';
+    hint.innerHTML = '📊 <strong style="color:var(--accent)">多選模式</strong> — 點選學期膠囊（最多 5 個）進行並排長條圖比較。';
   } else {
-    hint.innerHTML = '📈 <strong class="csp-style-062">範圍模式</strong> — 顯示連續趨勢折線；超過 6 個學制時自動合併為總平均。';
+    hint.innerHTML = '📈 <strong style="color:var(--accent)">範圍模式</strong> — 顯示連續趨勢折線；超過 6 個學制時自動合併為總平均。';
   }
 
   document.getElementById('dProgramBarWrap').style.display = mode === 'multi' ? 'block' : 'none';
@@ -3600,7 +3602,7 @@ function _updateDSemRangeLabel() {
 
   if (dView === 'class' && count > 12) {
     document.getElementById('dSemRangeCount').innerHTML =
-      `${count} 個學期 <span class="csp-style-049">⚠ 各班獨立模式下線條可能過多</span>`;
+      `${count} 個學期 <span style="color:var(--accent3)">⚠ 各班獨立模式下線條可能過多</span>`;
   }
 }
 
@@ -3720,7 +3722,7 @@ function renderD() {
 
   if (sems.length === 0) {
     document.getElementById('dStats').innerHTML =
-      '<div class="empty-state csp-style-222">請至少選擇一個學期</div>';
+      '<div class="empty-state" style="padding:16px;color:var(--text-dim)">請至少選擇一個學期</div>';
     return;
   }
 
@@ -3762,35 +3764,35 @@ function renderD() {
   const programs = [...new Set(filtered.map(c => c.program))];
 
   document.getElementById('dStats').innerHTML = `
-    <div class="stat-card csp-style-007">
+    <div class="stat-card" style="--accent-color:var(--accent)">
       <div class="val">${totalStudents.toLocaleString()}</div>
       <div class="lbl">總人次 Total</div>
     </div>
-    <div class="stat-card csp-style-010">
+    <div class="stat-card" style="--accent-color:var(--accent2)">
       <div class="val">${avgScore ?? '–'}</div>
       <div class="lbl">學期均分 Avg Score</div>
     </div>
-    <div class="stat-card" data-csp-style="--accent-color:${avgPass != null && avgPass >= 0.9 ? 'var(--green)' : avgPass != null && avgPass >= 0.7 ? 'var(--accent3)' : 'var(--red)'}">
+    <div class="stat-card" style="--accent-color:${avgPass != null && avgPass >= 0.9 ? 'var(--green)' : avgPass != null && avgPass >= 0.7 ? 'var(--accent3)' : 'var(--red)'}">
       <div class="val">${avgPass != null ? (avgPass * 100).toFixed(1) + '%' : '–'}</div>
       <div class="lbl">及格率 Pass Rate</div>
     </div>
-    <div class="stat-card csp-style-017">
+    <div class="stat-card" style="--accent-color:var(--accent4)">
       <div class="val">${avgRetake != null ? (avgRetake * 100).toFixed(1) + '%' : '–'}</div>
       <div class="lbl">重修率 Retaker Rate</div>
     </div>
-    <div class="stat-card csp-style-009">
+    <div class="stat-card" style="--accent-color:var(--accent3)">
       <div class="val">${avgMidterm ?? '–'}</div>
       <div class="lbl">期中均分 Midterm Avg</div>
     </div>
-    <div class="stat-card csp-style-007">
+    <div class="stat-card" style="--accent-color:var(--accent)">
       <div class="val">${avgFinal ?? '–'}</div>
       <div class="lbl">期末均分 Final Avg</div>
     </div>
-    <div class="stat-card csp-style-017">
+    <div class="stat-card" style="--accent-color:var(--accent4)">
       <div class="val">${sems.length}</div>
       <div class="lbl">學期數 Semesters</div>
     </div>
-    <div class="stat-card csp-style-007">
+    <div class="stat-card" style="--accent-color:var(--accent)">
       <div class="val">${programs.length}</div>
       <div class="lbl">學制數 Programs</div>
     </div>
@@ -3909,7 +3911,7 @@ function renderDTrendClass(filtered, sems, allClasses) {
   if (classes.length > MAX_LINES) {
     document.getElementById('dModeHint').innerHTML =
       `⚠️ 各班獨立模式：班級數（${classes.length}）超過上限（${MAX_LINES}），` +
-      `已自動切換為 <strong class="csp-style-062">合併總平均</strong>。請縮小學期範圍或指定學制。`;
+      `已自動切換為 <strong style="color:var(--accent)">合併總平均</strong>。請縮小學期範圍或指定學制。`;
     renderDTrendMerge(filtered, sems, allClasses);
     return;
   }
@@ -4099,17 +4101,17 @@ function renderDTable(filtered) {
     a.semester.localeCompare(b.semester) || compareSheetNames(a.sheet_name, b.sheet_name)
   );
   tbody.innerHTML = rows.map((c, i) => `
-    <tr data-csp-style="background:${i%2?'var(--surface2)':'var(--surface)'}">
-      <td class="csp-style-223">${escapeHtml(semLabel(c.semester))}</td>
-      <td class="csp-style-224">${escapeHtml(c.sheet_name)}</td>
-      <td class="csp-style-223">
+    <tr style="background:${i%2?'var(--surface2)':'var(--surface)'}">
+      <td style="padding:7px 10px;border-bottom:1px solid var(--border)">${escapeHtml(semLabel(c.semester))}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid var(--border);font-weight:600">${escapeHtml(c.sheet_name)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid var(--border)">
         <span class="program-badge prog-${escapeHtml(c.program.replace(/_/g,'-'))}">${escapeHtml(PROGRAM_LABELS[c.program] ?? c.program)}</span>
       </td>
-      <td class="csp-style-225">${c.count}</td>
-      <td class="csp-style-226">${c.avg_midterm ?? '–'}</td>
-      <td class="csp-style-226">${c.avg_final ?? '–'}</td>
-      <td data-csp-style="padding:7px 10px;border-bottom:1px solid var(--border);text-align:right;font-family:'JetBrains Mono',monospace;font-weight:600;color:${c.avg_semester>=60?'var(--green)':'var(--red)'}">${c.avg_semester ?? '–'}</td>
-      <td data-csp-style="padding:7px 10px;border-bottom:1px solid var(--border);text-align:right;color:${c.pass_rate>=0.8?'var(--green)':c.pass_rate>=0.6?'var(--accent3)':'var(--red)'}">${c.pass_rate!=null?(c.pass_rate*100).toFixed(1)+'%':'–'}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid var(--border);text-align:right">${c.count}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid var(--border);text-align:right;font-family:'JetBrains Mono',monospace">${c.avg_midterm ?? '–'}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid var(--border);text-align:right;font-family:'JetBrains Mono',monospace">${c.avg_final ?? '–'}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid var(--border);text-align:right;font-family:'JetBrains Mono',monospace;font-weight:600;color:${c.avg_semester>=60?'var(--green)':'var(--red)'}">${c.avg_semester ?? '–'}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid var(--border);text-align:right;color:${c.pass_rate>=0.8?'var(--green)':c.pass_rate>=0.6?'var(--accent3)':'var(--red)'}">${c.pass_rate!=null?(c.pass_rate*100).toFixed(1)+'%':'–'}</td>
     </tr>
   `).join('');
 }
@@ -4527,9 +4529,9 @@ function captureCanvasAtSize(canvas, targetW, targetH) {
 
 function getPrintableItemHTML(item) {
   const title = `<div class="print-card-title">${escapeHtml(item.label)}</div>`;
-  const empty = `<div class="csp-style-227">此項目目前沒有可列印圖表</div>`;
+  const empty = `<div style="color:#777;font-size:12px;padding:18px 0">此項目目前沒有可列印圖表</div>`;
   const figImg = (dataUrl, label) =>
-    `<div class="print-figure"><img src="${dataUrl}" alt="${escapeHtml(label)}" / class="csp-style-228"></div>`;
+    `<div class="print-figure"><img src="${dataUrl}" alt="${escapeHtml(label)}" style="width:100%;height:auto;max-width:100%;display:block;" /></div>`;
   if (item.type === 'svg') {
     const svgHtml = getPrintableSvgHtml(item);
     return title + (svgHtml ? `<div class="print-figure">${svgHtml}</div>` : empty);
@@ -4542,7 +4544,7 @@ function getPrintableItemHTML(item) {
       try {
         const dataUrl = captureCanvasAtSize(innerCanvas, 800, 380);
         if (dataUrl) return title + figImg(dataUrl, item.label);
-        return title + `<div class="csp-style-227">⚠ 圖表未初始化，請先切換至對應頁籤後再預覽列印</div>`;
+        return title + `<div style="color:#777;font-size:12px;padding:18px 0">⚠ 圖表未初始化，請先切換至對應頁籤後再預覽列印</div>`;
       } catch(e) { }
     }
     const svgHtml = getPrintableSvgHtml(item);
@@ -4553,10 +4555,10 @@ function getPrintableItemHTML(item) {
   if (!canvas) return title + empty;
   try {
     const dataUrl = captureCanvasAtSize(canvas, 800, 380);
-    if (!dataUrl) return title + `<div class="csp-style-227">⚠ 圖表未初始化，請先切換至對應頁籤後再預覽列印</div>`;
+    if (!dataUrl) return title + `<div style="color:#777;font-size:12px;padding:18px 0">⚠ 圖表未初始化，請先切換至對應頁籤後再預覽列印</div>`;
     return title + figImg(dataUrl, item.label);
   } catch(e) {
-    return title + `<div class="csp-style-227">⚠ 圖表擷取失敗（${escapeHtml(String(e?.message||e))}）</div>`;
+    return title + `<div style="color:#777;font-size:12px;padding:18px 0">⚠ 圖表擷取失敗（${escapeHtml(String(e?.message||e))}）</div>`;
   }
 }
 
@@ -4573,14 +4575,23 @@ function buildPrintHTML(items) {
 
   const range = getPrintYearRange();
   const rangeLabel = range.start && range.end ? `${range.start} 年至 ${range.end} 年` : '全部年份';
-  let html = `<div class="print-report">
-    <div class="csp-style-229">
-      <h1 class="csp-style-230">學習分析儀表板</h1>`;
+  let html = `<style>
+    .print-report { font-family:sans-serif;background:#fff;color:#000;padding:20px; }
+    .print-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start; }
+    .print-card { break-inside:avoid;border:1px solid #ddd;border-radius:8px;padding:12px;background:#fff;margin-bottom:4px; }
+    .print-card-title { font-size:12px;font-weight:600;color:#444;margin-bottom:8px; }
+    .print-figure { width:100%;overflow:visible; }
+    .print-figure img { width:100%;height:auto;max-width:100%;display:block;object-fit:contain; }
+    .print-figure svg { width:100%;height:auto;max-width:100%;display:block; }
+    @media print { .print-card { page-break-inside:avoid; } }
+  </style><div class="print-report">
+    <div style="border-bottom:2px solid #333;padding-bottom:10px;margin-bottom:20px">
+      <h1 style="font-size:18px;margin:0">學習分析儀表板</h1>`;
   const subj = document.getElementById('subjectInput')?.textContent?.trim();
-  if (subj) html += `<div class="csp-style-231">科目：${escapeHtml(subj)}</div>`;
-  html += `<div class="csp-style-232">輸出年份：${escapeHtml(rangeLabel)}</div>`;
+  if (subj) html += `<div style="font-size:13px;color:#555;margin-top:4px">科目：${escapeHtml(subj)}</div>`;
+  html += `<div style="font-size:12px;color:#555;margin-top:4px">輸出年份：${escapeHtml(rangeLabel)}</div>`;
   const meta = document.getElementById('metaInfo')?.textContent;
-  if (meta) html += `<div class="csp-style-233">${escapeHtml(meta)}</div>`;
+  if (meta) html += `<div style="font-size:11px;color:#888;margin-top:2px">${escapeHtml(meta)}</div>`;
   html += `</div><div class="print-grid">`;
   html += itemHtml;
   html += `</div></div>`;
@@ -4595,12 +4606,17 @@ function doPrint() {
   if (!items.length) { alert('請至少選擇一個圖表'); return; }
   const html = buildPrintHTML(items);
 
-  const cssHref = new URL('style.css', location.href).href;
   const docHtml = `<!DOCTYPE html><html><head>
     <meta charset="UTF-8">
     <title>學習分析儀表板 - 列印</title>
-    <link rel="stylesheet" href="${cssHref}">
-  </head><body class="print-window print-window-main">${html}</body></html>`;
+    <style>
+      body { margin: 0; padding: 20px; background: #fff; }
+      @page { size: A4 landscape; margin: 15mm; }
+      @media print {
+        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      }
+    </style>
+  </head><body>${html}</body></html>`;
 
   const blob = new Blob([docHtml], { type: 'text/html' });
   const blobUrl = URL.createObjectURL(blob);

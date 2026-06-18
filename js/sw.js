@@ -6,13 +6,15 @@
 // 更新：2026-05-24 效能優化：JS 模組改 Cache First
 // ══════════════════════════════════════════════════════════
 
-const CACHE_VERSION = 'la-dash-v6-docs5-202606181420';
-const DATA_CACHE    = 'la-dash-data-v6-docs5-202606181420';
+const CACHE_VERSION = 'la-dash-v6-202606092000';
+const DATA_CACHE    = 'la-dash-data-v6-202606092000';
 
 // App Shell：靜態資源，安裝時全部快取
+// ⚠ CDN 資源釘定版本號，確保快取與 HTML 引用一致
+const CHARTJS_URL = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+
 const APP_SHELL = [
   './index.html',
-  './style.css',
   './manifest.json',
   // Icons（含新增 167/120）
   './icons/icon-192.png',
@@ -25,7 +27,6 @@ const APP_SHELL = [
   './js/vendor/chartjs-plugin-annotation.min.js',
   './js/vendor/pwacompat.min.js',
   // 安全模組（同步載入，無版本參數）
-  './js/csp-style-runtime.js',
   './js/frame-guard.js',
   // 篩選引擎（無版本參數）
   './js/filter-engine.js',
@@ -39,6 +40,8 @@ const APP_SHELL = [
   './js/tab-behavior-time.js?v=202606092000',
   './js/behavior-init.js?v=202606092000',
   './js/at-risk-report.js?v=202606092000',
+  // CDN 備援（版本釘定）
+  CHARTJS_URL,
 ];
 
 // ── 安裝：快取 App Shell ──────────────────────────────────

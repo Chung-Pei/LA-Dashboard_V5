@@ -193,18 +193,18 @@ const BehaviorTimeTab = (() => {
       `<option value="fail"${_filterPass === "fail" ? " selected" : ""}>不及格</option>`,
     ].join("");
     anchor.innerHTML = `
-      <div class="csp-style-362">
-        <span class="csp-style-236">篩選條件</span>
-        <label class="csp-style-363">學期
-          <select id="timeSemFilter" class="csp-style-364">${semOptions}</select>
+      <div style="display:flex;flex-wrap:nowrap;overflow-x:auto;align-items:center;gap:8px;margin-bottom:12px;padding:8px 12px;border:1px solid rgba(110,130,165,.22);border-radius:10px;background:var(--card-bg2,#1c2030);white-space:nowrap">
+        <span style="font-size:.8rem;font-weight:700;color:var(--text-mid,#4f5f78);white-space:nowrap">篩選條件</span>
+        <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">學期
+          <select id="timeSemFilter" style="font-size:.78rem;padding:2px 4px;border-radius:7px;border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:90px">${semOptions}</select>
         </label>
-        <label class="csp-style-363">資源使用
-          <select id="timeClusterFilter" class="csp-style-365">${clusterOptions}</select>
+        <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">資源使用
+          <select id="timeClusterFilter" style="font-size:.78rem;padding:2px 4px;border-radius:7px;border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:110px">${clusterOptions}</select>
         </label>
-        <label class="csp-style-363">及格
-          <select id="timePassFilter" class="csp-style-366">${passOptions}</select>
+        <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--text-dim,#888);flex-shrink:0">及格
+          <select id="timePassFilter" style="font-size:.78rem;padding:2px 4px;border-radius:7px;border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:80px">${passOptions}</select>
         </label>
-        <span id="timeFilterCount" class="csp-style-242"></span>
+        <span id="timeFilterCount" style="font-size:.76rem;color:var(--text-dim,#888)"></span>
       </div>`;
     _bindFilterSelects(anchor);
   }
@@ -705,9 +705,9 @@ const BehaviorTimeTab = (() => {
       ["期末 學習低投入型",  `${finalLow}  人（${(finalLow  / total * 100).toFixed(1)}%）`],
       ["期末 高度衝刺型",    `${finalCram} 人（${(finalCram / total * 100).toFixed(1)}%）`],
     ].map(([label, value]) => `
-      <div class="csp-style-367">
-        <div class="csp-style-368">${label}</div>
-        <div class="csp-style-369">${value}</div>
+      <div style="border:1px solid rgba(110,130,165,.18);border-radius:8px;padding:7px 9px;background:var(--card-bg2,#1c2030)">
+        <div style="font-size:.72rem;color:var(--text-dim,#888);line-height:1.2">${label}</div>
+        <div style="font-weight:700;color:var(--text-mid,#4f5f78);margin-top:3px">${value}</div>
       </div>`).join("");
     const selectStyle2 = `font-size:.76rem;padding:2px 4px;border-radius:6px;border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:105px`;
     const semOptions2     = [
@@ -724,16 +724,17 @@ const BehaviorTimeTab = (() => {
       `<option value="fail"${_filterPass === "fail" ? " selected" : ""}>不及格</option>`,
     ].join("");
     const filterBadge  =
-      `<div class="csp-style-370">` +
-      `<span class="csp-style-371">篩選條件</span>` +
-      `<label class="csp-style-372">📅 <select id="preExamSemFilter" data-csp-style="${selectStyle2}">${semOptions2}</select></label>` +
-      `<label class="csp-style-372">👥 <select id="preExamClusterFilter" data-csp-style="${selectStyle2}">${clusterOptions2}</select></label>` +
-      `<label class="csp-style-372">✅ <select id="preExamPassFilter" data-csp-style="${selectStyle2}">${passOptions2}</select></label>` +
+      `<div style="display:flex;flex-wrap:nowrap;overflow-x:auto;align-items:center;box-sizing:border-box;max-width:100%;margin-bottom:8px;padding:5px 10px;border-radius:6px;background:var(--card-bg2,#1c2030);` +
+      `border:1px solid rgba(110,130,165,.2);font-size:.75rem;color:var(--text-mid,#4f5f78);line-height:1.6;gap:6px;white-space:nowrap">` +
+      `<span style="font-weight:700;flex-shrink:0">篩選條件</span>` +
+      `<label style="display:flex;align-items:center;gap:3px;flex-shrink:0">📅 <select id="preExamSemFilter" style="${selectStyle2}">${semOptions2}</select></label>` +
+      `<label style="display:flex;align-items:center;gap:3px;flex-shrink:0">👥 <select id="preExamClusterFilter" style="${selectStyle2}">${clusterOptions2}</select></label>` +
+      `<label style="display:flex;align-items:center;gap:3px;flex-shrink:0">✅ <select id="preExamPassFilter" style="${selectStyle2}">${passOptions2}</select></label>` +
       `</div>`;
     el.innerHTML =
       filterBadge +
-      `<div class="csp-style-373">${cardHtml}</div>` +
-      '<div class="csp-style-374">' +
+      `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin-top:10px">${cardHtml}</div>` +
+      '<div style="margin-top:8px;padding:8px 10px;border-radius:6px;background:var(--card-bg2,#1c2030);font-size:.76rem;color:var(--text-dim,#666);line-height:1.6">' +
         '<b>平時及考前學習強度分型定義（規格書 V2.1）：</b><br>' +
         '核心指標：<b>T<sub>total</sub></b>（統計期間總閱讀時數）、<b>T<sub>pre</sub></b>（考前7天累計時數）、' +
         '<b>P<sub>pre</sub></b> = T<sub>pre</sub> ÷ T<sub>total</sub> × 100%。<br>' +
@@ -744,7 +745,7 @@ const BehaviorTimeTab = (() => {
         '<b>④ 提早完成型</b>：P<sub>pre</sub> &lt; 10%（前置規劃 Pre-planning）。<br>' +
         `本次 P15 門檻：期中 ${Math.round(p15Mid)} 分鐘、期末 ${Math.round(p15Final)} 分鐘。` +
       '</div>' +
-      '<div class="csp-style-375">' +
+      '<div style="margin-top:5px;font-size:.73rem;color:var(--text-dim,#999)">' +
         '外圈 = 期末考；內圈 = 期中考。若資料未含考試分段時數，以總閱讀時數與考前7天時數估算，重跑 ETL 可取得精準值。' +
       '</div>';
     // 必須在 innerHTML 寫入後才呼叫，確保 DOM 已存在再附加事件監聽
@@ -782,11 +783,12 @@ const BehaviorTimeTab = (() => {
       ].join("");
       const selectStyle = `font-size:.76rem;padding:2px 4px;border-radius:6px;border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);color:var(--text-mid,#9aa0b8);cursor:pointer;max-width:105px`;
       badgeEl.innerHTML =
-        `<div class="csp-style-370">` +
-        `<span class="csp-style-371">篩選條件</span>` +
-        `<label class="csp-style-372">📅 <select id="tsDonutSemFilter" data-csp-style="${selectStyle}">${semOptions}</select></label>` +
-        `<label class="csp-style-372">👥 <select id="tsDonutClusterFilter" data-csp-style="${selectStyle}">${clusterOptions}</select></label>` +
-        `<label class="csp-style-372">✅ <select id="tsDonutPassFilter" data-csp-style="${selectStyle}">${passOptions}</select></label>` +
+        `<div style="display:flex;flex-wrap:nowrap;overflow-x:auto;align-items:center;box-sizing:border-box;max-width:100%;margin-bottom:8px;padding:5px 10px;border-radius:6px;background:var(--card-bg2,#1c2030);` +
+        `border:1px solid rgba(110,130,165,.2);font-size:.75rem;color:var(--text-mid,#4f5f78);line-height:1.6;gap:6px;white-space:nowrap">` +
+        `<span style="font-weight:700;flex-shrink:0">篩選條件</span>` +
+        `<label style="display:flex;align-items:center;gap:3px;flex-shrink:0">📅 <select id="tsDonutSemFilter" style="${selectStyle}">${semOptions}</select></label>` +
+        `<label style="display:flex;align-items:center;gap:3px;flex-shrink:0">👥 <select id="tsDonutClusterFilter" style="${selectStyle}">${clusterOptions}</select></label>` +
+        `<label style="display:flex;align-items:center;gap:3px;flex-shrink:0">✅ <select id="tsDonutPassFilter" style="${selectStyle}">${passOptions}</select></label>` +
         `</div>`;
       _bindFilterSelects(card);
     }
@@ -878,15 +880,15 @@ const BehaviorTimeTab = (() => {
     }
 
     el.innerHTML = `
-      <div data-csp-style="
+      <div style="
         margin-bottom:14px;padding:12px 14px;border-radius:10px;
         background:${color};border:1px solid ${borderColor};
         font-size:.82rem;line-height:1.7;color:var(--text,#dde3f5)
       ">
-        <div class="csp-style-376">
-          ${icon} AI 洞察 &nbsp;<span class="csp-style-377">${title}</span>
+        <div style="font-weight:700;margin-bottom:5px;font-size:.85rem">
+          ${icon} AI 洞察 &nbsp;<span style="font-weight:400;color:var(--text-dim,#888)">${title}</span>
         </div>
-        <div class="csp-style-378">${message}</div>
+        <div style="color:var(--text-mid,#9aa0b8);white-space:pre-line">${message}</div>
       </div>`;
   }
 
@@ -942,7 +944,7 @@ const BehaviorTimeTab = (() => {
     // 建構 SVG
 
     let svgParts = [
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgW} ${svgH}" width="100%" data-csp-style="min-width:${svgW}px;font-family:sans-serif;display:block">`,
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgW} ${svgH}" width="100%" style="min-width:${svgW}px;font-family:sans-serif;display:block">`,
     ];
 
     // 小時標籤（X 軸）
@@ -971,8 +973,8 @@ const BehaviorTimeTab = (() => {
           `<rect x="${x + 1}" y="${y + 1}" width="${cellW - 2}" height="${cellH - 2}" rx="3"` +
           ` fill="${color}" opacity="0.9"` +
           ` data-tip="${tipText.replace(/"/g, "&quot;")}"` +
-          `` +
-          `/ class="csp-style-379">`
+          ` style="cursor:default;transition:opacity .15s"` +
+          `/>`
         );
       }
     });
@@ -992,7 +994,7 @@ const BehaviorTimeTab = (() => {
     svgParts.push("</svg>");
 
     wrap.innerHTML = `
-      <div class="heatmap-scroll csp-style-063">
+      <div class="heatmap-scroll" style="overflow-x:auto">
         ${svgParts.join("")}
       </div>`;
 

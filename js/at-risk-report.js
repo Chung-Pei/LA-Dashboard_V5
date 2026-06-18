@@ -63,16 +63,16 @@ const AtRiskReportManager = (() => {
     ];
     el.innerHTML = cards.map(c => {
       const clickable = c.filter !== null;
-      const cardStyle = 'flex:1;min-width:120px;background:var(--card-bg,#fff);border:1px solid var(--border,#e0e0e0);border-radius:10px;padding:14px 16px;text-align:center';
       const clickAttr = clickable
-        ? `data-filter="${c.filter}" data-action="atRiskFilterRadarCard" title="focus radar" data-csp-style="${cardStyle};cursor:pointer;transition:box-shadow .15s,opacity .15s"`
-        : `data-csp-style="${cardStyle}"`;
+        ? `data-filter="${c.filter}" data-action="atRiskFilterRadarCard" title="點擊聚焦雷達圖" style="flex:1;min-width:120px;background:var(--card-bg,#fff);border:1px solid var(--border,#e0e0e0);border-radius:10px;padding:14px 16px;text-align:center;cursor:pointer;transition:box-shadow .15s,opacity .15s"`
+        : `style="flex:1;min-width:120px;background:var(--card-bg,#fff);border:1px solid var(--border,#e0e0e0);border-radius:10px;padding:14px 16px;text-align:center"`;
+      const displayValue = c.empty
         ? '–'
         : (typeof c.value === 'number' ? c.value.toLocaleString() : c.value);
       const displayUnit = c.empty ? '' : ` ${c.unit}`;
       return `<div ${clickAttr}>
-        <div data-csp-style="font-size:22px;font-weight:700;color:${c.color}">${displayValue}<span class="csp-style-191">${displayUnit}</span></div>
-        <div class="csp-style-192">${c.label}</div>
+        <div style="font-size:22px;font-weight:700;color:${c.color}">${displayValue}<span style="font-size:13px;font-weight:400">${displayUnit}</span></div>
+        <div style="font-size:11px;color:var(--text-dim,#888);margin-top:4px">${c.label}</div>
       </div>`;
     }).join('');
   }
@@ -129,13 +129,17 @@ const AtRiskReportManager = (() => {
 
     const allBtn = `
       <button data-sem="__all__" data-action="atRiskSwitchSemester"
-              class="csp-style-193">
+              style="font-size:12px;padding:4px 14px;border-radius:20px;
+                     border:1px solid var(--border,#ccc);background:var(--card-bg,#fff);
+                     color:var(--text,#333);cursor:pointer;transition:background .15s,color .15s">
         全部
       </button>`;
 
     btns.innerHTML = allBtn + semesters.map(sem => `
       <button data-sem="${sem}" data-action="atRiskSwitchSemester"
-              class="csp-style-193">
+              style="font-size:12px;padding:4px 14px;border-radius:20px;
+                     border:1px solid var(--border,#ccc);background:var(--card-bg,#fff);
+                     color:var(--text,#333);cursor:pointer;transition:background .15s,color .15s">
         ${sem}
       </button>`).join('');
 
@@ -481,22 +485,22 @@ const AtRiskReportManager = (() => {
     if (warningFlag) flags.push(warningFlag);
 
     if (!flags.length) {
-      el.innerHTML = '<div class="csp-style-194">✅ 本學期無重大紅旗警示。</div>';
+      el.innerHTML = '<div style="color:var(--text-dim,#888);font-size:13px;padding:8px 0">✅ 本學期無重大紅旗警示。</div>';
       return;
     }
 
     // BUG-ATRISK-1 FIX: f.color / f.icon 均為程式內部常數（非用戶輸入），
     // 不需 escapeHtml；escapeHtml(emoji) 在部分實作會產生 &#Nnnnn; 使 icon 無法顯示。
     // f.title / f.body 來自程式內部字串（含格式碼），同樣無 XSS 風險。
-    el.innerHTML = `<h3 class="csp-style-195">🚩 紅旗警示</h3>` +
+    el.innerHTML = `<h3 style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">🚩 紅旗警示</h3>` +
       flags.map(f => `
-        <div data-csp-style="display:flex;gap:10px;align-items:flex-start;background:var(--card-bg,#fff);
+        <div style="display:flex;gap:10px;align-items:flex-start;background:var(--card-bg,#fff);
                     border-left:4px solid ${f.color};border-radius:6px;
                     padding:12px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08)">
-          <span class="csp-style-196">${f.icon}</span>
-          <div class="csp-style-197">
-            <div data-csp-style="font-size:13px;font-weight:700;color:${f.color};margin-bottom:6px">${f.title}</div>
-            <div data-csp-style="font-size:12px;color:var(--text-mid,#555);line-height:1.75;${f.multiline ? 'white-space:pre-line' : ''}">${f.body}</div>
+          <span style="font-size:20px;line-height:1.4;flex-shrink:0">${f.icon}</span>
+          <div style="min-width:0;flex:1">
+            <div style="font-size:13px;font-weight:700;color:${f.color};margin-bottom:6px">${f.title}</div>
+            <div style="font-size:12px;color:var(--text-mid,#555);line-height:1.75;${f.multiline ? 'white-space:pre-line' : ''}">${f.body}</div>
           </div>
         </div>`).join('');
   }
@@ -506,13 +510,13 @@ const AtRiskReportManager = (() => {
     const el = document.getElementById('rPrescriptions');
     if (!el) return;
     if (!ps?.length) {
-      el.innerHTML = '<div class="csp-style-194">✅ 本學期無改善建議項目。</div>';
+      el.innerHTML = '<div style="color:var(--text-dim,#888);font-size:13px;padding:8px 0">✅ 本學期無改善建議項目。</div>';
       return;
     }
     const severityLabel = { critical: '高優先', warning: '中優先', info: '建議' };
     const severityColor = { critical: '#e74c3c', warning: '#e67e22', info: '#3498db' };
     const FALLBACK_COLOR = '#6c757d';
-    el.innerHTML = `<h3 class="csp-style-195">💡 改善建議</h3>` +
+    el.innerHTML = `<h3 style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">💡 改善建議</h3>` +
       ps.map((item, i) => {
         const sev       = String(item.severity ?? '');
         const sevColor  = severityColor[sev] ?? FALLBACK_COLOR;
@@ -520,14 +524,15 @@ const AtRiskReportManager = (() => {
         // 不需 escapeHtml；未知 severity 直接顯示原始值供除錯。
         const sevLabel  = severityLabel[sev] || sev || '未知';
         return `
-        <div class="csp-style-198">
-          <div class="csp-style-199">
-            <span data-csp-style="background:${sevColor};color:#fff;border-radius:4px;
+        <div style="background:var(--card-bg,#fff);border:1px solid var(--border,#e0e0e0);
+                    border-radius:8px;padding:12px 14px;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span style="background:${sevColor};color:#fff;border-radius:4px;
                          padding:2px 8px;font-size:11px;font-weight:600">${sevLabel}</span>
-            <span class="csp-style-200">#${i+1}</span>
+            <span style="font-size:12px;color:var(--text-dim,#888)">#${i+1}</span>
           </div>
-          <div class="csp-style-201">📌 ${escapeHtml(item.finding ?? '')}</div>
-          <div class="csp-style-200">→ ${escapeHtml(item.action ?? '')}</div>
+          <div style="font-size:13px;color:var(--text);margin-bottom:4px">📌 ${escapeHtml(item.finding ?? '')}</div>
+          <div style="font-size:12px;color:var(--text-dim,#888)">→ ${escapeHtml(item.action ?? '')}</div>
         </div>`;
       }).join('');
   }
@@ -536,9 +541,20 @@ const AtRiskReportManager = (() => {
   // @public — HTML onclick 呼叫點（onclick="exportAtRiskPDF()"），
   // 無法納入 return{}，以 window.XXX 掛載為有意設計。
   window.exportAtRiskPDF = function() {
-    document.body.classList.add('print-risk-report-mode');
+    const style = document.createElement('style');
+    style.id = '__rPrintStyle';
+    style.textContent = `
+      @media print {
+        body > *:not(#panelR) { display: none !important; }
+        #panelR { display: block !important; }
+        #rLoading, #rNoData { display: none !important; }
+        #rContent { display: block !important; }
+        .tab-bar, header, #panelR button { display: none !important; }
+        canvas { max-width: 100% !important; }
+      }`;
+    document.head.appendChild(style);
     window.print();
-    setTimeout(() => document.body.classList.remove('print-risk-report-mode'), 1000);
+    setTimeout(() => document.getElementById('__rPrintStyle')?.remove(), 1000);
   };
 
   // @public — HTML onclick 呼叫點（同上）
