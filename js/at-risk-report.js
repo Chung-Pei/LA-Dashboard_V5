@@ -25,7 +25,12 @@ const AtRiskReportManager = (() => {
     return Number.isFinite(n) ? n : fallback;
   }
 
-  function _normalizeCohortSummary(cs = {}) {
+  function _normalizeCohortSummary(cs) {
+    // BUG-ATRISK-5 FIX: 預設參數（cs = {}）只在引數為 undefined 時生效；
+    // 若 ETL JSON 明確給 null（常見於選填欄位缺漏的序列化結果），
+    // 預設參數不會套用，後方 cs.pass_count 等存取會直接拋出 TypeError。
+    // 改於函式內主動以 `|| {}` 防呆，同時涵蓋 undefined 與 null 兩種情況。
+    cs = cs || {};
     const passCount      = Math.max(0, Math.round(_toFiniteNumber(cs.pass_count)));
     const failCount      = Math.max(0, Math.round(_toFiniteNumber(cs.fail_count)));
     const gradedTotal    = passCount + failCount;
@@ -175,11 +180,19 @@ const AtRiskReportManager = (() => {
       semData         = _currentSemData;
     }
 
-    renderCohortSummary(semData.cohort_summary);
-    renderRadarChart(semData.metrics_comparison);
-    renderTemporalChart(semData.temporal_decay);
-    renderRedFlags(semData.behavioral_markers, semData.temporal_decay);
-    renderPrescriptions(semData.prescriptive_summary);
+    // BUG-ATRISK-6 FIX: 原本 5 個渲染呼叫無 try-catch 保護，任一函式拋錯
+    // （例如資料異常）會讓後續區塊與下方的 clearBtn／卡片高亮重置全部跳過，
+    // 使 UI 卡在「半切換」的不一致狀態。改為攔截後記錄錯誤並繼續完成清理動作，
+    // 與 lazyInit() 的容錯哲學一致（不讓單一區塊失敗拖垮整個流程）。
+    try {
+      renderCohortSummary(semData.cohort_summary);
+      renderRadarChart(semData.metrics_comparison);
+      renderTemporalChart(semData.temporal_decay);
+      renderRedFlags(semData.behavioral_markers, semData.temporal_decay);
+      renderPrescriptions(semData.prescriptive_summary);
+    } catch (e) {
+      console.error('[AtRiskReportManager] 學期切換渲染失敗：', sem, e);
+    }
 
     const clearBtn = document.getElementById('rRadarClearBtn');
     if (clearBtn) clearBtn.style.display = 'none';
@@ -198,19 +211,35 @@ const AtRiskReportManager = (() => {
     'pre_exam_intensity', 'learning_stability', 'audio_material_hours',
   ];
 
+  // BUG-ATRISK-2 FIX: 抽出主題色解析共用邏輯（原雷達圖內隱式邏輯）。
+  // Chart.js 將此處色碼直接指派給 Canvas 2D context 的 fillStyle/strokeStyle，
+  // 而瀏覽器原生 Canvas API 並不會解析 CSS var()（var() 僅在 CSS cascade 中生效），
+  // 因此「色碼必須先用 getComputedStyle 解析成實際色值字串」才能正確套用主題色。
+  function _resolveThemeColors() {
+    const cs = getComputedStyle(document.body);
+    const isLight = document.body.classList.contains('light');
+    return {
+      text:    cs.getPropertyValue('--text').trim()     || (isLight ? '#1a1d2e' : '#dde3f5'),
+      textDim: cs.getPropertyValue('--text-dim').trim() || '#6b748f',
+      border:  cs.getPropertyValue('--border').trim()   || (isLight ? '#c8cce0' : '#2a2f45'),
+    };
+  }
+
   function renderRadarChart(mc) {
     const canvas = document.getElementById('rRadarChart');
     if (!canvas) return;
     const existing = Chart.getChart(canvas);
     if (existing) existing.destroy();
 
+    // BUG-ATRISK-4 FIX: metrics_comparison 區塊若因 ETL 異常或資料不完整而缺失
+    // （null/undefined），原本 mc[k] 會直接拋出 TypeError 中斷整個雷達圖渲染。
+    // 缺失時退回空物件，六維度全部以 0 顯示，不中斷後續渲染流程。
+    mc = mc || {};
+
     const passVals = RADAR_KEYS.map(k => mc[k]?.pass_median_normalized ?? 0);
     const failVals = RADAR_KEYS.map(k => mc[k]?.fail_median_normalized ?? 0);
 
-    const cs       = getComputedStyle(document.body);
-    const clrText    = cs.getPropertyValue('--text').trim()     || (document.body.classList.contains('light') ? '#1a1d2e' : '#dde3f5');
-    const clrTextDim = cs.getPropertyValue('--text-dim').trim() || '#6b748f';
-    const clrBorder  = cs.getPropertyValue('--border').trim()   || (document.body.classList.contains('light') ? '#c8cce0' : '#2a2f45');
+    const { text: clrText, textDim: clrTextDim, border: clrBorder } = _resolveThemeColors();
 
     new Chart(canvas, {
       type: 'radar',
@@ -254,9 +283,9 @@ const AtRiskReportManager = (() => {
           tooltip: {
             callbacks: {
               label: ctx => {
-                const key     = RADAR_KEYS[ctx.dataIndex];
-                const mc_item = (_currentSemData || _data)?.metrics_comparison?.[key];
-                const gap     = mc_item?.gap_percentage;
+                const key    = RADAR_KEYS[ctx.dataIndex];
+                const mcItem = (_currentSemData || _data)?.metrics_comparison?.[key];
+                const gap    = mcItem?.gap_percentage;
                 const gapStr  = gap != null && gap !== '' ? `（落差 ${gap}）` : '';
                 return `${ctx.dataset.label}：${ctx.raw.toFixed(1)}${gapStr}`;
               }
@@ -317,6 +346,8 @@ const AtRiskReportManager = (() => {
       console.warn('[AtRisk] chartjs-plugin-annotation 載入失敗，期中考標注線以文字替代', e);
     }
 
+    const { text: clrText, textDim: clrTextDim, border: clrBorder } = _resolveThemeColors();
+
     new Chart(canvas, {
       type: 'line',
       data: {
@@ -341,15 +372,15 @@ const AtRiskReportManager = (() => {
       options: {
         responsive: true,
         plugins: {
-          legend: { position: 'bottom', labels: { color: 'var(--text,#222)', font: { size: 12 } } },
+          legend: { position: 'bottom', labels: { color: clrText, font: { size: 12 } } },
           ...annotationPlugin,
         },
         scales: {
-          x: { ticks: { color: 'var(--text-dim,#888)', font: { size: 10 } }, grid: { color: 'var(--border,#e0e0e0)' } },
+          x: { ticks: { color: clrTextDim, font: { size: 10 } }, grid: { color: clrBorder } },
           y: {
-            ticks: { color: 'var(--text-dim,#888)', font: { size: 10 } },
-            grid:  { color: 'var(--border,#e0e0e0)' },
-            title: { display: true, text: '平均分鐘', color: 'var(--text-dim,#888)', font: { size: 11 } },
+            ticks: { color: clrTextDim, font: { size: 10 } },
+            grid:  { color: clrBorder },
+            title: { display: true, text: '平均分鐘', color: clrTextDim, font: { size: 11 } },
           }
         }
       }
@@ -379,7 +410,15 @@ const AtRiskReportManager = (() => {
 
     const s = _warningData.summary;
     const m = _warningData.meta;
-    if (!s) return null;
+    // BUG-ATRISK-3 FIX: 原僅檢查 s 是否存在，後方仍直接存取 m.total_students、
+    // m.data_cutoff、s.HIGH/MEDIUM/LOW.count；若預警模型未產出某風險等級或 meta
+    // 缺漏，會拋出 TypeError 並中斷整個紅旗區塊渲染（switchSemester 無 try-catch
+    // 保護時會連帶讓後續清理動作也不執行）。改為任一必要欄位缺漏即靜默跳過，
+    // 與「提前預警資料載入失敗不影響主流程」的既有設計原則一致。
+    const RISK_LEVELS = ['HIGH', 'MEDIUM', 'LOW'];
+    if (!s || !m || RISK_LEVELS.some(lv => !s[lv] || typeof s[lv].count !== 'number')) {
+      return null;
+    }
 
     // 防呆：historical_fail_rate_ref 可能為 null（該風險等級在訓練集中無樣本）
     const _pct = (v) => (typeof v === 'number' && !isNaN(v)) ? `約 ${(v * 100).toFixed(0)}%` : '無歷史參考值';
@@ -541,6 +580,9 @@ const AtRiskReportManager = (() => {
   // @public — HTML onclick 呼叫點（onclick="exportAtRiskPDF()"），
   // 無法納入 return{}，以 window.XXX 掛載為有意設計。
   window.exportAtRiskPDF = function() {
+    // BUG-ATRISK-7 FIX: 若 1 秒內重複點擊，舊的 setTimeout 尚未觸發移除，
+    // 會疊加多個同 id 的 <style> 節點。先清掉殘留節點再建立新的。
+    document.getElementById('__rPrintStyle')?.remove();
     const style = document.createElement('style');
     style.id = '__rPrintStyle';
     style.textContent = `
