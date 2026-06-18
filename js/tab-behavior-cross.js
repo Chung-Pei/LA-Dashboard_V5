@@ -635,8 +635,8 @@ const BehaviorCrossTab = (() => {
               <tr>
                 <td class="cross-legend-code" style="color:#e74c3c">SURFACE</td>
                 <td>表層學習</td>
-                <td>固著單一資源（多為閱讀或題庫），被動指數高</td>
-                <td>score_delta ≥ 0.3（首次低、反覆練才通過，依賴題海戰術）</td>
+                <td>首次作答正確率低，反覆練習後才達標，依賴重複刷題</td>
+                <td>score_delta ≥ 0.3（首次低、多次練習才通過，依賴題海戰術）</td>
                 <td>強化學習計畫與策略指導，提供多元資源引導</td>
               </tr>
               <tr>
