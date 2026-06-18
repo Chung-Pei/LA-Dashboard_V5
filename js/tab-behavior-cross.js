@@ -224,7 +224,7 @@ const BehaviorCrossTab = (() => {
           <div class="cross-stat-box">
             <div class="cross-stat-label">BAS 複合評分</div>
             <div class="cross-stat-value">r = ${bv.bas_r?.r ?? '—'}</div>
-            <div class="cross-stat-sub">QMI×0.7 + (1−被動指數)×0.3</div>
+            <div class="cross-stat-sub">期中×0.35 + QMI×0.30 + (1−被動)×0.20 + 練習×0.15</div>
           </div>
           <div class="cross-stat-box">
             <div class="cross-stat-label">QMI 五分位梯度</div>
@@ -629,27 +629,27 @@ const BehaviorCrossTab = (() => {
                 <td class="cross-legend-code" style="color:#2ecc71">DEEP</td>
                 <td>深層學習</td>
                 <td>主動切換資源，影音與閱讀兼用，序列多元</td>
-                <td>QMI ≥ 0.6 且 被動指數 &lt; 0.4（主動切換率高）</td>
+                <td>QMI ≥ 0.6 且 score_delta &lt; 0.2（首次高正確率、進步空間小）</td>
                 <td>引導自主探究，鼓勵跨資源整合與知識建構</td>
               </tr>
               <tr>
                 <td class="cross-legend-code" style="color:#e74c3c">SURFACE</td>
                 <td>表層學習</td>
                 <td>固著單一資源（多為閱讀或題庫），被動指數高</td>
-                <td>QMI &lt; 0.4 或 被動指數 ≥ 0.6（切換率低）</td>
+                <td>score_delta ≥ 0.3（首次低、反覆練才通過，依賴題海戰術）</td>
                 <td>強化學習計畫與策略指導，提供多元資源引導</td>
               </tr>
               <tr>
                 <td class="cross-legend-code" style="color:#f1c40f">MODERATE</td>
                 <td>中間型</td>
                 <td>介於深層與表層之間，行為模式尚未穩定</td>
-                <td>QMI 0.4–0.6 或 被動指數 0.4–0.6（混合型）</td>
+                <td>QMI 0.4–0.6 或 score_delta 0.2–0.3（介於深層與表層之間）</td>
                 <td>引導提升學習深度，追蹤是否向深層或表層偏移</td>
               </tr>
             </tbody>
           </table>
           <p class="cross-legend-note">
-            ※ QMI（品質動機指數）＝ 切換率 × 活躍天數比例；被動指數 ＝ 被動觀看時長 / 總學習時長。
+            ※ QMI（題庫精熟指數）＝ 首次作答正確率×0.55 + 最終作答正確率×0.45 − 分數成長幅度×0.3；被動指數 ＝ 集中刷題率×0.70 + 考前衝刺強度×0.30。
             各群閾值依全體中位數動態計算，非固定常數。
           </p>
         </div>
