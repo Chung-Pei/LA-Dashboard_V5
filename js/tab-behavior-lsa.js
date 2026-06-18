@@ -175,33 +175,33 @@ const BehaviorLsaTab = (() => {
     panel.appendChild(titleRow);
 
     panel.insertAdjacentHTML("beforeend", `
-      <div style="font-weight:700;color:var(--text,#dde3f5);margin-bottom:4px">📌 什麼是滯後序列分析（LSA）？</div>
-      <p style="color:var(--text-mid,#9aa0b8);margin:0 0 14px">
-        滯後序列分析（Lag-Sequential Analysis）用於分析<strong style="color:var(--text,#dde3f5)">行為之間的接續模式</strong>。
+      <div class="csp-style-312">📌 什麼是滯後序列分析（LSA）？</div>
+      <p class="csp-style-313">
+        滯後序列分析（Lag-Sequential Analysis）用於分析<strong class="csp-style-099">行為之間的接續模式</strong>。
         本圖呈現學生完成某一行為後，接下來最可能執行哪種行為（Lag-1 = 緊接的下一個行為）。
       </p>
-      <div style="font-weight:700;color:var(--text,#dde3f5);margin-bottom:4px">🔢 Z-score 怎麼算？</div>
-      <div style="background:var(--surface2,#1c2030);border:1px solid var(--border2,#2a2f45);border-radius:8px;padding:12px 14px;font-family:monospace;font-size:.82rem;color:var(--text,#dde3f5);margin-bottom:14px;line-height:2">
+      <div class="csp-style-312">🔢 Z-score 怎麼算？</div>
+      <div class="csp-style-314">
         Z = (觀察次數 − 期望次數) / √[期望次數 × (1−P(A)) × (1−P(B))]<br>
         期望次數 = (A 出現總次數 × B 出現總次數) / 總序列對數
       </div>
-      <p style="color:var(--text-mid,#9aa0b8);margin:0 0 14px">
-        Z-score &gt;+1.96 代表 A→B 的轉移<strong style="color:var(--text,#dde3f5)">顯著多於隨機預期</strong>；
+      <p class="csp-style-313">
+        Z-score &gt;+1.96 代表 A→B 的轉移<strong class="csp-style-099">顯著多於隨機預期</strong>；
         Z-score &lt;−1.96 代表顯著迴避此轉移。
       </p>
-      <div style="font-weight:700;color:var(--text,#dde3f5);margin-bottom:4px">🔵 節點（圓圈）</div>
-      <p style="color:var(--text-mid,#9aa0b8);margin:0 0 14px">
+      <div class="csp-style-312">🔵 節點（圓圈）</div>
+      <p class="csp-style-313">
         每個節點代表一種學習行為（M=教材閱讀、Q=題庫作答）。
-        節點大小反映該行為的<strong style="color:var(--text,#dde3f5)">出現總次數</strong>。
+        節點大小反映該行為的<strong class="csp-style-099">出現總次數</strong>。
       </p>
-      <div style="font-weight:700;color:var(--text,#dde3f5);margin-bottom:4px">➡ 邊線（箭頭）</div>
-      <p style="color:var(--text-mid,#9aa0b8);margin:0 0 14px">
-        <span style="color:var(--accent,#3498db);font-weight:600">藍色實線</span>：顯著轉移（|Z|&gt;1.96，p&lt;0.05）<br>
-        <span style="color:rgba(150,160,190,0.9);font-weight:600">灰色細線</span>：不顯著轉移<br>
-        自環（弧形箭頭）代表<strong style="color:var(--text,#dde3f5)">連續重複相同行為</strong>。
+      <div class="csp-style-312">➡ 邊線（箭頭）</div>
+      <p class="csp-style-313">
+        <span class="csp-style-134">藍色實線</span>：顯著轉移（|Z|&gt;1.96，p&lt;0.05）<br>
+        <span class="csp-style-315">灰色細線</span>：不顯著轉移<br>
+        自環（弧形箭頭）代表<strong class="csp-style-099">連續重複相同行為</strong>。
       </p>
-      <div style="font-weight:700;color:var(--text,#dde3f5);margin-bottom:4px">👥 三組篩選</div>
-      <p style="color:var(--text-mid,#9aa0b8);margin:0">
+      <div class="csp-style-312">👥 三組篩選</div>
+      <p class="csp-style-316">
         全體 / 及格組 / 不及格組 — 比較不同學習成效學生的行為序列差異，
         有助於辨識高效與低效的學習模式。
       </p>`);
@@ -333,29 +333,24 @@ const BehaviorLsaTab = (() => {
     const clusterLocked = _filterLsaType !== "all";
 
     const _sel = (id, opts, label, maxW, locked) => `
-      <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;
+      <label data-csp-style="display:flex;align-items:center;gap:4px;font-size:.78rem;
                     color:var(--text-dim,#888);flex-shrink:0;
                     opacity:${locked ? ".4" : "1"};pointer-events:${locked ? "none" : "auto"}">
         ${label}
-        <select id="${id}" ${locked ? "disabled" : ""} style="font-size:.78rem;padding:2px 4px;border-radius:7px;
+        <select id="${id}" ${locked ? "disabled" : ""} data-csp-style="font-size:.78rem;padding:2px 4px;border-radius:7px;
           border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);
           color:var(--text-mid,#9aa0b8);cursor:${locked ? "not-allowed" : "pointer"};
           max-width:${maxW}">${opts}</select>
       </label>`;
 
     anchor.innerHTML = `
-      <div style="display:flex;flex-wrap:nowrap;overflow-x:auto;align-items:center;gap:8px;
-                  margin-bottom:6px;padding:8px 12px;
-                  border:1px solid rgba(110,130,165,.22);border-radius:10px;
-                  background:var(--card-bg2,#1c2030);white-space:nowrap">
-        <span style="font-size:.8rem;font-weight:700;color:var(--text-mid,#4f5f78)">篩選條件</span>
+      <div class="csp-style-317">
+        <span class="csp-style-318">篩選條件</span>
         ${hasSem     ? _sel("lsaSemFilter",     semOptions,     "學期",     "90px",  semLocked)     : ""}
         ${hasCluster ? _sel("lsaClusterFilter", clusterOptions, "資源分群", "120px", clusterLocked) : ""}
         ${hasLsaType ? _sel("lsaTypeFilter",    lsaTypeOptions, "序列分群", "120px", false)         : ""}
       </div>
-      <div id="lsaInfoBar" style="font-size:.78rem;color:var(--text-dim,#888);
-                  margin-bottom:10px;padding:4px 14px;
-                  display:flex;gap:16px;flex-wrap:wrap;align-items:center"></div>`;
+      <div id="lsaInfoBar" class="csp-style-319"></div>`;
 
     document.getElementById("lsaSemFilter")
       ?.addEventListener("change", _onFilterChange);
@@ -501,7 +496,7 @@ const BehaviorLsaTab = (() => {
     items.push(`<span>🔢 序列對：${seqN.toLocaleString()}</span>`);
 
     bar.innerHTML = items.join(
-      `<span style="color:var(--border,#2a2f45);margin:0 2px">|</span>`
+      `<span class="csp-style-320">|</span>`
     );
   }
 
@@ -895,17 +890,17 @@ const BehaviorLsaTab = (() => {
       const legEl = document.getElementById("lsaLegend");
       if (legEl) {
         legEl.innerHTML = `
-          <span style="margin-right:14px">
-            <svg width="24" height="8" style="vertical-align:middle">
+          <span class="csp-style-321">
+            <svg width="24" height="8" class="csp-style-322">
               <line x1="0" y1="4" x2="24" y2="4" stroke="${SIG_COLOR}" stroke-width="2.5"/>
             </svg>顯著轉移（|Z|&gt;1.96）
           </span>
           <span>
-            <svg width="24" height="8" style="vertical-align:middle">
+            <svg width="24" height="8" class="csp-style-322">
               <line x1="0" y1="4" x2="24" y2="4" stroke="rgba(120,130,160,0.7)" stroke-width="1.5"/>
             </svg>不顯著
           </span>
-          <span style="margin-left:14px;opacity:.7">序列對數：${n.toLocaleString()}</span>`;
+          <span class="csp-style-323">序列對數：${n.toLocaleString()}</span>`;
       }
       _updateInterpretCard(groupData, _group);
     }
@@ -952,12 +947,12 @@ const BehaviorLsaTab = (() => {
         const zPass = Math.abs(passData.z_score?.["M→M"] ?? 0).toFixed(1);
         const zFail = Math.abs(failData.z_score?.["M→M"] ?? 0).toFixed(1);
         compareHtml = `
-          <div style="margin-top:10px;padding:10px 12px;background:var(--surface2,#1c2030);border-radius:8px">
-            <div style="font-weight:600;color:var(--text,#dde3f5);margin-bottom:4px">📌 及格 vs 不及格比較</div>
-            及格組「連續專注」Z = <strong style="color:var(--accent,#3498db)">${zPass}</strong>，
-            不及格組 Z = <strong style="color:#e67e22">${zFail}</strong>。<br>
+          <div class="csp-style-324">
+            <div class="csp-style-325">📌 及格 vs 不及格比較</div>
+            及格組「連續專注」Z = <strong class="csp-style-326">${zPass}</strong>，
+            不及格組 Z = <strong class="csp-style-310">${zFail}</strong>。<br>
             Z 值差距（${(parseFloat(zPass) - parseFloat(zFail)).toFixed(1)}）反映：
-            及格組的<strong style="color:var(--text,#dde3f5)">連續專注行為更為穩定集中</strong>，
+            及格組的<strong class="csp-style-099">連續專注行為更為穩定集中</strong>，
             不及格組行為序列相對分散，切換頻率較高。
           </div>`;
       }
@@ -967,57 +962,53 @@ const BehaviorLsaTab = (() => {
     const wasOpen = cardEl.dataset.open === "1";
 
     cardEl.innerHTML = `
-      <div id="lsaInterpretToggle" style="
-        display:flex;align-items:center;justify-content:space-between;
-        padding:8px 12px;background:var(--surface2,#1c2030);
-        border-radius:8px;cursor:pointer;user-select:none;
-        border:1px solid rgba(110,130,165,.18);">
-        <span style="font-size:.82rem;font-weight:600;color:var(--text,#dde3f5)">
+      <div id="lsaInterpretToggle" class="csp-style-327">
+        <span class="csp-style-328">
           📊 怎麼看這張圖？— 白話解讀
-          <span style="font-weight:400;color:var(--text-dim,#888);margin-left:8px">
+          <span class="csp-style-329">
             【${groupLabel}】M ${mPct}% ／ Q ${qPct}% ／ |Z|=${zAbs}
           </span>
         </span>
-        <span id="lsaInterpretChevron" style="
+        <span id="lsaInterpretChevron" data-csp-style="
           font-size:.75rem;color:var(--text-dim,#888);
           transition:transform .2s;display:inline-block;
           transform:${wasOpen ? "rotate(180deg)" : "rotate(0deg)"}">▼</span>
       </div>
 
-      <div id="lsaInterpretBody" style="
+      <div id="lsaInterpretBody" data-csp-style="
         overflow:hidden;
         max-height:${wasOpen ? "600px" : "0"};
         transition:max-height .25s ease;
         margin-top:${wasOpen ? "8px" : "0"}">
 
-        <div style="padding:10px 12px;background:var(--surface2,#1c2030);border-radius:8px;margin-bottom:8px">
-          <div style="margin-bottom:4px">
-            ⚡ 行為組成：教材閱讀（M）佔 <strong style="color:var(--accent,#3498db)">${mPct}%</strong>，
-            題庫作答（Q）佔 <strong style="color:var(--accent,#3498db)">${qPct}%</strong>
+        <div class="csp-style-330">
+          <div class="csp-style-331">
+            ⚡ 行為組成：教材閱讀（M）佔 <strong class="csp-style-326">${mPct}%</strong>，
+            題庫作答（Q）佔 <strong class="csp-style-326">${qPct}%</strong>
           </div>
           <div>
-            📐 本組所有轉移方向的 |Z| 均為 <strong style="color:var(--accent,#3498db)">${zAbs}</strong>
+            📐 本組所有轉移方向的 |Z| 均為 <strong class="csp-style-326">${zAbs}</strong>
             （遠大於臨界值 1.96）<br>
-            <span style="font-size:.75rem;color:var(--text-dim,#888)">
+            <span class="csp-style-261">
               ※ 2×2 轉移矩陣的數學性質：|Z(M→M)| = |Z(M→Q)| = |Z(Q→M)| = |Z(Q→Q)|，正負號代表偏好或迴避。
             </span>
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-          <div style="padding:10px 12px;background:rgba(52,152,219,0.08);border:1px solid rgba(52,152,219,0.2);border-radius:8px">
-            <div style="font-weight:600;color:var(--accent,#3498db);margin-bottom:4px">✅ 偏好：連續專注</div>
+        <div class="csp-style-332">
+          <div class="csp-style-333">
+            <div class="csp-style-334">✅ 偏好：連續專注</div>
             <div>M→M 觀察 <strong>${oMM}</strong> 次，期望僅 ${eMM} 次</div>
             <div>Q→Q 觀察 <strong>${oQQ}</strong> 次</div>
-            <div style="margin-top:4px;font-size:.75rem">
+            <div class="csp-style-335">
               白話：學生傾向「一直讀教材」或「一直刷題」，不輕易切換，專注度高。
             </div>
           </div>
-          <div style="padding:10px 12px;background:rgba(231,76,60,0.06);border:1px solid rgba(231,76,60,0.2);border-radius:8px">
-            <div style="font-weight:600;color:#e67e22;margin-bottom:4px">🚫 迴避：跨行為切換</div>
+          <div class="csp-style-336">
+            <div class="csp-style-337">🚫 迴避：跨行為切換</div>
             <div>M→Q 觀察 <strong>${oMQ}</strong> 次，期望應有 ${eMQ} 次</div>
             <div>Q→M 觀察 <strong>${oQM}</strong> 次</div>
-            <div style="margin-top:4px;font-size:.75rem">
+            <div class="csp-style-335">
               白話：學生極少「讀完教材馬上去做題」或「做完題馬上回去讀材料」，兩種學習模式分開進行。
             </div>
           </div>
@@ -1042,9 +1033,7 @@ const BehaviorLsaTab = (() => {
   function _renderEmptyTo(container, msg) {
     if (!container) return;
     container.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:center;height:100%;
-                  padding:20px;background:rgba(52,152,219,.04);border:1px solid rgba(52,152,219,.15);
-                  border-radius:8px;font-size:.83rem;color:var(--text-dim,#888);text-align:center">
+      <div class="csp-style-338">
         ⚠️ ${_safeText(msg)}
       </div>`;
   }

@@ -44,11 +44,7 @@ const BehaviorWarningTab = (() => {
   `;
 
   function _injectStyleOnce() {
-    if (document.getElementById(STYLE_ID)) return;
-    const el = document.createElement("style");
-    el.id = STYLE_ID;
-    el.textContent = STYLE_TEXT;
-    document.head.appendChild(el);
+    if (window.installCspCss) window.installCspCss(STYLE_ID, STYLE_TEXT);
   }
 
   function _safeText(value) {
@@ -163,7 +159,7 @@ const BehaviorWarningTab = (() => {
   function _renderEmpty(msg) {
     const el = document.getElementById("sub-warning") || document.getElementById("warningContent");
     if (!el) return;
-    el.innerHTML = `<p style="color:#c0392b;font-size:.85rem;padding:12px">${_safeText(msg)}</p>`;
+    el.innerHTML = `<p class="csp-style-380">${_safeText(msg)}</p>`;
   }
 
   function _toggleMainCards(show) {
@@ -179,8 +175,8 @@ const BehaviorWarningTab = (() => {
     const wrap = document.getElementById("warningContent") || document.getElementById("sub-warning");
     if (!wrap) return;
     wrap.innerHTML = `
-      <div style="text-align:center;padding:32px 16px;color:var(--text-dim,#888);font-size:.85rem">
-        <div style="font-size:1.6rem;margin-bottom:8px">--</div>
+      <div class="csp-style-381">
+        <div class="csp-style-382">--</div>
         目前找不到尚未完成期末成績的目標學期，因此不顯示預警資料。
       </div>`;
   }
@@ -203,8 +199,8 @@ const BehaviorWarningTab = (() => {
       const meta = LEVEL_META[level];
       const value = s[level] || { count: 0, historical_fail_rate_ref: null };
       return `
-        <div class="warning-stat-box" style="border-left:3px solid ${meta.color}">
-          <div class="warning-stat-label" style="color:${meta.color}">${meta.label}</div>
+        <div class="warning-stat-box" data-csp-style="border-left:3px solid ${meta.color}">
+          <div class="warning-stat-label" data-csp-style="color:${meta.color}">${meta.label}</div>
           <div class="warning-stat-value">${Number(value.count || 0)} 人</div>
           <div class="warning-stat-sub">歷史參考不及格率 ${_pct(value.historical_fail_rate_ref)}</div>
         </div>`;
@@ -222,41 +218,41 @@ const BehaviorWarningTab = (() => {
         const errPp = err != null ? `${sign}${(err * 100).toFixed(1)}pp` : "--";
         const errColor = err != null && Math.abs(err) > 0.05 ? "#e74c3c" : "#2ecc71";
         return `<tr>
-          <td style="padding:3px 8px">${level}</td>
-          <td style="padding:3px 8px">${_pct(row.predicted_fail_rate)}</td>
-          <td style="padding:3px 8px">${_pct(row.actual_fail_rate)}</td>
-          <td style="padding:3px 8px;color:${errColor};font-weight:600">${errPp}</td>
+          <td class="csp-style-383">${level}</td>
+          <td class="csp-style-383">${_pct(row.predicted_fail_rate)}</td>
+          <td class="csp-style-383">${_pct(row.actual_fail_rate)}</td>
+          <td data-csp-style="padding:3px 8px;color:${errColor};font-weight:600">${errPp}</td>
         </tr>`;
       }).join("");
       validationHtml = `
-        <div style="margin-top:12px;padding:10px 12px;border-radius:6px;background:rgba(46,204,113,.06);border:1px solid rgba(46,204,113,.25)">
-          <div style="font-size:.75rem;font-weight:600;color:#2ecc71;margin-bottom:6px">
+        <div class="csp-style-384">
+          <div class="csp-style-385">
             驗證資料：${_safeText(date)}，目標學期 ${_safeText(_semester)}
           </div>
-          <table style="width:100%;font-size:.72rem;border-collapse:collapse">
-            <thead><tr style="color:var(--text-dim,#888)">
-              <th style="padding:3px 8px;text-align:left;font-weight:600">風險</th>
-              <th style="padding:3px 8px;text-align:left;font-weight:600">預測不及格率</th>
-              <th style="padding:3px 8px;text-align:left;font-weight:600">實際不及格率</th>
-              <th style="padding:3px 8px;text-align:left;font-weight:600">差距</th>
+          <table class="csp-style-386">
+            <thead><tr class="csp-style-292">
+              <th class="csp-style-387">風險</th>
+              <th class="csp-style-387">預測不及格率</th>
+              <th class="csp-style-387">實際不及格率</th>
+              <th class="csp-style-387">差距</th>
             </tr></thead>
             <tbody>${calRows}</tbody>
           </table>
-          <div style="margin-top:6px;font-size:.72rem;color:var(--text-dim,#888)">AUC = ${auc != null ? Number(auc).toFixed(3) : "--"}</div>
+          <div class="csp-style-388">AUC = ${auc != null ? Number(auc).toFixed(3) : "--"}</div>
         </div>`;
     }
 
     wrap.innerHTML = `
-      <div style="font-size:.82rem;line-height:1.7">
-        <div style="margin-bottom:10px;padding:8px 10px;border-radius:6px;background:rgba(100,160,255,.07);border:1px solid rgba(100,160,255,.2)">
+      <div class="csp-style-389">
+        <div class="csp-style-390">
           <strong>預警目標學期：${_safeText(_semester)}</strong> |
           學生數：${_safeText(m.total_students ?? "")} |
           ${_safeText(m.data_cutoff || "")}
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:10px">
+        <div class="csp-style-391">
           ${cards}
         </div>
-        <div style="font-size:.72rem;color:var(--text-dim,#888)">
+        <div class="csp-style-271">
           規則：${_safeText(m.primary_rule || "")} |
           參考資料：${_safeText(m.reference_data || "")}
         </div>
@@ -280,7 +276,7 @@ const BehaviorWarningTab = (() => {
     wrap.innerHTML = options.map((option) => {
       const active = option.key === _activeFilter;
       return `<button type="button" class="warning-filter-btn" data-level="${option.key}"
-        style="border:1px solid ${option.color};background:${active ? option.color : "transparent"};color:${active ? "#fff" : option.color}">
+        data-csp-style="border:1px solid ${option.color};background:${active ? option.color : "transparent"};color:${active ? "#fff" : option.color}">
         ${_safeText(option.label)}
       </button>`;
     }).join("");
@@ -304,7 +300,7 @@ const BehaviorWarningTab = (() => {
     }
 
     if (students.length === 0) {
-      wrap.innerHTML = `<p style="font-size:.8rem;color:var(--text-dim,#888);padding:8px">此篩選條件沒有預警學生。</p>`;
+      wrap.innerHTML = `<p class="csp-style-392">此篩選條件沒有預警學生。</p>`;
       return;
     }
 
@@ -323,13 +319,13 @@ const BehaviorWarningTab = (() => {
         : "";
 
       return `
-        <tr style="border-left:3px solid ${meta.color}">
+        <tr data-csp-style="border-left:3px solid ${meta.color}">
           <td>${_safeText(student.masked_id)}</td>
-          <td><span class="warning-level-pill" style="background:${meta.bg};color:${meta.color}">${meta.label}</span></td>
+          <td><span class="warning-level-pill" data-csp-style="background:${meta.bg};color:${meta.color}">${meta.label}</span></td>
           <td>${_safeText(student.r_cluster)}</td>
           <td>${_safeText(student.s_cluster)}</td>
           <td>${_safeText(APPROACH_NAMES[student.learning_approach] || student.learning_approach || "--")}</td>
-          <td>${student.midterm_score != null ? Number(student.midterm_score).toFixed(1) : "--"}${student.midterm_status === "FAIL" ? ' <span style="color:#e74c3c">(不及格)</span>' : ""}</td>
+          <td>${student.midterm_score != null ? Number(student.midterm_score).toFixed(1) : "--"}${student.midterm_status === "FAIL" ? ' <span class="csp-style-293">(不及格)</span>' : ""}</td>
           <td>${student.qmi != null ? Number(student.qmi).toFixed(3) : "--"}</td>
           <td>${student.bas_score != null ? Number(student.bas_score).toFixed(2) : "--"}</td>
           <td>${rules}</td>
@@ -338,7 +334,7 @@ const BehaviorWarningTab = (() => {
     }).join("");
 
     wrap.innerHTML = `
-      <div style="overflow-x:auto">
+      <div class="csp-style-063">
         <table class="warning-table">
           <thead>
             <tr>
@@ -353,8 +349,8 @@ const BehaviorWarningTab = (() => {
   }
 
   function _renderOutcome(outcome) {
-    if (outcome === "FAIL") return '<span style="color:#e74c3c;font-weight:600">不及格</span>';
-    if (outcome === "PASS") return '<span style="color:#2ecc71">及格</span>';
+    if (outcome === "FAIL") return '<span class="csp-style-171">不及格</span>';
+    if (outcome === "PASS") return '<span class="csp-style-308">及格</span>';
     return "--";
   }
 
@@ -364,7 +360,7 @@ const BehaviorWarningTab = (() => {
 
     wrap.innerHTML = `
       <button type="button" id="warningCsvBtn"
-        style="padding:6px 14px;border-radius:6px;border:1px solid var(--accent,#3498db);background:transparent;color:var(--accent,#3498db);cursor:pointer;font-size:.8rem">
+        class="csp-style-393">
         匯出目前篩選 CSV
       </button>`;
 

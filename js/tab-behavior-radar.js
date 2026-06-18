@@ -143,20 +143,17 @@ const BehaviorRadarTab = (() => {
   function _renderControls(containerId){
     const el=document.getElementById(containerId);if(!el)return;
     // B3 fix: semOpts was dead code (built but never inserted into HTML); removed
-    const noteHtml=_semesterFilterNote?`<div style="font-size:.76rem;color:var(--accent3,#e67e22);margin-top:3px;margin-bottom:6px">${_semesterFilterNote}</div>`:"";
+    const noteHtml=_semesterFilterNote?`<div class="csp-style-339">${_semesterFilterNote}</div>`:"";
     // 學期膠囊（規格書 §四-A）
     const semCapsules=_allSemesters.length?[
       `<button class="brt-sem${_selectedSemester==="all"?" brt-semA":""}" data-semester="all">全部</button>`,
       ..._allSemesters.map(s=>`<button class="brt-sem${s===_selectedSemester?" brt-semA":""}" data-semester="${s}">${_formatSemester(s)}</button>`)
     ].join(""):"";
-    const clBtns=Object.entries(CLUSTER_NAMES).map(([k,n])=>`<button class="brt-cl${k===_selectedCluster?" brt-clA":""}" style="--cc:${CLUSTER_COLORS[k].border};--cb:${CLUSTER_COLORS[k].bg}" data-cluster="${k}"><span class="brt-code">${k}</span> ${n}</button>`).join("");
+    const clBtns=Object.entries(CLUSTER_NAMES).map(([k,n])=>`<button class="brt-cl${k===_selectedCluster?" brt-clA":""}" data-csp-style="--cc:${CLUSTER_COLORS[k].border};--cb:${CLUSTER_COLORS[k].bg}" data-cluster="${k}"><span class="brt-code">${k}</span> ${n}</button>`).join("");
     const pfBtns=[{key:"all",lbl:"全體"},{key:"pass",lbl:"✅ 及格"},{key:"fail",lbl:"❌ 不及格"}].map(({key,lbl})=>`<button class="brt-pf${key===_passFilter?" brt-pfA":""}" data-pass-filter="${key}">${lbl}</button>`).join("");
-    // 防止 <style> 重複注入
+    // Install scoped control styles once under strict CSP.
     const styleId = `brt-style-${containerId}`;
-    if (!document.getElementById(styleId)) {
-      const s = document.createElement('style');
-      s.id = styleId;
-      s.textContent = `
+    if (window.installCspCss) window.installCspCss(styleId, `
         #${containerId} .brt-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px}
         #${containerId} .brt-lbl{font-size:.78rem;color:var(--text-dim,#888);white-space:nowrap;min-width:72px}
         #${containerId} .brt-cl{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--cc);background:transparent;color:var(--cc);font-size:.78rem;cursor:pointer;transition:background .15s;font-family:inherit}
@@ -166,11 +163,9 @@ const BehaviorRadarTab = (() => {
         #${containerId} .brt-pfA{background:var(--accent,#3498db);color:#fff;font-weight:700}
         #${containerId} .brt-sem{padding:3px 9px;border-radius:14px;border:1px solid var(--border2,#353c58);background:var(--surface2,#1c2030);color:var(--text-dim,#888);font-size:.76rem;font-family:'JetBrains Mono','Courier New',monospace;cursor:pointer;transition:all .15s;white-space:nowrap}
         #${containerId} .brt-semA{background:var(--accent,#3498db);color:#fff;border-color:var(--accent,#3498db);font-weight:700}
-      `;
-      document.head.appendChild(s);
-    }
-    el.innerHTML=`<div style="display:flex;flex-direction:column;gap:2px">
-      ${semCapsules?`<div class="brt-row"><span class="brt-lbl">學期</span><div style="display:flex;flex-wrap:wrap;gap:4px">${semCapsules}</div></div>${noteHtml}`:""}
+      `);
+    el.innerHTML=`<div class="csp-style-340">
+      ${semCapsules?`<div class="brt-row"><span class="brt-lbl">學期</span><div class="csp-style-341">${semCapsules}</div></div>${noteHtml}`:""}
       <div class="brt-row"><span class="brt-lbl">依資源使用</span>${clBtns}</div>
       <div class="brt-row"><span class="brt-lbl">及格狀況</span>${pfBtns}</div>
     </div>`;
@@ -380,10 +375,10 @@ const BehaviorRadarTab = (() => {
     const pcSz   = isMobile ? ".70rem"  : ".76rem";
     const keySz  = isMobile ? ".84rem"  : ".92rem";
 
-    const totalCard = `<div class="behavior-cluster-card" style="flex:0 0 ${cardW};min-width:${cardW};border:1px solid rgba(46,204,113,.28);border-radius:8px;background:rgba(46,204,113,.08);padding:${pad};box-shadow:0 2px 8px rgba(20,35,60,.06)">
-      <div style="font-size:${lblSz};color:var(--text-dim,#888)">分析人數${filterDesc}</div>
-      <div style="margin-top:4px;font-weight:800;color:var(--green,#239b56);font-size:${numSz};line-height:1">${total.toLocaleString()}</div>
-      <div style="margin-top:6px;font-size:${lblSz};line-height:1.25;color:var(--text-mid,#9aa0b8)">100.0%</div>
+    const totalCard = `<div class="behavior-cluster-card" data-csp-style="flex:0 0 ${cardW};min-width:${cardW};border:1px solid rgba(46,204,113,.28);border-radius:8px;background:rgba(46,204,113,.08);padding:${pad};box-shadow:0 2px 8px rgba(20,35,60,.06)">
+      <div data-csp-style="font-size:${lblSz};color:var(--text-dim,#888)">分析人數${filterDesc}</div>
+      <div data-csp-style="margin-top:4px;font-weight:800;color:var(--green,#239b56);font-size:${numSz};line-height:1">${total.toLocaleString()}</div>
+      <div data-csp-style="margin-top:6px;font-size:${lblSz};line-height:1.25;color:var(--text-mid,#9aa0b8)">100.0%</div>
     </div>`;
 
     const cards=Object.entries(CLUSTER_NAMES).filter(([k])=>k!=="R0").map(([key,name])=>{
@@ -393,17 +388,17 @@ const BehaviorRadarTab = (() => {
       const isSelected=_selectedCluster===key;
       const borderStyle=isSelected?`2px solid ${col.border}`:`1px solid rgba(110,130,165,.22)`;
       const bgStyle=isSelected?col.bg:`var(--surface,#13161f)`;
-      return`<div class="behavior-cluster-card" data-cluster-card="${key}" style="flex:0 0 ${cardW2};min-width:${cardW2};border:${borderStyle};border-radius:8px;background:${bgStyle};padding:${pad};box-shadow:0 2px 8px rgba(20,35,60,.06);cursor:pointer">
-        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
-          <span style="font-weight:700;color:${col.border};font-size:${keySz}">${key}</span>
-          <span style="font-weight:700;color:${col.border};font-size:${numSz};line-height:1">${n}</span>
+      return`<div class="behavior-cluster-card" data-cluster-card="${key}" data-csp-style="flex:0 0 ${cardW2};min-width:${cardW2};border:${borderStyle};border-radius:8px;background:${bgStyle};padding:${pad};box-shadow:0 2px 8px rgba(20,35,60,.06);cursor:pointer">
+        <div class="csp-style-342">
+          <span data-csp-style="font-weight:700;color:${col.border};font-size:${keySz}">${key}</span>
+          <span data-csp-style="font-weight:700;color:${col.border};font-size:${numSz};line-height:1">${n}</span>
         </div>
-        <div title="${name}" style="margin-top:6px;font-size:${nameSz};line-height:1.25;color:var(--text-mid,#4f5f78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
-        <div style="margin-top:3px;font-size:${pcSz};line-height:1.2;color:var(--text-dim,#888)">佔 ${pct.toFixed(1)}%</div>
+        <div title="${name}" data-csp-style="margin-top:6px;font-size:${nameSz};line-height:1.25;color:var(--text-mid,#4f5f78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
+        <div data-csp-style="margin-top:3px;font-size:${pcSz};line-height:1.2;color:var(--text-dim,#888)">佔 ${pct.toFixed(1)}%</div>
       </div>`;
     }).join("");
 
-    el.innerHTML=`<div style="display:flex;flex-direction:row;gap:${isMobile?'6px':'10px'};align-items:stretch;overflow-x:auto;padding:4px 2px 8px">${totalCard}${cards}</div>`;
+    el.innerHTML=`<div data-csp-style="display:flex;flex-direction:row;gap:${isMobile?'6px':'10px'};align-items:stretch;overflow-x:auto;padding:4px 2px 8px">${totalCard}${cards}</div>`;
     el.querySelectorAll("[data-cluster-card]").forEach(card=>{
       card.addEventListener("click",()=>selectCluster(card.dataset.clusterCard));
     });
@@ -459,32 +454,32 @@ const BehaviorRadarTab = (() => {
 
     // ── 優勢項 HTML ──────────────────────────────────────
     const strHTML=strengths.length?`
-      <div style="margin-bottom:10px">
-        <div style="font-size:.78rem;font-weight:700;color:var(--green,#64d4a8);margin-bottom:6px;letter-spacing:.04em">▲ 高於及格群基準</div>
+      <div class="csp-style-154">
+        <div class="csp-style-343">▲ 高於及格群基準</div>
         ${strengths.map(x=>`
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap">
-            <span style="font-family:'JetBrains Mono','Courier New',monospace;font-size:.78rem;font-weight:700;color:${clColor};min-width:36px">${x.dim}</span>
-            <span style="font-size:.78rem;color:var(--text-mid,#9aa0b8);flex:1;min-width:80px">${x.label.replace(x.dim+' ','')}</span>
-            <div style="display:flex;gap:4px;align-items:center">
-              <span style="font-size:.76rem;color:var(--text-dim,#888)">${pct(x.benchVal)} →</span>
-              <span style="font-size:.82rem;font-weight:700;color:var(--green,#64d4a8)">${pct(x.clVal)}</span>
-              <span style="font-size:.76rem;color:var(--green,#64d4a8);background:rgba(100,212,168,.12);border-radius:6px;padding:1px 5px">${sign(x.diff)}${pct(x.diff)}</span>
+          <div class="csp-style-344">
+            <span data-csp-style="font-family:'JetBrains Mono','Courier New',monospace;font-size:.78rem;font-weight:700;color:${clColor};min-width:36px">${x.dim}</span>
+            <span class="csp-style-345">${x.label.replace(x.dim+' ','')}</span>
+            <div class="csp-style-346">
+              <span class="csp-style-242">${pct(x.benchVal)} →</span>
+              <span class="csp-style-347">${pct(x.clVal)}</span>
+              <span class="csp-style-348">${sign(x.diff)}${pct(x.diff)}</span>
             </div>
           </div>`).join("")}
       </div>`:"";
 
     // ── 弱點項 HTML ──────────────────────────────────────
     const gapHTML=gaps.length?`
-      <div style="margin-bottom:10px">
-        <div style="font-size:.78rem;font-weight:700;color:var(--red,#f07070);margin-bottom:6px;letter-spacing:.04em">▼ 低於及格群基準（落差最大）</div>
+      <div class="csp-style-154">
+        <div class="csp-style-349">▼ 低於及格群基準（落差最大）</div>
         ${gaps.map(x=>`
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap">
-            <span style="font-family:'JetBrains Mono','Courier New',monospace;font-size:.78rem;font-weight:700;color:${clColor};min-width:36px">${x.dim}</span>
-            <span style="font-size:.78rem;color:var(--text-mid,#9aa0b8);flex:1;min-width:80px">${x.label.replace(x.dim+' ','')}</span>
-            <div style="display:flex;gap:4px;align-items:center">
-              <span style="font-size:.76rem;color:var(--text-dim,#888)">${pct(x.benchVal)} →</span>
-              <span style="font-size:.82rem;font-weight:700;color:var(--red,#f07070)">${pct(x.clVal)}</span>
-              <span style="font-size:.76rem;color:var(--red,#f07070);background:rgba(240,112,112,.12);border-radius:6px;padding:1px 5px">${sign(x.diff)}${pct(x.diff)}</span>
+          <div class="csp-style-344">
+            <span data-csp-style="font-family:'JetBrains Mono','Courier New',monospace;font-size:.78rem;font-weight:700;color:${clColor};min-width:36px">${x.dim}</span>
+            <span class="csp-style-345">${x.label.replace(x.dim+' ','')}</span>
+            <div class="csp-style-346">
+              <span class="csp-style-242">${pct(x.benchVal)} →</span>
+              <span class="csp-style-350">${pct(x.clVal)}</span>
+              <span class="csp-style-351">${sign(x.diff)}${pct(x.diff)}</span>
             </div>
           </div>`).join("")}
       </div>`:"";
@@ -493,49 +488,49 @@ const BehaviorRadarTab = (() => {
     const summaryParts=[];
     if(strengths.length){
       const topStr=strengths[0];
-      summaryParts.push(`本群學生（${_selectedCluster}）在 <strong>${topStr.label}</strong> 的使用率高出及格群基準 <strong style="color:var(--green,#64d4a8)">${pct(Math.abs(topStr.diff))}</strong>`);
+      summaryParts.push(`本群學生（${_selectedCluster}）在 <strong>${topStr.label}</strong> 的使用率高出及格群基準 <strong class="csp-style-352">${pct(Math.abs(topStr.diff))}</strong>`);
     }
     if(gaps.length){
       const topGap=gaps[0];
-      summaryParts.push(`但在 <strong>${topGap.label}</strong> 的參與度低於及格群基準 <strong style="color:var(--red,#f07070)">${pct(Math.abs(topGap.diff))}</strong>`);
+      summaryParts.push(`但在 <strong>${topGap.label}</strong> 的參與度低於及格群基準 <strong class="csp-style-353">${pct(Math.abs(topGap.diff))}</strong>`);
     }
     const summaryHTML=summaryParts.length?`
-      <div style="font-size:.80rem;color:var(--text-mid,#9aa0b8);line-height:1.6;background:var(--surface2,#1c2030);border-left:3px solid ${clColor};border-radius:0 8px 8px 0;padding:8px 12px;margin-bottom:10px">
+      <div data-csp-style="font-size:.80rem;color:var(--text-mid,#9aa0b8);line-height:1.6;background:var(--surface2,#1c2030);border-left:3px solid ${clColor};border-radius:0 8px 8px 0;padding:8px 12px;margin-bottom:10px">
         ${summaryParts.join("，")}。
       </div>`:"";
 
     // ── 行動建議（策略 C） ───────────────────────────────
     const recItems=gaps.map(g=>RECOMMENDATION_MAP[g.dim]).filter(Boolean);
     const recHTML=recItems.length?`
-      <div style="margin-bottom:10px">
-        <div style="font-size:.78rem;font-weight:700;color:var(--accent3,#f7a44f);margin-bottom:6px;letter-spacing:.04em">💡 建議措施</div>
+      <div class="csp-style-154">
+        <div class="csp-style-354">💡 建議措施</div>
         ${recItems.map(r=>`
-          <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px">
-            <span style="font-size:1rem;line-height:1.4">${r.icon}</span>
-            <span style="font-size:.80rem;color:var(--text-mid,#9aa0b8);line-height:1.5">${r.action}</span>
+          <div class="csp-style-355">
+            <span class="csp-style-356">${r.icon}</span>
+            <span class="csp-style-357">${r.action}</span>
           </div>`).join("")}
       </div>`:"";
 
     // ── fallback 提示 ─────────────────────────────────────
     const fallbackHTML=bench.isFallback?`
-      <div style="font-size:.74rem;color:var(--accent3,#f7a44f);margin-bottom:8px;padding:4px 8px;background:rgba(247,164,79,.08);border-radius:6px">
+      <div class="csp-style-358">
         ※ 本學期及格樣本數不足（&lt;${MIN_PASS_COUNT}人），基準線已自動使用全年度資料。
       </div>`:"";
 
     // ── 匯出按鈕 ─────────────────────────────────────────
     const exportHTML=`
-      <div style="margin-top:4px">
-        <button data-export-cluster-csv="1" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;border:1.5px solid ${clColor};background:transparent;color:${clColor};font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s">
+      <div class="csp-style-359">
+        <button data-export-cluster-csv="1" data-csp-style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;border:1.5px solid ${clColor};background:transparent;color:${clColor};font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s">
           ⬇ 匯出 ${_selectedCluster} 學生名單（CSV）
         </button>
-        <span style="font-size:.72rem;color:var(--text-dim,#888);margin-left:8px">共 ${row.count} 人</span>
+        <span class="csp-style-360">共 ${row.count} 人</span>
       </div>`;
 
     panel.style.display="block";
     panel.innerHTML=`
-      <div style="border:1px solid var(--border,#2a2f45);border-radius:10px;padding:${isMobile?'10px':'14px'};background:var(--surface,#13161f);margin-bottom:14px">
-        <div style="font-size:.82rem;font-weight:700;color:var(--text,#dde3f5);margin-bottom:10px;display:flex;align-items:center;gap:8px">
-          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${clColor}"></span>
+      <div data-csp-style="border:1px solid var(--border,#2a2f45);border-radius:10px;padding:${isMobile?'10px':'14px'};background:var(--surface,#13161f);margin-bottom:14px">
+        <div class="csp-style-361">
+          <span data-csp-style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${clColor}"></span>
           學習行為洞察（資源使用分群）— ${_selectedCluster} ${clName}
         </div>
         ${fallbackHTML}

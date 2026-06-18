@@ -486,39 +486,39 @@ const BehaviorCorrelationTab = (() => {
     bar.id = "corrFilterBar";
     bar.style.cssText = "display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:12px;padding:10px 12px;border:1px solid rgba(110,130,165,.22);border-radius:10px;background:var(--card-bg2,#1c2030)";
     bar.innerHTML = `
-      <span style="font-size:.8rem;font-weight:700;color:var(--text-mid,#4f5f78);white-space:nowrap">篩選條件</span>
-      <div style="display:flex;align-items:center;gap:5px">
-        <label style="font-size:.78rem;color:var(--text-dim,#888);white-space:nowrap">學期</label>
+      <span class="csp-style-236">篩選條件</span>
+      <div class="csp-style-237">
+        <label class="csp-style-238">學期</label>
         <select id="corrSemFilter"
-                style="font-size:.8rem;padding:3px 7px;border-radius:7px;border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);color:var(--text-mid,#9aa0b8);cursor:pointer">
+                class="csp-style-239">
           ${semOptions}
         </select>
       </div>
-      <div style="display:flex;align-items:center;gap:5px">
-        <label style="font-size:.78rem;color:var(--text-dim,#888);white-space:nowrap">資源使用</label>
+      <div class="csp-style-237">
+        <label class="csp-style-238">資源使用</label>
         <select id="corrClusterFilter"
-                style="font-size:.8rem;padding:3px 7px;border-radius:7px;border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);color:var(--text-mid,#9aa0b8);cursor:pointer">
+                class="csp-style-239">
           ${clusterOptions}
         </select>
       </div>
-      <div style="display:flex;align-items:center;gap:5px">
-        <label style="font-size:.78rem;color:var(--text-dim,#888);white-space:nowrap">及格狀況</label>
+      <div class="csp-style-237">
+        <label class="csp-style-238">及格狀況</label>
         <select id="corrPassFilter"
-                style="font-size:.8rem;padding:3px 7px;border-radius:7px;border:1px solid var(--border,#2a2f45);background:var(--surface2,#1c2030);color:var(--text-mid,#9aa0b8);cursor:pointer">
+                class="csp-style-239">
           ${passOptions}
         </select>
       </div>
       ${hasOutlierData ? `
-      <div style="display:flex;align-items:center;gap:5px">
-        <label style="font-size:.78rem;color:var(--text-dim,#888);white-space:nowrap;cursor:pointer" for="corrOutlierToggle">
+      <div class="csp-style-237">
+        <label for="corrOutlierToggle" class="csp-style-240">
           <input type="checkbox" id="corrOutlierToggle"
-                 style="margin-right:4px;cursor:pointer">
+                 class="csp-style-241">
           排除異常值
         </label>
       </div>` : ""}
-      <span id="corrFilterCount" style="font-size:.76rem;color:var(--text-dim,#888)"></span>
-      <span style="margin-left:auto;display:inline-flex;align-items:center;gap:5px">
-        <span style="font-size:.76rem;color:var(--text-dim,#888)">方法</span>
+      <span id="corrFilterCount" class="csp-style-242"></span>
+      <span class="csp-style-243">
+        <span class="csp-style-242">方法</span>
         <button id="btnCorrPearson" data-corr-type="pearson">Pearson <i>r</i></button>
         <button id="btnCorrSpearman" data-corr-type="spearman">Spearman <i>ρ</i></button>
       </span>`;
@@ -684,10 +684,9 @@ const BehaviorCorrelationTab = (() => {
     card1.className = "chart-card";
     card1.style.cssText = cardCss;
     card1.innerHTML = `
-      <h6 style="margin:0;font-size:.92rem;font-weight:700;color:var(--text,#172033);
-                 display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <h6 class="csp-style-244">
         【資源使用 vs. 成績相關性】
-        <span style="font-size:.75rem;font-weight:400;color:var(--text-dim,#667085)">
+        <span class="csp-style-245">
           Pearson / Spearman 相關係數矩陣
         </span>
       </h6>
@@ -698,7 +697,7 @@ const BehaviorCorrelationTab = (() => {
     card2.className = "chart-card";
     card2.style.cssText = cardCss;
     card2.innerHTML = `
-      <h6 style="margin:0;font-size:.92rem;font-weight:700;color:var(--text,#172033)">
+      <h6 class="csp-style-246">
         散佈圖
       </h6>
       <div id="${scatterWrapperId}_inner"></div>`;
@@ -712,18 +711,7 @@ const BehaviorCorrelationTab = (() => {
     if (heatmapInner) heatmapInner.appendChild(heatmapEl);
     if (scatterInner) scatterInner.appendChild(scatterEl);
 
-    const styleId = "corrCardGridStyle";
-    if (!document.getElementById(styleId)) {
-      const style = document.createElement("style");
-      style.id = styleId;
-      style.textContent = `
-        @media (max-width: 900px) {
-          #corrCardGrid { grid-template-columns: 1fr !important; }
-          #corrCardGrid > .chart-card { grid-column: auto !important; }
-        }
-      `;
-      document.head.appendChild(style);
-    }
+    // Responsive card-grid rules are shipped in style.css for strict CSP compatibility.
 
     // ── Card 3：時間滯後相關性（lagged_pearson）─────────────
     if (!document.getElementById("laggedCorrCard")) {
@@ -744,33 +732,30 @@ const BehaviorCorrelationTab = (() => {
 
       // 可收放標題列
       card3.innerHTML = `
-        <div style="display:flex;align-items:center;gap:8px;cursor:pointer" id="laggedCorrToggleRow">
-          <h6 style="margin:0;font-size:.92rem;font-weight:700;color:var(--text,#172033);
-                     display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1">
+        <div id="laggedCorrToggleRow" class="csp-style-247">
+          <h6 class="csp-style-248">
             ⏱ 【時間滯後相關性】
-            <span style="font-size:.75rem;font-weight:400;color:var(--text-dim,#667085)">
+            <span class="csp-style-245">
               期初行為 × 期中成績 vs 期末行為 × 期末成績預測力比較
             </span>
           </h6>
           <span id="laggedCorrCollapseIcon"
-                style="font-size:.8rem;color:var(--text-dim,#888);user-select:none;min-width:20px;text-align:center">▼</span>
+                class="csp-style-249">▼</span>
         </div>
         <div id="laggedCorrBody">
-          <div style="font-size:.76rem;color:var(--text-dim,#888);margin-bottom:8px;
-                      padding:7px 10px;background:rgba(100,160,255,0.07);
-                      border:1px solid rgba(100,160,255,0.2);border-radius:6px;line-height:1.6">
+          <div class="csp-style-250">
             ⚠ <strong>r 值為全體學生統計（n 見括號），散佈圖依前端篩選條件顯示子集。</strong><br>
             🔵 <strong>期初行為</strong> × 期中成績　　🟠 <strong>期末行為</strong> × 期末成績<br>
             ▲↓ 箭頭代表同指標從期初到期末的 <code>lag_delta</code>（預測力變化量）<br>
-            <span style="color:var(--text-dim,#aaa);font-size:.72rem">⚙ 此版本採整學期特徵（非逐週切分），週次標示僅供參考</span>
+            <span class="csp-style-251">⚙ 此版本採整學期特徵（非逐週切分），週次標示僅供參考</span>
           </div>
-          <div id="laggedCorrChartWrap" style="position:relative;height:340px;width:100%">
+          <div id="laggedCorrChartWrap" class="csp-style-252">
             <canvas id="laggedCorrBarChart"></canvas>
           </div>
-          <div style="margin-top:6px;font-size:.75rem;color:var(--text-dim,#888)">
+          <div class="csp-style-253">
             點擊長條可查看對應滯後散佈圖 ↓
           </div>
-          <div id="laggedScatterSection" style="margin-top:10px"></div>
+          <div id="laggedScatterSection" class="csp-style-153"></div>
         </div>`;
 
       // 插入 grid 之後
@@ -922,7 +907,7 @@ const BehaviorCorrelationTab = (() => {
                  : null;
 
     const gradeHeaderCells = grades.map(g =>
-      `<th class="text-center small fw-normal" style="min-width:90px">
+      `<th class="text-center small fw-normal csp-style-254">
         ${escapeHtml(GRADE_LABELS[g] || g)}
       </th>`
     ).join("");
@@ -943,9 +928,9 @@ const BehaviorCorrelationTab = (() => {
           const tipText    = `${featLabel} vs ${gradeLabel}：${cfg.label}｜${detail}`;
 
           return `<td class="text-center small ${cfg.txtCls}"
-                      style="background:${cfg.color};border:${cfg.border};cursor:help"
+                      data-csp-style="background:${cfg.color};border:${cfg.border};cursor:help"
                       title="${escapeHtml(tipText)}">
-                    <span style="font-size:.75em;letter-spacing:.02em">${cfg.symbol}</span>
+                    <span class="csp-style-255">${cfg.symbol}</span>
                   </td>`;
         }
 
@@ -966,10 +951,10 @@ const BehaviorCorrelationTab = (() => {
           tipExtra = ` n=${nCount}`;
         }
 
-        return `<td class="text-center small" style="background:${bg};color:${textColor};cursor:pointer"
+        return `<td class="text-center small" data-csp-style="background:${bg};color:${textColor};cursor:pointer"
                     data-corr-feat="${escapeHtml(feat)}" data-corr-target="${escapeHtml(g)}"
                     title="${escapeHtml(FEAT_LABELS[feat] || feat)} vs ${escapeHtml(GRADE_LABELS[g] || g)}: ${corrSym}=${r >= 0 ? "+" : ""}${r.toFixed(3)}${tipExtra}">
-                  ${corrSym}${r >= 0 ? "+" : ""}${r.toFixed(2)}${sig ? `<sup style="font-size:.65em;opacity:.9">${sig}</sup>` : ""}
+                  ${corrSym}${r >= 0 ? "+" : ""}${r.toFixed(2)}${sig ? `<sup class="csp-style-256">${sig}</sup>` : ""}
                 </td>`;
       }).join("");
       return `<tr>
@@ -982,13 +967,13 @@ const BehaviorCorrelationTab = (() => {
     const isLowConf     = isPrecomputed && segData?.low_confidence === true;
     const filteredNote = !isUnfiltered
       ? isPrecomputed
-        ? `<span style="margin-left:8px;font-size:.78em;color:var(--accent3,#f7a44f)">⚑ 已篩選子集（n=${segData.student_count}）預聚合${isLowConf ? "　⚠️ 樣本數較少，r 值僅供參考" : ""}</span>`
-        : `<span style="margin-left:8px;font-size:.78em;color:var(--accent3,#f7a44f)">⚑ 已篩選子集（n=${nCount}）即時重算</span>`
-      : (!isSpearman ? `<span style="margin-left:8px;font-size:.78em;opacity:.75">* p&lt;0.05　** p&lt;0.01</span>` : "");
+        ? `<span class="csp-style-257">⚑ 已篩選子集（n=${segData.student_count}）預聚合${isLowConf ? "　⚠️ 樣本數較少，r 值僅供參考" : ""}</span>`
+        : `<span class="csp-style-257">⚑ 已篩選子集（n=${nCount}）即時重算</span>`
+      : (!isSpearman ? `<span class="csp-style-258">* p&lt;0.05　** p&lt;0.01</span>` : "");
 
     el.innerHTML = `
       <div class="table-responsive">
-        <table class="table table-sm table-bordered mb-1" style="font-size:0.85rem">
+        <table class="table table-sm table-bordered mb-1 csp-style-074">
           <thead>
             <tr>
               <th class="text-muted fw-normal">學習行為指標</th>
@@ -998,12 +983,12 @@ const BehaviorCorrelationTab = (() => {
           <tbody>${rows}</tbody>
         </table>
       </div>
-      <div style="margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+      <div class="csp-style-259">
         <span class="text-muted small">點擊儲存格查看散佈圖（${isSpearman ? "Spearman ρ" : "Pearson r"}）</span>
-        <div style="display:flex;align-items:center;gap:6px">
-          <span style="font-size:.75rem;color:var(--text-dim,#888)">負相關</span>
-          <div style="position:relative;width:200px;height:16px;border-radius:4px;overflow:visible">
-            <div style="width:200px;height:16px;border-radius:4px;background:linear-gradient(to right,
+        <div class="csp-style-260">
+          <span class="csp-style-261">負相關</span>
+          <div class="csp-style-262">
+            <div data-csp-style="width:200px;height:16px;border-radius:4px;background:linear-gradient(to right,
               ${_rToColor(-1.0)},
               ${_rToColor(-0.6)},
               ${_rToColor(-0.3)},
@@ -1012,27 +997,27 @@ const BehaviorCorrelationTab = (() => {
               ${_rToColor(0.6)},
               ${_rToColor(1.0)}
             );"></div>
-            <div style="display:flex;justify-content:space-between;margin-top:2px;width:200px">
-              <span style="font-size:.68rem;color:var(--text-dim,#888)">−1.0</span>
-              <span style="font-size:.68rem;color:var(--text-dim,#888)">−0.3</span>
-              <span style="font-size:.68rem;color:var(--text-dim,#888)">0</span>
-              <span style="font-size:.68rem;color:var(--text-dim,#888)">+0.3</span>
-              <span style="font-size:.68rem;color:var(--text-dim,#888)">+1.0</span>
+            <div class="csp-style-263">
+              <span class="csp-style-264">−1.0</span>
+              <span class="csp-style-264">−0.3</span>
+              <span class="csp-style-264">0</span>
+              <span class="csp-style-264">+0.3</span>
+              <span class="csp-style-264">+1.0</span>
             </div>
           </div>
-          <span style="font-size:.75rem;color:var(--text-dim,#888)">正相關</span>
+          <span class="csp-style-261">正相關</span>
         </div>
-        <span style="font-size:.75rem;color:var(--accent3,#f7a44f)">|r| ≥ 0.3 值得關注</span>
+        <span class="csp-style-265">|r| ≥ 0.3 值得關注</span>
         ${filteredNote}
       </div>
-      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:10px;font-size:.75rem;color:var(--text-dim,#999)">
-        <span style="font-weight:600;color:var(--text,#ccc)">無法顯示原因說明：</span>
+      <div class="csp-style-266">
+        <span class="csp-style-267">無法顯示原因說明：</span>
         ${Object.values(REASON_CONFIG).map(cfg => `
-        <span style="display:inline-flex;align-items:center;gap:4px">
-          <span style="background:${cfg.color};border:${cfg.border};border-radius:3px;padding:1px 5px;font-size:.8em" class="${cfg.txtCls}">${cfg.symbol}</span>
+        <span class="csp-style-268">
+          <span data-csp-style="background:${cfg.color};border:${cfg.border};border-radius:3px;padding:1px 5px;font-size:.8em" class="${cfg.txtCls}">${cfg.symbol}</span>
           ${cfg.label}
         </span>`).join("")}
-        <span style="opacity:.7">（滑鼠移至儲存格可查看詳細說明）</span>
+        <span class="csp-style-269">（滑鼠移至儲存格可查看詳細說明）</span>
       </div>`;
     el.querySelectorAll("[data-corr-feat][data-corr-target]").forEach(cell => {
       cell.addEventListener("click", () => showScatter(cell.dataset.corrFeat, cell.dataset.corrTarget));
@@ -1076,7 +1061,7 @@ const BehaviorCorrelationTab = (() => {
     if (!lp?.results) {
       const wrap = document.getElementById("laggedCorrChartWrap");
       if (wrap) wrap.innerHTML =
-        `<div style="padding:12px;font-size:.82rem;color:var(--text-dim,#888)">
+        `<div class="csp-style-270">
            ℹ️ 本 ETL 版本尚無 <code>lagged_pearson</code> 欄位，請重跑 ETL。
          </div>`;
       return;
@@ -1273,58 +1258,50 @@ const BehaviorCorrelationTab = (() => {
       ? `lag_delta = ${delta >= 0 ? "+" : ""}${delta.toFixed(3)} （${Math.abs(delta) >= 0.05 ? "⚡ 顯著變化" : "微小變化"}）`
       : "";
 
-    const nNote = `<span style="font-size:.72rem;color:var(--text-dim,#888)">
+    const nNote = `<span class="csp-style-271">
       散佈圖 n=${ptsMid.length} / ${ptsFinal.length}（依篩選條件）
       ${rows.length < (_allScatterData?.length ?? 0) ? "　⚑ 已篩選子集" : ""}
     </span>`;
 
     section.innerHTML = `
-      <div style="background:rgba(52,152,219,0.06);border:1px solid rgba(52,152,219,0.22);
-                  border-radius:10px;padding:12px 14px;margin-bottom:8px">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-          <span style="font-size:.78rem;font-weight:700;color:var(--accent,#3498db)"
-                data-lag-feat="${escapeHtml(feat)}">
+      <div class="csp-style-272">
+        <div class="csp-style-273">
+          <span
+                data-lag-feat="${escapeHtml(feat)}" class="csp-style-274">
             ⏱ 滯後散佈圖：${escapeHtml(featLabel)}
           </span>
-          <span style="font-size:.72rem;background:rgba(52,152,219,0.12);border:1px solid rgba(52,152,219,0.3);
-                       border-radius:4px;padding:1px 6px;color:var(--accent,#3498db)">
+          <span class="csp-style-275">
             全體 ETL
           </span>
           ${nNote}
         </div>
-        <div style="font-size:.75rem;color:var(--text-dim,#888);line-height:1.7">
+        <div class="csp-style-276">
           🔵 期初行為 × 期中成績：<strong>${rFmtF}</strong>${results?.front?.significant ? " *" : ""}
           　🟠 期末行為 × 期末成績：<strong>${rFmtB}</strong>${results?.back?.significant ? " *" : ""}
-          　<span style="font-size:.70rem;color:var(--text-dim,#aaa)">⚙ 此版本採整學期特徵</span>
-          ${deltaStr ? `　<span style="color:var(--accent3,#f7a44f)">${deltaStr}</span>` : ""}
+          　<span class="csp-style-277">⚙ 此版本採整學期特徵</span>
+          ${deltaStr ? `　<span class="csp-style-278">${deltaStr}</span>` : ""}
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px" id="laggedScatterGrid">
+        <div id="laggedScatterGrid" class="csp-style-279">
           <div>
-            <div style="font-size:.76rem;font-weight:600;color:var(--text,#172033);margin-bottom:4px">
+            <div class="csp-style-280">
               🔵 整學期行為 × 期中成績
             </div>
-            <div style="position:relative;height:260px">
+            <div class="csp-style-281">
               <canvas id="laggedScatterMid"></canvas>
             </div>
           </div>
           <div>
-            <div style="font-size:.76rem;font-weight:600;color:var(--text,#172033);margin-bottom:4px">
+            <div class="csp-style-280">
               🟠 整學期行為 × 期末成績
             </div>
-            <div style="position:relative;height:260px">
+            <div class="csp-style-281">
               <canvas id="laggedScatterFinal"></canvas>
             </div>
           </div>
         </div>
       </div>`;
 
-    // BUG-LAG-1 FIX: 以 id 去重，避免每次呼叫 showLaggedScatter 都 append 新 <style>
-    if (!document.getElementById("laggedScatterGridStyle")) {
-      const gridStyle = document.createElement("style");
-      gridStyle.id = "laggedScatterGridStyle";
-      gridStyle.textContent = `@media (max-width:640px){ #laggedScatterGrid{grid-template-columns:1fr!important} }`;
-      document.head.appendChild(gridStyle);
-    }
+    // Responsive lagged-scatter rules are shipped in style.css for strict CSP compatibility.
 
     // ── Cluster 色彩對應 ──────────────────────────────────
     const CLUSTER_COLORS = {
@@ -1375,7 +1352,7 @@ const BehaviorCorrelationTab = (() => {
       if (!canvas) return;
       if (!pts.length) {
         canvas.parentElement.innerHTML =
-          `<div style="font-size:.78rem;color:var(--text-dim,#888);padding:8px">無符合篩選條件的資料點</div>`;
+          `<div class="csp-style-282">無符合篩選條件的資料點</div>`;
         return;
       }
       const rLabel = rVal != null ? ` (r = ${rVal >= 0 ? "+" : ""}${rVal.toFixed(3)})` : "";
@@ -1457,7 +1434,7 @@ const BehaviorCorrelationTab = (() => {
     }
 
     const nSuffix = (!isUnfiltered && Array.isArray(filteredRows))
-      ? ` <span style="opacity:.65;font-size:.75em">n=${filteredRows.length}</span>`
+      ? ` <span class="csp-style-283">n=${filteredRows.length}</span>`
       : "";
 
     // ── 最高相關指標（依篩選後資料重新搜尋最高 |r|）─────────
@@ -1478,7 +1455,7 @@ const BehaviorCorrelationTab = (() => {
         const hr    = segData.highest_r;
         const rSign = hr.r >= 0 ? "+" : "";
         const lowConfWarn = segData.low_confidence
-          ? ` <span style="opacity:.65;font-size:.75em">⚠️ 低信心</span>` : "";
+          ? ` <span class="csp-style-283">⚠️ 低信心</span>` : "";
         lines.push(
           `🏆 <strong>最高相關指標</strong>：${FEAT_LABELS[hr.feature] || hr.feature} × ${GRADE_LABELS[hr.target] || hr.target}　<code>r = ${rSign}${hr.r.toFixed(3)}</code>${nSuffix}${lowConfWarn}`
         );
@@ -1580,12 +1557,12 @@ const BehaviorCorrelationTab = (() => {
         : (_filterSemester !== "all")
           ? `年度 ${_filterSemester} 尚無獨立散佈圖資料（ETL 尚未產出 by_semester）`
           : "散佈圖資料尚未產出，請執行 ETL";
-      el.innerHTML = `<div style="padding:14px;background:rgba(230,126,34,.08);border:1px solid rgba(230,126,34,.3);border-radius:8px;font-size:.82rem;color:var(--accent3,#a04000)">⚠️ ${noDataReason}</div>`;
+      el.innerHTML = `<div class="csp-style-284">⚠️ ${noDataReason}</div>`;
       return;
     }
 
     el.innerHTML = `
-      <div id="scatterChartWrap" style="position:relative;height:320px;width:100%">
+      <div id="scatterChartWrap" class="csp-style-285">
         <canvas id="scatterChart"></canvas>
       </div>`;
 

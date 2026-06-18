@@ -31,11 +31,7 @@ const BehaviorCrossTab = (() => {
 
   // ── 樣式防重複注入（ARCH-3 FIX）────────────────────────────
   function _injectStyleOnce(id, css) {
-    if (document.getElementById(id)) return;
-    const el = document.createElement("style");
-    el.id = id;
-    el.textContent = css;
-    document.head.appendChild(el);
+    if (window.installCspCss) window.installCspCss(id, css);
   }
 
   const _STYLES = {
@@ -186,7 +182,7 @@ const BehaviorCrossTab = (() => {
   function _renderEmpty(msg) {
     const el = document.getElementById("sub-cross");
     if (!el) return;
-    el.innerHTML = `<p style="color:#c0392b;font-size:0.85rem;padding:12px">⚠️ ${_safeText(msg)}</p>`;
+    el.innerHTML = `<p class="csp-style-286">⚠️ ${_safeText(msg)}</p>`;
   }
 
   // ── ① BAS / QMI 摘要卡 ──────────────────────────────────
@@ -208,14 +204,13 @@ const BehaviorCrossTab = (() => {
     const approach = o.approach || {};
 
     wrap.innerHTML = `
-      <div style="font-size:0.82rem;line-height:1.7">
-        <div style="margin-bottom:8px;padding:8px 10px;border-radius:6px;
-                    background:rgba(100,160,255,0.07);border:1px solid rgba(100,160,255,0.2)">
+      <div class="csp-style-287">
+        <div class="csp-style-288">
           ℹ️ 訓練集：111-1–114-1（n=${o.n}），排除實習科目與
           ${(meta.incomplete_semesters_excluded||[]).join(', ')}（驗證學期）
         </div>
 
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+        <div class="csp-style-289">
           <div class="cross-stat-box">
             <div class="cross-stat-label">全體不及格率</div>
             <div class="cross-stat-value">${_pct(o.fail_rate_final)}</div>
@@ -243,7 +238,7 @@ const BehaviorCrossTab = (() => {
           </div>
           <div class="cross-stat-box">
             <div class="cross-stat-label">學習方法分布</div>
-            <div class="cross-stat-value" style="font-size:0.95rem">
+            <div class="cross-stat-value csp-style-290">
               DEEP ${_pct(approach.DEEP)} / SURFACE ${_pct(approach.SURFACE)}
             </div>
             <div class="cross-stat-sub">MODERATE ${_pct(approach.MODERATE)}</div>
@@ -274,30 +269,30 @@ const BehaviorCrossTab = (() => {
     alerts.sort((a, b) => b.fail_rate_final - a.fail_rate_final);
 
     if (alerts.length === 0) {
-      wrap.innerHTML = `<p style="font-size:0.8rem;color:var(--text-dim,#888)">
+      wrap.innerHTML = `<p class="csp-style-291">
         目前無 R×S 組合不及格率超過 ${(ALERT_THRESHOLD*100).toFixed(0)}%。</p>`;
       return;
     }
 
     const rows = alerts.map(a => `
       <div class="cross-alert-row">
-        <span class="cross-alert-badge" style="background:${COLORS[a.rg]}22;color:${COLORS[a.rg]}">
+        <span class="cross-alert-badge" data-csp-style="background:${COLORS[a.rg]}22;color:${COLORS[a.rg]}">
           ${a.rg} ${CLUSTER_NAMES[a.rg] || ''}
         </span>
-        <span style="color:var(--text-dim,#888)">×</span>
-        <span class="cross-alert-badge" style="background:${COLORS[a.sg]}22;color:${COLORS[a.sg]}">
+        <span class="csp-style-292">×</span>
+        <span class="cross-alert-badge" data-csp-style="background:${COLORS[a.sg]}22;color:${COLORS[a.sg]}">
           ${a.sg} ${S_NAMES[a.sg] || ''}
         </span>
         <span class="cross-alert-stat">
-          不及格率 <strong style="color:#e74c3c">${_pct(a.fail_rate_final)}</strong>
+          不及格率 <strong class="csp-style-293">${_pct(a.fail_rate_final)}</strong>
           （高出基準 ${_pct(a.fail_rate_final - overall_fail)}，n=${a.n}）
         </span>
       </div>
     `).join('');
 
     wrap.innerHTML = `
-      <div style="font-size:0.82rem">
-        <div style="margin-bottom:8px;font-weight:600">
+      <div class="csp-style-294">
+        <div class="csp-style-295">
           ⚠️ 高風險 R×S 組合（不及格率 ≥ ${(ALERT_THRESHOLD*100).toFixed(0)}%）
         </div>
         ${rows}
@@ -446,16 +441,16 @@ const BehaviorCrossTab = (() => {
     html += `<div class="cross-heatmap-cell cross-heatmap-corner"></div>`;
     S_CODES.forEach(sg => {
       html += `<div class="cross-heatmap-cell cross-heatmap-header">
-                 <div style="font-weight:700;color:${COLORS[sg]}">${sg}</div>
-                 <div style="font-size:0.65rem;color:var(--text-dim,#888)">${S_NAMES[sg]}</div>
+                 <div data-csp-style="font-weight:700;color:${COLORS[sg]}">${sg}</div>
+                 <div class="csp-style-296">${S_NAMES[sg]}</div>
                </div>`;
     });
 
     // 各列（R群）
     R_CODES.forEach(rg => {
       html += `<div class="cross-heatmap-cell cross-heatmap-header">
-                 <div style="font-weight:700;color:${COLORS[rg]}">${rg}</div>
-                 <div style="font-size:0.65rem;color:var(--text-dim,#888)">${CLUSTER_NAMES[rg]}</div>
+                 <div data-csp-style="font-weight:700;color:${COLORS[rg]}">${rg}</div>
+                 <div class="csp-style-296">${CLUSTER_NAMES[rg]}</div>
                </div>`;
 
       S_CODES.forEach(sg => {
@@ -470,16 +465,16 @@ const BehaviorCrossTab = (() => {
           html += `<div class="cross-heatmap-cell cross-heatmap-empty"
                         title="${rg}×${sg}：${reason}（n=${cell.n ?? 0}）"
                         data-r="${rg}" data-s="${sg}">
-                     <div style="font-size:0.65rem;color:var(--text-dim,#888)">n=${cell.n ?? 0}</div>
-                     <div style="font-size:0.6rem;color:var(--text-dim,#888)">${reason}</div>
+                     <div class="csp-style-296">n=${cell.n ?? 0}</div>
+                     <div class="csp-style-297">${reason}</div>
                    </div>`;
         } else {
           const bg = _cellColor(cell.fail_rate_final, overall_fail);
           html += `<div class="cross-heatmap-cell cross-heatmap-data" data-r="${rg}" data-s="${sg}"
-                        style="background:${bg}" role="button" tabindex="0"
+                        data-csp-style="background:${bg}" role="button" tabindex="0"
                         title="點擊查看 ${rg}×${sg} 詳細統計">
-                     <div style="font-weight:700;font-size:0.85rem">${_pct(cell.fail_rate_final)}</div>
-                     <div style="font-size:0.65rem;color:var(--text-dim,#888)">n=${cell.n}</div>
+                     <div class="csp-style-298">${_pct(cell.fail_rate_final)}</div>
+                     <div class="csp-style-296">n=${cell.n}</div>
                    </div>`;
         }
       });
@@ -488,13 +483,13 @@ const BehaviorCrossTab = (() => {
 
     // 圖例
     html += `
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:0.7rem;color:var(--text-dim,#888)">
+      <div class="csp-style-299">
         <span>不及格率（相對全體基準 ${_pct(overall_fail)}）：</span>
-        <span><span class="cross-legend-swatch" style="background:rgba(46,204,113,0.55)"></span>&lt;70%</span>
-        <span><span class="cross-legend-swatch" style="background:rgba(46,204,113,0.25)"></span>70–100%</span>
-        <span><span class="cross-legend-swatch" style="background:rgba(241,196,15,0.35)"></span>100–130%</span>
-        <span><span class="cross-legend-swatch" style="background:rgba(230,126,34,0.45)"></span>130–160%</span>
-        <span><span class="cross-legend-swatch" style="background:rgba(231,76,60,0.55)"></span>&gt;160%</span>
+        <span><span class="cross-legend-swatch csp-style-300"></span>&lt;70%</span>
+        <span><span class="cross-legend-swatch csp-style-301"></span>70–100%</span>
+        <span><span class="cross-legend-swatch csp-style-302"></span>100–130%</span>
+        <span><span class="cross-legend-swatch csp-style-303"></span>130–160%</span>
+        <span><span class="cross-legend-swatch csp-style-304"></span>&gt;160%</span>
         <span><span class="cross-legend-swatch cross-legend-hatch"></span>樣本不足 / 序列不足</span>
       </div>
     `;
@@ -513,7 +508,7 @@ const BehaviorCrossTab = (() => {
       });
     });
 
-    if (detail) detail.innerHTML = `<p style="font-size:0.78rem;color:var(--text-dim,#888);padding:6px 4px">
+    if (detail) detail.innerHTML = `<p class="csp-style-305">
       點擊上方格子查看該 R×S 組合的詳細統計。</p>`;
   }
 
@@ -542,22 +537,21 @@ const BehaviorCrossTab = (() => {
     };
 
     detail.innerHTML = `
-      <div style="padding:10px 12px;border-radius:6px;background:var(--surface2,#1c2030);
-                  border:1px solid var(--border2,#2a2f45);font-size:0.82rem;line-height:1.7">
-        <div style="font-weight:700;margin-bottom:6px">
-          <span style="color:${COLORS[rg]}">${rg} ${CLUSTER_NAMES[rg]}</span>
+      <div class="csp-style-306">
+        <div class="csp-style-307">
+          <span data-csp-style="color:${COLORS[rg]}">${rg} ${CLUSTER_NAMES[rg]}</span>
           ×
-          <span style="color:${COLORS[sg]}">${sg} ${S_NAMES[sg]}</span>
+          <span data-csp-style="color:${COLORS[sg]}">${sg} ${S_NAMES[sg]}</span>
         </div>
         <div>樣本數：<strong>${cell.n ?? 0}</strong></div>
         ${cell.final_mean != null ? `<div>期末成績：<strong>${cell.final_mean.toFixed(1)} ± ${cell.final_sd?.toFixed(1) ?? '—'}</strong></div>` : ''}
         ${cell.fail_rate_final != null ? `
-          <div>期末不及格率：<strong style="color:${_severityTextColor(cell.fail_rate_final, overall.fail_rate_final)}">
+          <div>期末不及格率：<strong data-csp-style="color:${_severityTextColor(cell.fail_rate_final, overall.fail_rate_final)}">
             ${_pct(cell.fail_rate_final)}</strong>
             （全體基準 ${_pct(overall.fail_rate_final)}）
             ${zNote(cell.z_vs_overall_final)}
           </div>` : ''}
-        ${cell.note ? `<div style="color:var(--text-dim,#888)">ℹ️ ${_safeText(cell.note)}</div>` : ''}
+        ${cell.note ? `<div class="csp-style-292">ℹ️ ${_safeText(cell.note)}</div>` : ''}
       </div>
     `;
   }
@@ -578,28 +572,28 @@ const BehaviorCrossTab = (() => {
             <thead><tr><th>代碼</th><th>名稱</th><th>行為特徵</th><th>量化判斷條件</th><th>教學建議</th></tr></thead>
             <tbody>
               <tr>
-                <td class="cross-legend-code" style="color:#2ecc71">SS</td>
+                <td class="cross-legend-code csp-style-308">SS</td>
                 <td>穩定及格</td>
                 <td>期中、期末皆及格，學習軌跡穩定</td>
                 <td>期中成績 ≥ 60 且 期末成績 ≥ 60</td>
                 <td>正向強化，鼓勵維持節奏與自主學習習慣</td>
               </tr>
               <tr>
-                <td class="cross-legend-code" style="color:#3498db">FS</td>
+                <td class="cross-legend-code csp-style-309">FS</td>
                 <td>自救成功</td>
                 <td>期中不及格但期末翻轉，屬高韌性學習者</td>
                 <td>期中成績 &lt; 60 且 期末成績 ≥ 60</td>
                 <td>分析翻轉策略，複製成功模式，強化學生信心</td>
               </tr>
               <tr>
-                <td class="cross-legend-code" style="color:#e67e22">SF</td>
+                <td class="cross-legend-code csp-style-310">SF</td>
                 <td>成績滑落</td>
                 <td>期中及格但期末退步，後期投入下降</td>
                 <td>期中成績 ≥ 60 且 期末成績 &lt; 60</td>
                 <td>關注後半學期出勤與作答頻率，主動介入追蹤</td>
               </tr>
               <tr>
-                <td class="cross-legend-code" style="color:#e74c3c">FF</td>
+                <td class="cross-legend-code csp-style-293">FF</td>
                 <td>持續不及格</td>
                 <td>期中、期末皆不及格，高風險長期低效</td>
                 <td>期中成績 &lt; 60 且 期末成績 &lt; 60</td>
@@ -626,21 +620,21 @@ const BehaviorCrossTab = (() => {
             <thead><tr><th>代碼</th><th>名稱</th><th>行為特徵</th><th>量化判斷條件</th><th>教學建議</th></tr></thead>
             <tbody>
               <tr>
-                <td class="cross-legend-code" style="color:#2ecc71">DEEP</td>
+                <td class="cross-legend-code csp-style-308">DEEP</td>
                 <td>深層學習</td>
                 <td>主動切換資源，影音與閱讀兼用，序列多元</td>
                 <td>QMI ≥ 0.6 且 score_delta &lt; 0.2（首次高正確率、進步空間小）</td>
                 <td>引導自主探究，鼓勵跨資源整合與知識建構</td>
               </tr>
               <tr>
-                <td class="cross-legend-code" style="color:#e74c3c">SURFACE</td>
+                <td class="cross-legend-code csp-style-293">SURFACE</td>
                 <td>表層學習</td>
                 <td>首次作答正確率低，反覆練習後才達標，依賴重複刷題</td>
                 <td>score_delta ≥ 0.3（首次低、多次練習才通過，依賴題海戰術）</td>
                 <td>強化學習計畫與策略指導，提供多元資源引導</td>
               </tr>
               <tr>
-                <td class="cross-legend-code" style="color:#f1c40f">MODERATE</td>
+                <td class="cross-legend-code csp-style-311">MODERATE</td>
                 <td>中間型</td>
                 <td>介於深層與表層之間，行為模式尚未穩定</td>
                 <td>QMI 0.4–0.6 或 score_delta 0.2–0.3（介於深層與表層之間）</td>

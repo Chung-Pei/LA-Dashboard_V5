@@ -129,7 +129,7 @@ const PrintPanel = (() => {
         event.preventDefault();
         event.stopImmediatePropagation();
         const area = document.getElementById("printPreviewArea");
-        if (area) area.style.display = "none";
+        if (area) area.classList.remove("is-visible");
       }
     }, true);
   }
@@ -257,38 +257,18 @@ const PrintPanel = (() => {
 
   function withPanelsTemporarilyVisible(task) {
     const panels = [...document.querySelectorAll(".panel")].filter((panel) => panel.id !== "panelP");
-    const panelStyles = panels.map((el) => ({
-      el,
-      display: el.style.display,
-      visibility: el.style.visibility,
-      position: el.style.position,
-      left: el.style.left,
-      top: el.style.top,
-      width: el.style.width,
-      pointerEvents: el.style.pointerEvents,
-    }));
     const panes = [...document.querySelectorAll(".behavior-sub-pane")];
-    const paneStyles = panes.map((el) => ({ el, display: el.style.display }));
 
-    panels.forEach((el) => {
-      el.style.display = "block";
-      el.style.visibility = "hidden";
-      el.style.position = "absolute";
-      el.style.left = "-10000px";
-      el.style.top = "0";
-      el.style.width = "1200px";
-      el.style.pointerEvents = "none";
-    });
-    panes.forEach((el) => { el.style.display = "block"; });
+    panels.forEach((el) => { el.classList.add("print-capture-visible"); });
+    panes.forEach((el) => { el.classList.add("print-capture-pane-visible"); });
 
     try {
       return task();
     } finally {
-      panelStyles.forEach(({ el, ...style }) => Object.assign(el.style, style));
-      paneStyles.forEach(({ el, display }) => { el.style.display = display; });
+      panels.forEach((el) => { el.classList.remove("print-capture-visible"); });
+      panes.forEach((el) => { el.classList.remove("print-capture-pane-visible"); });
     }
   }
-
   function resizeKnownCharts() {
     PRINT_ITEMS.filter((item) => item.type === "canvas").forEach((item) => {
       const canvas = document.getElementById(item.id);
@@ -370,8 +350,7 @@ const PrintPanel = (() => {
     clone.removeAttribute("width");
     clone.removeAttribute("height");
     clone.setAttribute("preserveAspectRatio", "xMidYMid meet");
-    clone.style.width = "100%";
-    clone.style.height = "auto";
+    clone.classList.add("print-svg-fit");
     return `<figure class="print-figure">${clone.outerHTML}</figure>`;
   }
 
@@ -437,11 +416,11 @@ const PrintPanel = (() => {
   }
 
   function injectPreviewStyles() {
-    if (document.getElementById(PREVIEW_STYLE_ID)) return;
-    const style = document.createElement("style");
-    style.id = PREVIEW_STYLE_ID;
-    style.textContent = previewCss();
-    document.head.appendChild(style);
+    // Preview styles are shipped in style.css for strict CSP compatibility.
+  }
+
+  function cspSafeHtml(html) {
+    return String(html || "").replace(/\sstyle\s*=/gi, " data-csp-style=");
   }
 
   async function doPreview() {
@@ -451,16 +430,17 @@ const PrintPanel = (() => {
     if (!area || !content) return;
 
     if (!items.length) {
-      content.innerHTML = '<p style="padding:20px;color:#b45309">請至少選擇一個列印項目。</p>';
-      area.style.display = "block";
+      content.innerHTML = '<p class="csp-style-234">請至少選擇一個列印項目。</p>';
+      area.classList.add("is-visible");
       return;
     }
 
     injectPreviewStyles();
-    content.innerHTML = '<p style="padding:20px;color:#555">正在產生列印預覽...</p>';
-    area.style.display = "block";
+    content.innerHTML = '<p class="csp-style-235">正在產生列印預覽...</p>';
+    area.classList.add("is-visible");
     await nextFrame();
-    content.innerHTML = await buildPrintHTML(items);
+    content.innerHTML = cspSafeHtml(await buildPrintHTML(items));
+    window.applyCspStyles?.(content);
     area.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -472,11 +452,12 @@ const PrintPanel = (() => {
     }
 
     const html = await buildPrintHTML(items);
+    const cssHref = new URL("style.css", location.href).href;
     const doc = `<!DOCTYPE html><html lang="zh-TW"><head>
       <meta charset="UTF-8">
       <title>微免儀表板列印報告</title>
-      <style>${windowCss()}</style>
-    </head><body>${html}</body></html>`;
+      <link rel="stylesheet" href="${cssHref}">
+    </head><body class="print-window">${html}</body></html>`;
 
     const blob = new Blob([doc], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
