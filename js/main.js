@@ -635,6 +635,19 @@ const CHART_INFO = {
     ],
     use: '跨群學習行為比較，識別高分群的時間投入模式。',
   },
+  crossSummaryCard: {
+    title: '複合行為評分（BAS）與相關係數摘要',
+    desc: '彙整六項學習行為與成績表現的關鍵統計指標，用於評估行為分群與學習結果的關聯強度。',
+    points: [
+      '全體不及格率：訓練集中期末成績不及格學生佔比，並列出期中不及格率對照，觀察學期後段是否好轉',
+      'BAS 複合評分（r）：BAS = QMI×0.7 + (1−被動指數)×0.3，r 為 BAS 與期末成績的 Pearson 相關係數，越接近 1 代表綜合行為指標與成績正相關越強',
+      'QMI 五分位梯度：依題庫精熟指數切五等分，比較最低分組（Q1）與最高分組（Q5）的不及格率差距，差距越大代表 QMI 對不及格的區辨力越強',
+      'R群 × 期末 Spearman（ρ）：R群為教材使用行為分群（類別變數），ρ 衡量分群與期末成績排名的等級相關；R群非品質次序，不可作線性外推解讀',
+      'S群 × 期末 Spearman（ρ）：S群依序列切換主動程度排序（S1最主動 → S4最被動），ρ 方向符合預期時，代表越主動的序列分群成績越好',
+      '學習方法分布：依 DEEP（深度）/ MODERATE（中等）/ SURFACE（表層）分類學生學習策略佔比，反映整體學習取向',
+    ],
+    use: '｜r｜或｜ρ｜≥ 0.3 通常視為中等以上關聯；R群為類別分群，僅可比較組間差異，不可視為連續尺度。',
+  },
 };
 
 function chartTitleActions(titleEl) {
@@ -1016,7 +1029,7 @@ function normalizeData() {
   }
 
   const newCS = {};
-  for (const [key, val] of Object.entries(DATA.class_summary)) {
+  for (const val of Object.values(DATA.class_summary)) {
     const normName = normalizeSheet(val.sheet_name);
     val.sheet_name = normName;
     const normType = val.type || 'all';
@@ -1131,14 +1144,6 @@ function populateFilters() {
   aTrend.innerHTML = trendSheets.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
 
   populateCYearFilter();
-}
-
-function updateSheetFilter() {
-  const sem  = document.getElementById('aFilterSem').value;
-  const type = document.getElementById('aFilterType').value;
-  const prog = (document.getElementById('aFilterProgram') || {}).value || 'all';
-  _rebuildSheetOptions(sem, prog, type, 'external');
-  return document.getElementById('aFilterSheet').value || 'all';
 }
 
 function cloneClassSummary(c) {
@@ -2119,7 +2124,6 @@ function renderSlope(retakers) {
   svg.setAttribute('width', W);
 
   const isDark = !document.body.classList.contains('light');
-  const textCol  = isDark ? '#9aa0b8' : '#4a5070';
   const dimCol   = isDark ? '#6b748f' : '#8a90a8';
   const axisCol  = isDark ? '#2a2f45' : '#c8cce0';
   const gridCol  = isDark ? '#1c2030' : '#e0e4f0';
@@ -2213,7 +2217,7 @@ function renderDelta(allDeltas) {
 function renderQuadrant() {
   const qCard = document.getElementById('quadrantCard');
   const pairs = [];
-  for (const [sid, data] of Object.entries(DATA.students)) {
+  for (const data of Object.values(DATA.students)) {
     if (!data.records.some(r => r.is_retaker)) continue;
     const bySem = {};
     data.records.forEach(r => {
@@ -3385,7 +3389,6 @@ function metricField(m) {
 const _retakerState = { A: true, D: true, C: true };
 
 function toggleRetakerSwitch(panel) {
-  const btn = document.getElementById(`${panel.toLowerCase()}RetakerSwitch`);
   const progEl = document.getElementById(
     panel === 'A' ? 'aFilterProgram' :
     panel === 'D' ? 'dFilterProgram' : 'cFilterProgram'
