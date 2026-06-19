@@ -7,9 +7,9 @@
 // 更新：2026-06-17 docs4 新版模組與 warning/cross 資料支援
 // ==========================================================
 
-const CACHE_PREFIX = 'la-dash-v10-docs5';
-const DATA_CACHE_PREFIX = 'la-dash-v10-docs5-data';
-const BUILD_VERSION = '202606181420';
+const CACHE_PREFIX = 'la-dash-v10-docs4';
+const DATA_CACHE_PREFIX = 'la-dash-v10-docs4-data';
+const BUILD_VERSION = '202606192215';
 
 const CACHE_VERSION = `${CACHE_PREFIX}-${BUILD_VERSION}`;
 const DATA_CACHE = `${DATA_CACHE_PREFIX}-${BUILD_VERSION}`;
@@ -17,7 +17,6 @@ const DATA_CACHE = `${DATA_CACHE_PREFIX}-${BUILD_VERSION}`;
 const APP_SHELL = [
   './',
   './index.html',
-  './style.css',
   './manifest.json',
   './icons/icon-120.png',
   './icons/icon-167.png',
@@ -31,19 +30,18 @@ const APP_SHELL = [
   './js/filter-engine.js',
   './js/main.js',
   './js/vendor/d3.min.js',
-  './js/chart-registry.js?v=202606181420',
-  './js/csp-style-runtime.js',
-  './js/behavior-loader.js?v=202606181420',
-  './js/tab-behavior-radar.js?v=202606181420',
-  './js/tab-behavior-correlation.js?v=202606181420',
-  './js/tab-behavior-time.js?v=202606181420',
-  './js/tab-behavior-lsa.js?v=202606181420',
-  './js/tab-behavior-cross.js?v=202606181420',
-  './js/tab-behavior-warning.js?v=202606181420',
-  './js/behavior-init.js?v=202606181420',
-  './js/at-risk-report.js?v=202606181420',
-  './js/print-panel.js?v=202606181420',
-  './js/ui-toggles.js?v=202606181420',
+  './js/chart-registry.js?v=202606192215',
+  './js/behavior-loader.js?v=202606192215',
+  './js/tab-behavior-radar.js?v=202606192215',
+  './js/tab-behavior-correlation.js?v=202606192215',
+  './js/tab-behavior-time.js?v=202606192215',
+  './js/tab-behavior-lsa.js?v=202606192215',
+  './js/tab-behavior-cross.js?v=202606192215',
+  './js/tab-behavior-warning.js?v=202606192215',
+  './js/behavior-init.js?v=202606192215',
+  './js/at-risk-report.js?v=202606192215',
+  './js/print-panel.js?v=202606192215',
+  './js/ui-toggles.js?v=202606192215',
 ];
 
 self.addEventListener('install', (event) => {
