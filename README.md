@@ -1,4 +1,4 @@
-# 學習分析儀表板 · Learning Analytics Dashboard
+# 學習分析儀表板 · Learning Analytics Dashboard V5
 
 > 以學習行為資料為基礎的互動式分析工具，支援多學期、多學制課程之學習模式視覺化與高風險學生預警。  
 > 純前端 PWA（HTML + Vanilla JS），可部署至 GitHub Pages，無需後端伺服器。
