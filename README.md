@@ -46,11 +46,6 @@ connect-src 'self';
 font-src    'self' data:;
 worker-src  'self' blob:;
 ```
-
-> ⚠️ `style-src` 保留 `'unsafe-inline'`：原因為 `index.html` 包含大型內嵌 `<style>` 區塊（CSS 變數定義、全站主題樣式）。  
-> **升級路徑**：將 `<style>` 抽出為 `css/style.css` 並更新 `sw.js` cache 清單，即可完全移除 `'unsafe-inline'`。  
-> ⚠️ Note: Chart.js 使用 JS DOM property（`element.style.xxx`）設定樣式，**不受 `style-src` 管控**，移除 `'unsafe-inline'` 不影響 Chart.js。
-
 > ⚠️ **GitHub Pages 限制**：`<meta>` CSP 不支援 `frame-ancestors` 指令（需 HTTP 回應標頭才有效）。  
 > 本專案以 `js/frame-guard.js`（同步載入，無 `defer`）作為替代方案，在渲染前偵測 iframe 嵌入並強制跳出至頂層視窗，等效於 `X-Frame-Options: SAMEORIGIN`。
 
