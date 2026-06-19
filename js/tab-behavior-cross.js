@@ -27,7 +27,6 @@ const BehaviorCrossTab = (() => {
   };
 
   const ALERT_THRESHOLD = 0.25; // 高出基準的不及格率即列入 Alert Card
-  const LOW_SAMPLE_MIN = 5;     // n < 5 視為樣本不足（與 11_cross_analysis.py 一致）
 
   // ── 樣式防重複注入（ARCH-3 FIX）────────────────────────────
   function _injectStyleOnce(id, css) {
@@ -70,6 +69,16 @@ const BehaviorCrossTab = (() => {
         background:repeating-linear-gradient(45deg,rgba(150,150,150,0.25),rgba(150,150,150,0.25) 3px,
                    transparent 3px,transparent 6px);
         border:1px dashed rgba(150,150,150,0.4)}`,
+    scopeNote: `
+      .cross-scope-summary{
+        display:flex;align-items:center;gap:6px;padding:9px 12px;
+        font-size:0.82rem;font-weight:600;cursor:pointer;list-style:none;user-select:none;
+        color:var(--text-dim,#aaa);transition:color .15s}
+      .cross-scope-summary::-webkit-details-marker{display:none}
+      .cross-scope-summary:hover{color:var(--text,#eee)}
+      .cross-scope-arrow{
+        font-size:0.65rem;display:inline-block;transition:transform .2s;
+        color:var(--accent,#3498db)}`,
     legend: `
       .cross-legend-card{
         margin:12px 0;border-radius:8px;overflow:hidden;
@@ -107,7 +116,8 @@ const BehaviorCrossTab = (() => {
   }
 
   function _pct(x) {
-    return (x == null) ? "—" : (x * 100).toFixed(1) + "%";
+    const n = Number(x);
+    return (x == null || isNaN(n)) ? "—" : (n * 100).toFixed(1) + "%";
   }
 
   // ── ARCH-4 FIX: 渲染階段容錯隔離 ──────────────────────────
@@ -170,13 +180,39 @@ const BehaviorCrossTab = (() => {
          驗證日期 ${_safeText(wv.date)}，HIGH 風險組校準誤差 ${_safeText(wv.highErrorPp)}pp`
       : "";
 
+    // B2 FIX: 先注入 CSS，確保首次開關時 transition 已生效
+    _injectStyleOnce("__cross-style-scope", _STYLES.scopeNote);
+
+    // B1 FIX: wasOpen 首次渲染時 querySelector 返回 null → ?.hasAttribute() = undefined
+    // undefined !== false 為 true，導致永遠強制 open，無法讀取「前次收折狀態」。
+    // 正確語意：若存在舊 <details> 則沿用其 .open 屬性；否則預設 open（初次展開）。
+    const prevDetails = el.querySelector('details');
+    const openAttr = (prevDetails === null || prevDetails.open) ? ' open' : '';
+
     el.innerHTML = `
-      ℹ️ <strong>資料範圍說明：</strong>
-      本分析僅納入正課（theory）學生，實習科目（practicum）採30分制計分且60%成績未記入學習系統，已完全排除。
-      訓練集為已有期末成績之學期（n=${meta.n_with_final ?? '—'}）；
-      ${semNote}，
-      可於「🔮 提前預警」分頁單獨查看其預警名單。${validationNote}
+      <details${openAttr} style="border-radius:8px;overflow:hidden;
+        border:1px solid rgba(100,160,255,0.22);background:rgba(100,160,255,0.06)">
+        <summary class="cross-scope-summary">
+          <span class="cross-scope-arrow">▶</span>
+          ℹ️ 資料範圍說明
+        </summary>
+        <div style="padding:10px 14px 12px;font-size:0.82rem;line-height:1.7;
+          border-top:1px solid rgba(100,160,255,0.15);color:var(--text,#eee)">
+          本分析僅納入正課（theory）學生，實習科目（practicum）採30分制計分且60%成績未記入學習系統，已完全排除。
+          訓練集為已有期末成績之學期（n=${_safeText(meta.n_with_final ?? '—')}）；
+          ${semNote}，
+          可於「🔮 提前預警」分頁單獨查看其預警名單。${validationNote}
+        </div>
+      </details>
     `;
+    // rotate arrow on open/close（每次重繪後重新綁定，舊 DOM 已被 innerHTML 清除，無洩漏）
+    const det = el.querySelector('details');
+    const arr = el.querySelector('.cross-scope-arrow');
+    if (det && arr) {
+      const _syncArrow = () => { arr.style.transform = det.open ? 'rotate(90deg)' : ''; };
+      _syncArrow();
+      det.addEventListener('toggle', _syncArrow);
+    }
   }
 
   function resetFilters() {
@@ -207,12 +243,13 @@ const BehaviorCrossTab = (() => {
     const sSp = sp.s_group_vs_final || {};
     const approach = o.approach || {};
 
+    _injectStyleOnce("__cross-style-summary", _STYLES.summaryCard);
     wrap.innerHTML = `
       <div style="font-size:0.82rem;line-height:1.7">
         <div style="margin-bottom:8px;padding:8px 10px;border-radius:6px;
                     background:rgba(100,160,255,0.07);border:1px solid rgba(100,160,255,0.2)">
-          ℹ️ 訓練集：111-1–114-1（n=${o.n}），排除實習科目與
-          ${(meta.incomplete_semesters_excluded||[]).join(', ')}（驗證學期）
+          ℹ️ 訓練集：111-1–114-1（n=${_safeText(o.n)}），排除實習科目與
+          ${(meta.incomplete_semesters_excluded||[]).map(_safeText).join(', ')}（驗證學期）
         </div>
 
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
@@ -223,22 +260,22 @@ const BehaviorCrossTab = (() => {
           </div>
           <div class="cross-stat-box">
             <div class="cross-stat-label">BAS 複合評分</div>
-            <div class="cross-stat-value">r = ${bv.bas_r?.r ?? '—'}</div>
+            <div class="cross-stat-value">r = ${_safeText(bv.bas_r?.r ?? '—')}</div>
             <div class="cross-stat-sub">期中×0.35 + QMI×0.30 + (1−被動)×0.20 + 練習×0.15</div>
           </div>
           <div class="cross-stat-box">
             <div class="cross-stat-label">QMI 五分位梯度</div>
             <div class="cross-stat-value">${q1 && q5 ? `${_pct(q1.fail_rate)} → ${_pct(q5.fail_rate)}` : '—'}</div>
-            <div class="cross-stat-sub">${q1 && q5 ? `Q1（最低）vs Q5（最高），n=${q1.n}/${q5.n}` : '資料不足'}</div>
+            <div class="cross-stat-sub">${q1 && q5 ? `Q1（最低）vs Q5（最高），n=${_safeText(q1.n)}/${_safeText(q5.n)}` : '資料不足'}</div>
           </div>
           <div class="cross-stat-box">
             <div class="cross-stat-label">R群 × 期末 Spearman</div>
-            <div class="cross-stat-value">ρ = ${rSp.rho ?? '—'}</div>
+            <div class="cross-stat-value">ρ = ${_safeText(rSp.rho ?? '—')}</div>
             <div class="cross-stat-sub">${_safeText(rSp.note || '')}</div>
           </div>
           <div class="cross-stat-box">
             <div class="cross-stat-label">S群 × 期末 Spearman</div>
-            <div class="cross-stat-value">ρ = ${sSp.rho ?? '—'}</div>
+            <div class="cross-stat-value">ρ = ${_safeText(sSp.rho ?? '—')}</div>
             <div class="cross-stat-sub">${_safeText(sSp.note || '')}</div>
           </div>
           <div class="cross-stat-box">
@@ -251,7 +288,6 @@ const BehaviorCrossTab = (() => {
         </div>
       </div>
     `;
-    _injectStyleOnce("__cross-style-summary", _STYLES.summaryCard);
   }
 
   // ── ② Alert Card：自動偵測高風險 R×S 組合 ────────────────
@@ -265,13 +301,15 @@ const BehaviorCrossTab = (() => {
 
     for (const [rg, row] of Object.entries(matrix)) {
       for (const [sg, cell] of Object.entries(row)) {
-        if (cell.low_sample || cell.note || cell.fail_rate_final == null) continue;
+        if (cell.low_sample || cell.fail_rate_final == null) continue;
         if (cell.fail_rate_final >= ALERT_THRESHOLD) {
           alerts.push({ rg, sg, ...cell });
         }
       }
     }
     alerts.sort((a, b) => b.fail_rate_final - a.fail_rate_final);
+
+    _injectStyleOnce("__cross-style-alert", _STYLES.alertCard);
 
     if (alerts.length === 0) {
       wrap.innerHTML = `<p style="font-size:0.8rem;color:var(--text-dim,#888)">
@@ -282,15 +320,15 @@ const BehaviorCrossTab = (() => {
     const rows = alerts.map(a => `
       <div class="cross-alert-row">
         <span class="cross-alert-badge" style="background:${COLORS[a.rg]}22;color:${COLORS[a.rg]}">
-          ${a.rg} ${CLUSTER_NAMES[a.rg] || ''}
+          ${_safeText(a.rg)} ${CLUSTER_NAMES[a.rg] || ''}
         </span>
         <span style="color:var(--text-dim,#888)">×</span>
         <span class="cross-alert-badge" style="background:${COLORS[a.sg]}22;color:${COLORS[a.sg]}">
-          ${a.sg} ${S_NAMES[a.sg] || ''}
+          ${_safeText(a.sg)} ${S_NAMES[a.sg] || ''}
         </span>
         <span class="cross-alert-stat">
           不及格率 <strong style="color:#e74c3c">${_pct(a.fail_rate_final)}</strong>
-          （高出基準 ${_pct(a.fail_rate_final - overall_fail)}，n=${a.n}）
+          （高出基準 ${_pct(a.fail_rate_final - overall_fail)}，n=${_safeText(a.n)}）
         </span>
       </div>
     `).join('');
@@ -303,7 +341,6 @@ const BehaviorCrossTab = (() => {
         ${rows}
       </div>
     `;
-    _injectStyleOnce("__cross-style-alert", _STYLES.alertCard);
   }
 
   // ── ③ R群 / S群 不及格率長條圖 ───────────────────────────
@@ -441,8 +478,11 @@ const BehaviorCrossTab = (() => {
     const matrix = _crossData.cross_matrix || {};
     const overall_fail = _crossData.overall.fail_rate_final;
 
-    // 表頭（S群）
-    let html = `<div class="cross-heatmap-grid">`;
+    _injectStyleOnce("__cross-style-heatmap", _STYLES.heatmap);
+
+    // 表頭（S群）— 外層加 overflow-x:auto 讓手機可左右捲動，不讓格子變形
+    let html = `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px">`;
+    html += `<div class="cross-heatmap-grid" style="min-width:420px">`;
     html += `<div class="cross-heatmap-cell cross-heatmap-corner"></div>`;
     S_CODES.forEach(sg => {
       html += `<div class="cross-heatmap-cell cross-heatmap-header">
@@ -461,16 +501,16 @@ const BehaviorCrossTab = (() => {
       S_CODES.forEach(sg => {
         const cell = (matrix[rg] && matrix[rg][sg]) || {};
         const isS5 = sg === "S5";
-        const isLowSample = !!cell.low_sample || (cell.n ?? 0) < LOW_SAMPLE_MIN;
+        const isLowSample = !!cell.low_sample;
         const hasStats = cell.fail_rate_final != null && !isLowSample && !isS5;
 
         if (!hasStats) {
           // 灰色斜線紋理：樣本不足 或 S5（序列不足）
           const reason = isS5 ? "序列不足" : "樣本不足";
           html += `<div class="cross-heatmap-cell cross-heatmap-empty"
-                        title="${rg}×${sg}：${reason}（n=${cell.n ?? 0}）"
+                        title="${rg}×${sg}：${reason}（n=${_safeText(cell.n ?? 0)}）"
                         data-r="${rg}" data-s="${sg}">
-                     <div style="font-size:0.65rem;color:var(--text-dim,#888)">n=${cell.n ?? 0}</div>
+                     <div style="font-size:0.65rem;color:var(--text-dim,#888)">n=${_safeText(cell.n ?? 0)}</div>
                      <div style="font-size:0.6rem;color:var(--text-dim,#888)">${reason}</div>
                    </div>`;
         } else {
@@ -479,12 +519,12 @@ const BehaviorCrossTab = (() => {
                         style="background:${bg}" role="button" tabindex="0"
                         title="點擊查看 ${rg}×${sg} 詳細統計">
                      <div style="font-weight:700;font-size:0.85rem">${_pct(cell.fail_rate_final)}</div>
-                     <div style="font-size:0.65rem;color:var(--text-dim,#888)">n=${cell.n}</div>
+                     <div style="font-size:0.65rem;color:var(--text-dim,#888)">n=${_safeText(cell.n)}</div>
                    </div>`;
         }
       });
     });
-    html += `</div>`;
+    html += `</div></div>`; // close .cross-heatmap-grid + overflow wrapper
 
     // 圖例
     html += `
@@ -500,7 +540,6 @@ const BehaviorCrossTab = (() => {
     `;
 
     wrap.innerHTML = html;
-    _injectStyleOnce("__cross-style-heatmap", _STYLES.heatmap);
 
     // 點擊事件：展開詳細統計
     wrap.querySelectorAll(".cross-heatmap-data").forEach(el => {
@@ -533,8 +572,10 @@ const BehaviorCrossTab = (() => {
     const cell = ((_crossData.cross_matrix || {})[rg] || {})[sg] || {};
     const overall = _crossData.overall;
 
-    const zNote = (z) => {
-      if (z == null) return "";
+    const zNote = (zRaw) => {
+      if (zRaw == null) return "";
+      const z = Number(zRaw);
+      if (isNaN(z)) return "";
       const abs = Math.abs(z);
       const sig = abs >= 2.58 ? "p&lt;0.01 ***" : abs >= 1.96 ? "p&lt;0.05 *" : "未達顯著";
       const dir = z > 0 ? "高於" : "低於";
@@ -549,8 +590,8 @@ const BehaviorCrossTab = (() => {
           ×
           <span style="color:${COLORS[sg]}">${sg} ${S_NAMES[sg]}</span>
         </div>
-        <div>樣本數：<strong>${cell.n ?? 0}</strong></div>
-        ${cell.final_mean != null ? `<div>期末成績：<strong>${cell.final_mean.toFixed(1)} ± ${cell.final_sd?.toFixed(1) ?? '—'}</strong></div>` : ''}
+        <div>樣本數：<strong>${_safeText(cell.n ?? 0)}</strong></div>
+        ${cell.final_mean != null ? `<div>期末成績：<strong>${Number(cell.final_mean).toFixed(1)} ± ${cell.final_sd != null ? Number(cell.final_sd).toFixed(1) : '—'}</strong></div>` : ''}
         ${cell.fail_rate_final != null ? `
           <div>期末不及格率：<strong style="color:${_severityTextColor(cell.fail_rate_final, overall.fail_rate_final)}">
             ${_pct(cell.fail_rate_final)}</strong>
