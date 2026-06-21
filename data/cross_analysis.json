@@ -9,7 +9,7 @@
     "n_total_records": 2666,
     "n_with_final": 2659,
     "pass_threshold": 60,
-    "generated_at": "2026-06-20T11:49:36"
+    "generated_at": "2026-06-21T10:25:39"
   },
   "overall": {
     "n": 2659,
@@ -50,67 +50,65 @@
       "p": 3.0000422991501834e-69
     },
     "qmi_r": {
-      "r": 0.3347,
-      "p": 1.2514360147003445e-70
+      "r": 0.3338,
+      "p": 3.072506065899642e-70
     },
     "bas_r": {
-      "r": 0.4555,
-      "p": 2.2284061290412826e-136
+      "r": 0.4743,
+      "p": 3.0934010503169633e-149
     },
     "bas_weights": {
-      "midterm": 0.25,
-      "qmi": 0.25,
-      "neg_passive": 0.15,
-      "log_attempts": 0.1,
-      "first_acc": 0.15,
-      "consistency": 0.1
+      "midterm": 0.35,
+      "qmi": 0.35,
+      "neg_passive": 0.2,
+      "log_attempts": 0.1
     },
     "weight_basis": "data-driven grid search on theory training set (v3: +midterm +fin_acc +log_attempts)",
     "qmi_quintiles": [
       {
         "q": 1,
         "range": [
-          0.15,
-          0.45
+          0.1,
+          0.4183
         ],
-        "n": 516,
-        "fail_rate": 0.3236
+        "n": 532,
+        "fail_rate": 0.3195
       },
       {
         "q": 2,
         "range": [
-          0.45,
-          0.5644
+          0.4183,
+          0.5437
         ],
-        "n": 548,
-        "fail_rate": 0.2445
+        "n": 530,
+        "fail_rate": 0.2453
       },
       {
         "q": 3,
         "range": [
-          0.5644,
-          0.66
+          0.5437,
+          0.6455
         ],
-        "n": 523,
-        "fail_rate": 0.174
+        "n": 531,
+        "fail_rate": 0.1733
       },
       {
         "q": 4,
         "range": [
-          0.66,
-          0.7728
+          0.6455,
+          0.7625
         ],
-        "n": 540,
-        "fail_rate": 0.1278
+        "n": 532,
+        "fail_rate": 0.1241
       },
       {
         "q": 5,
         "range": [
-          0.7728,
+          0.7625,
           1.0
         ],
-        "n": 532,
-        "fail_rate": 0.0658
+        "n": 534,
+        "fail_rate": 0.0712
       }
     ]
   },
@@ -500,6 +498,11 @@
       "fail_rate_final": 0.0634,
       "final_mean": 78.11,
       "by_r_cluster": {
+        "R4": {
+          "n": 139,
+          "fail_rate_final": 0.0647,
+          "final_mean": 79.86
+        },
         "R3": {
           "n": 199,
           "fail_rate_final": 0.0251,
@@ -510,22 +513,12 @@
           "fail_rate_final": 0.1145,
           "final_mean": 75.5
         },
-        "R4": {
-          "n": 139,
-          "fail_rate_final": 0.0647,
-          "final_mean": 79.86
-        },
         "R5": {
           "n": 4,
           "low_sample": true
         }
       },
       "by_s_cluster": {
-        "S4": {
-          "n": 84,
-          "fail_rate_final": 0.0357,
-          "final_mean": 78.49
-        },
         "S3": {
           "n": 264,
           "fail_rate_final": 0.0758,
@@ -535,6 +528,11 @@
           "n": 115,
           "fail_rate_final": 0.0435,
           "final_mean": 79.28
+        },
+        "S4": {
+          "n": 84,
+          "fail_rate_final": 0.0357,
+          "final_mean": 78.49
         },
         "S1": {
           "n": 10,
@@ -570,6 +568,11 @@
           "fail_rate_final": 0.2124,
           "final_mean": 69.1
         },
+        "S4": {
+          "n": 36,
+          "fail_rate_final": 0.1667,
+          "final_mean": 68.28
+        },
         "S2": {
           "n": 69,
           "fail_rate_final": 0.2029,
@@ -578,11 +581,6 @@
         "S1": {
           "n": 4,
           "low_sample": true
-        },
-        "S4": {
-          "n": 36,
-          "fail_rate_final": 0.1667,
-          "final_mean": 68.28
         }
       }
     },
@@ -591,15 +589,15 @@
       "fail_rate_final": 0.1479,
       "final_mean": 69.88,
       "by_r_cluster": {
-        "R1": {
-          "n": 181,
-          "fail_rate_final": 0.1934,
-          "final_mean": 67.81
-        },
         "R3": {
           "n": 258,
           "fail_rate_final": 0.1395,
           "final_mean": 70.22
+        },
+        "R1": {
+          "n": 181,
+          "fail_rate_final": 0.1934,
+          "final_mean": 67.81
         },
         "R4": {
           "n": 67,
@@ -612,20 +610,20 @@
         }
       },
       "by_s_cluster": {
-        "S3": {
-          "n": 290,
-          "fail_rate_final": 0.1517,
-          "final_mean": 69.82
+        "S4": {
+          "n": 93,
+          "fail_rate_final": 0.1828,
+          "final_mean": 67.81
         },
         "S2": {
           "n": 117,
           "fail_rate_final": 0.1197,
           "final_mean": 71.32
         },
-        "S4": {
-          "n": 93,
-          "fail_rate_final": 0.1828,
-          "final_mean": 67.81
+        "S3": {
+          "n": 290,
+          "fail_rate_final": 0.1517,
+          "final_mean": 69.82
         },
         "S1": {
           "n": 7,
@@ -639,11 +637,6 @@
       "fail_rate_final": 0.1737,
       "final_mean": 68.29,
       "by_r_cluster": {
-        "R3": {
-          "n": 110,
-          "fail_rate_final": 0.1727,
-          "final_mean": 69.41
-        },
         "R1": {
           "n": 63,
           "fail_rate_final": 0.1905,
@@ -654,17 +647,17 @@
           "fail_rate_final": 0.1452,
           "final_mean": 68.39
         },
+        "R3": {
+          "n": 110,
+          "fail_rate_final": 0.1727,
+          "final_mean": 69.41
+        },
         "R5": {
           "n": 1,
           "low_sample": true
         }
       },
       "by_s_cluster": {
-        "S2": {
-          "n": 70,
-          "fail_rate_final": 0.1571,
-          "final_mean": 70.46
-        },
         "S3": {
           "n": 117,
           "fail_rate_final": 0.1453,
@@ -674,6 +667,11 @@
           "n": 45,
           "fail_rate_final": 0.2889,
           "final_mean": 64.26
+        },
+        "S2": {
+          "n": 70,
+          "fail_rate_final": 0.1571,
+          "final_mean": 70.46
         },
         "S1": {
           "n": 4,
@@ -691,18 +689,23 @@
           "fail_rate_final": 0.1557,
           "final_mean": 69.52
         },
-        "R1": {
-          "n": 242,
-          "fail_rate_final": 0.3512,
-          "final_mean": 64.49
-        },
         "R4": {
           "n": 110,
           "fail_rate_final": 0.1273,
           "final_mean": 71.82
+        },
+        "R1": {
+          "n": 242,
+          "fail_rate_final": 0.3512,
+          "final_mean": 64.49
         }
       },
       "by_s_cluster": {
+        "S2": {
+          "n": 128,
+          "fail_rate_final": 0.2422,
+          "final_mean": 67.81
+        },
         "S4": {
           "n": 87,
           "fail_rate_final": 0.2069,
@@ -712,11 +715,6 @@
           "n": 252,
           "fail_rate_final": 0.2738,
           "final_mean": 66.43
-        },
-        "S2": {
-          "n": 128,
-          "fail_rate_final": 0.2422,
-          "final_mean": 67.81
         },
         "S1": {
           "n": 7,
@@ -730,6 +728,11 @@
       "fail_rate_final": 0.4051,
       "final_mean": 62.36,
       "by_r_cluster": {
+        "R1": {
+          "n": 83,
+          "fail_rate_final": 0.3855,
+          "final_mean": 64.43
+        },
         "R4": {
           "n": 80,
           "fail_rate_final": 0.3375,
@@ -739,23 +742,18 @@
           "n": 74,
           "fail_rate_final": 0.5,
           "final_mean": 59.89
-        },
-        "R1": {
-          "n": 83,
-          "fail_rate_final": 0.3855,
-          "final_mean": 64.43
         }
       },
       "by_s_cluster": {
-        "S2": {
-          "n": 68,
-          "fail_rate_final": 0.4265,
-          "final_mean": 61.44
-        },
         "S4": {
           "n": 51,
           "fail_rate_final": 0.451,
           "final_mean": 60.67
+        },
+        "S2": {
+          "n": 68,
+          "fail_rate_final": 0.4265,
+          "final_mean": 61.44
         },
         "S3": {
           "n": 108,
@@ -774,15 +772,15 @@
       "fail_rate_final": 0.1804,
       "final_mean": 68.54,
       "by_r_cluster": {
-        "R3": {
-          "n": 140,
-          "fail_rate_final": 0.1643,
-          "final_mean": 67.9
-        },
         "R1": {
           "n": 228,
           "fail_rate_final": 0.1886,
           "final_mean": 67.95
+        },
+        "R3": {
+          "n": 140,
+          "fail_rate_final": 0.1643,
+          "final_mean": 67.9
         },
         "R4": {
           "n": 141,
@@ -795,15 +793,15 @@
         }
       },
       "by_s_cluster": {
-        "S3": {
-          "n": 281,
-          "fail_rate_final": 0.1779,
-          "final_mean": 68.43
-        },
         "S4": {
           "n": 102,
           "fail_rate_final": 0.2745,
           "final_mean": 63.2
+        },
+        "S3": {
+          "n": 281,
+          "fail_rate_final": 0.1779,
+          "final_mean": 68.43
         },
         "S2": {
           "n": 122,
