@@ -2,11 +2,11 @@
 
 <!-- PROJECT SHIELDS -->
 
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
-[![MIT License][license-shield]][license-url]
+[![MIT License](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
+[![PWA](https://img.shields.io/badge/PWA-ready-blue.svg?style=flat-square)](https://web.dev/progressive-web-apps/)
+[![CSP](https://img.shields.io/badge/CSP-nonce%20compliant-brightgreen.svg?style=flat-square)](#安全性架構)
+[![Chart.js](https://img.shields.io/badge/Chart.js-4.4.0-ff6384.svg?style=flat-square)](https://www.chartjs.org/)
+[![D3.js](https://img.shields.io/badge/D3.js-v7.9.0-orange.svg?style=flat-square)](https://d3js.org/)
 
 <!-- PROJECT LOGO -->
 <br />
@@ -278,16 +278,3 @@ python -m http.server 8080
 - [Cloudflare Pages](https://pages.cloudflare.com)
 - [PWACompat](https://github.com/GoogleChromeLabs/pwacompat)
 - [Img Shields](https://shields.io)
-
-<!-- links -->
-[your-project-path]: 
-[contributors-shield]: https://img.shields.io/github/contributors/<your-github-account>/<your-repo>.svg?style=flat-square
-[contributors-url]: #graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/<your-github-account>/<your-repo>.svg?style=flat-square
-[forks-url]: #network/members
-[stars-shield]: https://img.shields.io/github/stars/<your-github-account>/<your-repo>.svg?style=flat-square
-[stars-url]: #stargazers
-[issues-shield]: https://img.shields.io/github/issues/<your-github-account>/<your-repo>.svg?style=flat-square
-[issues-url]: #issues
-[license-shield]: https://img.shields.io/github/license/<your-github-account>/<your-repo>.svg?style=flat-square
-[license-url]: #blob/master/LICENSE
