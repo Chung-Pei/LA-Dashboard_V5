@@ -16,7 +16,6 @@ const BehaviorWarningTab = (() => {
   let _semester = null;
   let _activeFilter = "ALL"; // ALL | HIGH | MEDIUM | LOW
 
-
   const APPROACH_NAMES = {
     DEEP: "Deep",
     SURFACE: "Surface",
@@ -29,6 +28,8 @@ const BehaviorWarningTab = (() => {
     LOW: { label: "低風險", color: "#2ecc71", bg: "rgba(46,204,113,0.08)" },
   };
 
+  // CSP-1 FIX: 改用 Constructable StyleSheet，移除動態 <style> 注入（不需 unsafe-inline）
+  // 瀏覽器不支援時 fallback 至 <link rel="stylesheet"> 引用外部 CSS（需配合 la-dash.css）
   const STYLE_ID = "__behavior-warning-tab-style";
   const STYLE_TEXT = `
     .warning-stat-box{padding:10px 12px;border-radius:6px;background:var(--surface2,#1c2030)}
@@ -41,12 +42,49 @@ const BehaviorWarningTab = (() => {
     .warning-table td{padding:5px 8px;border-bottom:1px solid var(--border2,#2a2f45);white-space:nowrap}
     .warning-level-pill{padding:1px 8px;border-radius:10px;font-size:.72rem;font-weight:600}
     .warning-rule-badge{display:inline-block;padding:1px 6px;margin:1px;border-radius:4px;background:rgba(150,150,150,.15);font-size:.68rem;color:var(--text-dim,#888)}
+    .ladash-fail-text{color:#e74c3c}
+    .ladash-outcome-fail{color:#e74c3c;font-weight:600}
+    .ladash-outcome-pass{color:#2ecc71}
+    .ladash-export-btn{padding:6px 14px;border-radius:6px;border:1px solid var(--accent,#3498db);background:transparent;color:var(--accent,#3498db);cursor:pointer;font-size:.8rem}
+    .ladash-val-td{padding:3px 8px}
+    .ladash-w-errmsg{color:#c0392b;font-size:.85rem;padding:12px}
+    .ladash-w-empty{text-align:center;padding:32px 16px;color:var(--text-dim,#888);font-size:.85rem}
+    .ladash-w-empty-icon{font-size:1.6rem;margin-bottom:8px;display:block}
+    .ladash-w-val-box{margin-top:12px;padding:10px 12px;border-radius:6px;background:rgba(46,204,113,.06);border:1px solid rgba(46,204,113,.25)}
+    .ladash-w-val-hdr{font-size:.75rem;font-weight:600;color:#2ecc71;margin-bottom:6px}
+    .ladash-w-val-tbl{width:100%;font-size:.72rem;border-collapse:collapse}
+    .ladash-w-th-dim{color:var(--text-dim,#888)}
+    .ladash-w-th{padding:3px 8px;text-align:left;font-weight:600}
+    .ladash-w-val-note{margin-top:6px;font-size:.72rem;color:var(--text-dim,#888)}
+    .ladash-w-summary-txt{font-size:.82rem;line-height:1.7}
+    .ladash-w-summary-box{margin-bottom:10px;padding:8px 10px;border-radius:6px;background:rgba(100,160,255,.07);border:1px solid rgba(100,160,255,.15)}
+    .ladash-w-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:12px}
+    .ladash-w-stat-sub{font-size:.72rem;color:var(--text-dim,#888)}
+    .ladash-w-no-student{font-size:.8rem;color:var(--text-dim,#888);padding:8px}
+    .ladash-w-scroll{overflow-x:auto}
   `;
 
   function _injectStyleOnce() {
     if (document.getElementById(STYLE_ID)) return;
+    // Constructable StyleSheet（Chrome 73+, Firefox 101+, Safari 16.4+）
+    if (typeof CSSStyleSheet !== "undefined" && CSSStyleSheet.prototype.replaceSync) {
+      try {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(STYLE_TEXT);
+        document.adoptedStyleSheets = [...(document.adoptedStyleSheets || []), sheet];
+        // 插入哨兵節點讓 getElementById(STYLE_ID) 可偵測「已注入」
+        const sentinel = document.createElement("meta");
+        sentinel.id = STYLE_ID;
+        sentinel.setAttribute("data-csp-adopted", "1");
+        document.head.appendChild(sentinel);
+        return;
+      } catch (_) { /* fallback */ }
+    }
+    // Fallback：nonce 注入（nonce 由 HTML CSP meta / server header 提供）
     const el = document.createElement("style");
     el.id = STYLE_ID;
+    const nonce = document.querySelector("meta[name=csp-nonce]")?.content || "";
+    if (nonce) el.setAttribute("nonce", nonce);
     el.textContent = STYLE_TEXT;
     document.head.appendChild(el);
   }
@@ -109,7 +147,6 @@ const BehaviorWarningTab = (() => {
     const semester = _getIncompleteSemester(cross);
     if (!semester) return null;
     const warningResult = await _fetchFirstJson(_jsonCandidates(`warning_${semester}.json`));
-    console.info(`[BehaviorWarningTab] loaded warning JSON fallback: ${warningResult.url}`);
     return { semester, data: warningResult.data };
   }
 
@@ -163,14 +200,14 @@ const BehaviorWarningTab = (() => {
   function _renderEmpty(msg) {
     const el = document.getElementById("sub-warning") || document.getElementById("warningContent");
     if (!el) return;
-    el.innerHTML = `<p style="color:#c0392b;font-size:.85rem;padding:12px">${_safeText(msg)}</p>`;
+    el.innerHTML = `<p class="ladash-w-errmsg">${_safeText(msg)}</p>`;
   }
 
   function _toggleMainCards(show) {
     ["warningSummaryBanner", "warningFilterBar", "warningStudentList", "warningExportBtn"].forEach((id) => {
       const el = document.getElementById(id);
       const card = el?.closest(".chart-card");
-      if (card) card.style.display = show ? "" : "none";
+      if (card) card.style.setProperty("display", show ? "" : "none");
     });
   }
 
@@ -179,8 +216,8 @@ const BehaviorWarningTab = (() => {
     const wrap = document.getElementById("warningContent") || document.getElementById("sub-warning");
     if (!wrap) return;
     wrap.innerHTML = `
-      <div style="text-align:center;padding:32px 16px;color:var(--text-dim,#888);font-size:.85rem">
-        <div style="font-size:1.6rem;margin-bottom:8px">--</div>
+      <div class="ladash-w-empty">
+        <div class="ladash-w-empty-icon">--</div>
         目前找不到尚未完成期末成績的目標學期，因此不顯示預警資料。
       </div>`;
   }
@@ -203,12 +240,15 @@ const BehaviorWarningTab = (() => {
       const meta = LEVEL_META[level];
       const value = s[level] || { count: 0, historical_fail_rate_ref: null };
       return `
-        <div class="warning-stat-box" style="border-left:3px solid ${meta.color}">
-          <div class="warning-stat-label" style="color:${meta.color}">${meta.label}</div>
+        <div class="warning-stat-box" data-wlevel-color="${meta.color}">
+          <div class="warning-stat-label" data-wlevel-color="${meta.color}">${meta.label}</div>
           <div class="warning-stat-value">${Number(value.count || 0)} 人</div>
           <div class="warning-stat-sub">歷史參考不及格率 ${_pct(value.historical_fail_rate_ref)}</div>
         </div>`;
     }).join("");
+
+    // CSP-WARN-1 FIX: inject dynamic colors via DOM API after innerHTML
+    // (applied below after full innerHTML assignment)
 
     let validationHtml = "";
     if ("validation_date" in m) {
@@ -222,46 +262,57 @@ const BehaviorWarningTab = (() => {
         const errPp = err != null ? `${sign}${(err * 100).toFixed(1)}pp` : "--";
         const errColor = err != null && Math.abs(err) > 0.05 ? "#e74c3c" : "#2ecc71";
         return `<tr>
-          <td style="padding:3px 8px">${level}</td>
-          <td style="padding:3px 8px">${_pct(row.predicted_fail_rate)}</td>
-          <td style="padding:3px 8px">${_pct(row.actual_fail_rate)}</td>
-          <td style="padding:3px 8px;color:${errColor};font-weight:600">${errPp}</td>
+          <td class="ladash-val-td">${level}</td>
+          <td class="ladash-val-td">${_pct(row.predicted_fail_rate)}</td>
+          <td class="ladash-val-td">${_pct(row.actual_fail_rate)}</td>
+          <td class="ladash-val-td" data-clr="${errColor}">${errPp}</td>
         </tr>`;
       }).join("");
       validationHtml = `
-        <div style="margin-top:12px;padding:10px 12px;border-radius:6px;background:rgba(46,204,113,.06);border:1px solid rgba(46,204,113,.25)">
-          <div style="font-size:.75rem;font-weight:600;color:#2ecc71;margin-bottom:6px">
+        <div class="ladash-w-val-box">
+          <div class="ladash-w-val-hdr">
             驗證資料：${_safeText(date)}，目標學期 ${_safeText(_semester)}
           </div>
-          <table style="width:100%;font-size:.72rem;border-collapse:collapse">
-            <thead><tr style="color:var(--text-dim,#888)">
-              <th style="padding:3px 8px;text-align:left;font-weight:600">風險</th>
-              <th style="padding:3px 8px;text-align:left;font-weight:600">預測不及格率</th>
-              <th style="padding:3px 8px;text-align:left;font-weight:600">實際不及格率</th>
-              <th style="padding:3px 8px;text-align:left;font-weight:600">差距</th>
+          <table class="ladash-w-val-tbl">
+            <thead><tr class="ladash-w-th-dim">
+              <th class="ladash-w-th">風險</th>
+              <th class="ladash-w-th">預測不及格率</th>
+              <th class="ladash-w-th">實際不及格率</th>
+              <th class="ladash-w-th">差距</th>
             </tr></thead>
             <tbody>${calRows}</tbody>
           </table>
-          <div style="margin-top:6px;font-size:.72rem;color:var(--text-dim,#888)">AUC = ${auc != null ? Number(auc).toFixed(3) : "--"}</div>
+          <div class="ladash-w-val-note">AUC = ${auc != null ? Number(auc).toFixed(3) : "--"}</div>
         </div>`;
     }
 
     wrap.innerHTML = `
-      <div style="font-size:.82rem;line-height:1.7">
-        <div style="margin-bottom:10px;padding:8px 10px;border-radius:6px;background:rgba(100,160,255,.07);border:1px solid rgba(100,160,255,.2)">
+      <div class="ladash-w-summary-txt">
+        <div class="ladash-w-summary-box">
           <strong>預警目標學期：${_safeText(_semester)}</strong> |
           學生數：${_safeText(m.total_students ?? "")} |
           ${_safeText(m.data_cutoff || "")}
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:10px">
+        <div class="ladash-w-stats-grid">
           ${cards}
         </div>
-        <div style="font-size:.72rem;color:var(--text-dim,#888)">
+        <div class="ladash-w-stat-sub">
           規則：${_safeText(m.primary_rule || "")} |
           參考資料：${_safeText(m.reference_data || "")}
         </div>
         ${validationHtml}
       </div>`;
+    // CSP-WARN-1 FIX: apply dynamic colors via DOM API (not inline style)
+    wrap.querySelectorAll("[data-wlevel-color]").forEach(el => {
+      const color = el.dataset.wlevelColor;
+      if (el.classList.contains("warning-stat-box")) el.style.setProperty("border-left", `3px solid ${color}`);
+      if (el.classList.contains("warning-stat-label")) el.style.setProperty("color", color);
+    });
+    // CSP-WARN-5 FIX: errColor validation table td
+    wrap.querySelectorAll(".ladash-val-td[data-clr]").forEach(td => {
+      if (td.dataset.clr) td.style.setProperty("color", td.dataset.clr);
+      td.style.setProperty("font-weight", "600");
+    });
   }
 
   function _renderFilterBar() {
@@ -280,12 +331,18 @@ const BehaviorWarningTab = (() => {
     wrap.innerHTML = options.map((option) => {
       const active = option.key === _activeFilter;
       return `<button type="button" class="warning-filter-btn" data-level="${option.key}"
-        style="border:1px solid ${option.color};background:${active ? option.color : "transparent"};color:${active ? "#fff" : option.color}">
+        data-wf-color="${option.color}" data-wf-active="${active ? "1" : "0"}">
         ${_safeText(option.label)}
       </button>`;
     }).join("");
 
+    // CSP-WARN-2 FIX: apply dynamic colors via DOM API
     wrap.querySelectorAll(".warning-filter-btn").forEach((btn) => {
+      const color = btn.dataset.wfColor;
+      const active = btn.dataset.wfActive === "1";
+      btn.style.setProperty("border", `1px solid ${color}`);
+      btn.style.setProperty("background", active ? color : "transparent");
+      btn.style.setProperty("color", active ? "#fff" : color);
       btn.addEventListener("click", () => {
         _activeFilter = btn.dataset.level;
         _renderFilterBar();
@@ -304,7 +361,7 @@ const BehaviorWarningTab = (() => {
     }
 
     if (students.length === 0) {
-      wrap.innerHTML = `<p style="font-size:.8rem;color:var(--text-dim,#888);padding:8px">此篩選條件沒有預警學生。</p>`;
+      wrap.innerHTML = `<p class="ladash-w-no-student">此篩選條件沒有預警學生。</p>`;
       return;
     }
 
@@ -323,38 +380,51 @@ const BehaviorWarningTab = (() => {
         : "";
 
       return `
-        <tr style="border-left:3px solid ${meta.color}">
+        <tr data-wrow-color="${meta.color}">
           <td>${_safeText(student.masked_id)}</td>
-          <td><span class="warning-level-pill" style="background:${meta.bg};color:${meta.color}">${meta.label}</span></td>
+          <td><span class="warning-level-pill" data-wpill-bg="${meta.bg}" data-wpill-color="${meta.color}">${meta.label}</span></td>
           <td>${_safeText(student.r_cluster)}</td>
           <td>${_safeText(student.s_cluster)}</td>
           <td>${_safeText(APPROACH_NAMES[student.learning_approach] || student.learning_approach || "--")}</td>
-          <td>${student.midterm_score != null ? Number(student.midterm_score).toFixed(1) : "--"}${student.midterm_status === "FAIL" ? ' <span style="color:#e74c3c">(不及格)</span>' : ""}</td>
+          <td>${student.midterm_score != null ? Number(student.midterm_score).toFixed(1) : "--"}${student.midterm_status === "FAIL" ? ' <span class="ladash-fail-text">(不及格)</span>' : ""}</td>
           <td>${student.qmi != null ? Number(student.qmi).toFixed(3) : "--"}</td>
           <td>${student.bas_score != null ? Number(student.bas_score).toFixed(2) : "--"}</td>
+          <td>${student.xgb_probability != null ? _pct(student.xgb_probability) : "-"}</td>
+          <td>${student.risk_level_xgb != null ? _safeText(student.risk_level_xgb) : "-"}</td>
           <td>${rules}</td>
           ${finalScoreCell}${outcomeCell}
         </tr>`;
     }).join("");
 
     wrap.innerHTML = `
-      <div style="overflow-x:auto">
+      <div class="ladash-w-scroll">
         <table class="warning-table">
           <thead>
             <tr>
               <th>學生</th><th>風險</th><th>R 群</th><th>S 群</th>
-              <th>學習取向</th><th>期中</th><th>QMI</th><th>BAS</th><th>觸發規則</th>
+              <th>學習取向</th><th>期中</th><th>QMI</th><th>BAS</th>
+              <th>XGB機率</th><th>XGB風險</th><th>觸發規則</th>
               ${hasValidation ? "<th>期末</th><th>結果</th>" : ""}
             </tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;
+    // CSP-WARN-3 FIX: apply row border-left and pill colors via DOM API
+    wrap.querySelectorAll("tr[data-wrow-color]").forEach(tr => {
+      if (tr.dataset.wrowColor) tr.style.setProperty("border-left", `3px solid ${tr.dataset.wrowColor}`);
+    });
+    wrap.querySelectorAll(".warning-level-pill[data-wpill-bg]").forEach(pill => {
+      if (pill.dataset.wpillBg) pill.style.setProperty("background", pill.dataset.wpillBg);
+      if (pill.dataset.wpillColor) pill.style.setProperty("color", pill.dataset.wpillColor);
+    });
+    // CSP-WARN-4 FIX: ladash-fail-text class color (injected via adoptedStyleSheets)
+    _injectStyleOnce();
   }
 
   function _renderOutcome(outcome) {
-    if (outcome === "FAIL") return '<span style="color:#e74c3c;font-weight:600">不及格</span>';
-    if (outcome === "PASS") return '<span style="color:#2ecc71">及格</span>';
+    if (outcome === "FAIL") return '<span class="ladash-outcome-fail">不及格</span>';
+    if (outcome === "PASS") return '<span class="ladash-outcome-pass">及格</span>';
     return "--";
   }
 
@@ -363,8 +433,7 @@ const BehaviorWarningTab = (() => {
     if (!wrap) return;
 
     wrap.innerHTML = `
-      <button type="button" id="warningCsvBtn"
-        style="padding:6px 14px;border-radius:6px;border:1px solid var(--accent,#3498db);background:transparent;color:var(--accent,#3498db);cursor:pointer;font-size:.8rem">
+      <button type="button" id="warningCsvBtn" class="ladash-export-btn">
         匯出目前篩選 CSV
       </button>`;
 
@@ -386,7 +455,7 @@ const BehaviorWarningTab = (() => {
     const headers = [
       "masked_id", "risk_level", "r_cluster", "s_cluster",
       "learning_approach", "midterm_score", "midterm_status",
-      "qmi", "bas_score", "triggered_rules",
+      "qmi", "bas_score", "xgb_probability", "risk_level_xgb", "triggered_rules",
       ...(hasValidation ? ["actual_final_score", "actual_outcome"] : []),
     ];
 
@@ -402,6 +471,8 @@ const BehaviorWarningTab = (() => {
         student.midterm_status ?? "",
         student.qmi ?? "",
         student.bas_score ?? "",
+        student.xgb_probability ?? "",
+        student.risk_level_xgb ?? "",
         (student.triggered_rules || []).join("; "),
         ...(hasValidation ? [
           student.actual_final_score ?? "",
