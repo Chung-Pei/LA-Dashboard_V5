@@ -151,13 +151,24 @@ const BehaviorWarningTab = (() => {
     return [...list].map(String).sort().at(-1);
   }
 
-  async function _loadFromFlatFiles() {
-    const crossResult = await _fetchFirstJson(_jsonCandidates("cross_analysis.json"));
-    const cross = crossResult.data;
-    const semester = _getIncompleteSemester(cross);
-    if (!semester) return null;
+  /**
+   * 從 cross_analysis.json 的 by_semester 鍵值中取出最新學期作為 fallback。
+   * 適用於所有學期都已完成（incomplete_semesters_excluded 為空）的情境。
+   */
+  function _getLatestSemesterFromCross(cross) {
+    const bySem = cross?.by_semester;
+    if (!bySem || typeof bySem !== "object") return null;
+    const sems = Object.keys(bySem).filter(k => /^\d{4}$/.test(k));
+    if (sems.length === 0) return null;
+    return sems.sort().at(-1);
+  }
 
-    // 防線3（flat-file path）：優先嘗試 validated 版本，對齊 BehaviorLoader 邏輯
+  /**
+   * 嘗試載入指定學期的 warning JSON（優先 validated 版本）。
+   * 成功時回傳 { semester, data }，失敗時回傳 null。
+   */
+  async function _tryLoadWarningSemester(semester) {
+    // 優先嘗試 validated 版本
     try {
       const validatedResult = await _fetchFirstJson(_jsonCandidates(`warning_${semester}_validated.json`));
       if (validatedResult?.data) {
@@ -177,8 +188,50 @@ const BehaviorWarningTab = (() => {
       // validated 版本不存在，繼續 fallback
     }
 
-    const warningResult = await _fetchFirstJson(_jsonCandidates(`warning_${semester}.json`));
-    return { semester, data: warningResult.data };
+    // fallback: 未驗證版本
+    try {
+      const warningResult = await _fetchFirstJson(_jsonCandidates(`warning_${semester}.json`));
+      if (warningResult?.data) {
+        return { semester, data: warningResult.data };
+      }
+    } catch (_) {
+      // 該學期的 warning 檔案不存在
+    }
+    return null;
+  }
+
+  async function _loadFromFlatFiles() {
+    const crossResult = await _fetchFirstJson(_jsonCandidates("cross_analysis.json"));
+    const cross = crossResult.data;
+
+    // 策略 1：從 incomplete_semesters 取得目標學期
+    let semester = _getIncompleteSemester(cross);
+
+    // 策略 2：所有學期皆已完成時，從 by_semester 取最新學期
+    if (!semester) {
+      semester = _getLatestSemesterFromCross(cross);
+      if (semester) {
+        console.info(`[BehaviorWarningTab] incomplete_semesters 為空，改用 by_semester 最新學期: ${semester}`);
+      }
+    }
+
+    if (semester) {
+      const result = await _tryLoadWarningSemester(semester);
+      if (result) return result;
+    }
+
+    // 策略 3：上述都失敗，嘗試從 by_semester 的所有學期（由新到舊）逐一探測
+    const bySem = cross?.by_semester;
+    if (bySem && typeof bySem === "object") {
+      const allSems = Object.keys(bySem).filter(k => /^\d{4}$/.test(k)).sort().reverse();
+      for (const sem of allSems) {
+        if (sem === semester) continue; // 已嘗試過
+        const result = await _tryLoadWarningSemester(sem);
+        if (result) return result;
+      }
+    }
+
+    return null;
   }
 
   async function _loadWarningData() {
