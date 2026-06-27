@@ -966,6 +966,30 @@ function classInfo(sheetName, semester = '') {
   };
 }
 
+function getBaseProgram(sheetName) {
+  const raw = cleanSheetName(sheetName) || '';
+  const code = classCodeText(raw);
+
+  if (/學後護|學士後|學後/.test(raw)) return 'post';
+
+  let m = code.match(/(?:護|N|日)?2([1-9])([A-E])/i);
+  if (m) return '2yr_gen';
+
+  m = code.match(/(?:護|日|N)?2([1-9])([甲乙丙丁戊己])/);
+  if (m) {
+    const isNight = CLASS_NIGHT_ORDER.includes(m[2]);
+    return isNight ? '2yr_night' : '2yr_work';
+  }
+
+  m = code.match(/(?:護|N)?4([1-9])([A-D])/i);
+  if (m) return '4yr';
+
+  if (/(?:護|日|N)?2[1-9]/.test(code) || /二[一-九]/.test(raw)) return '2yr_gen';
+  if (/(?:護|日|N)?4[1-9]/.test(code) || /四[一-九]/.test(raw)) return '4yr';
+
+  return 'unknown';
+}
+
 function normalizeSheet(s) {
   return classInfo(s).canonical;
 }
@@ -1224,7 +1248,13 @@ function getClassSummary(sem, sheet, type = 'all', includeRetaker = true, progra
     if (!includeRetaker) {
       if (prog === 'retake_class' || prog === 'retake_student') return false;
     }
-    if (program !== 'all' && prog !== program) return false;
+    if (program !== 'all' && prog !== program) {
+      if (includeRetaker && (prog === 'retake_class' || prog === 'retake_student')) {
+        if (getBaseProgram(c.sheet_name) !== program) return false;
+      } else {
+        return false;
+      }
+    }
     return true;
   });
   if (!rows.length) return null;
@@ -3781,7 +3811,13 @@ function renderD() {
 
   const filtered = filterProg === 'all'
     ? allClasses
-    : allClasses.filter(c => c.program === filterProg);
+    : allClasses.filter(c => {
+        if (c.program === filterProg) return true;
+        if (getIncludeRetaker('D') && (c.program === 'retake_class' || c.program === 'retake_student')) {
+          return getBaseProgram(c.sheet_name) === filterProg;
+        }
+        return false;
+      });
 
   let _wScore = 0, _wScoreW = 0;
   let _wPass  = 0, _wPassW  = 0;
