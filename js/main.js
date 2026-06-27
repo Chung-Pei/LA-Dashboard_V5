@@ -836,7 +836,17 @@ function attachInfoButtons() {
 
   if (!window.__chartInfoGlobalClickBound) {
     window.__chartInfoGlobalClickBound = true;
-    document.addEventListener('click', () => {
+    document.addEventListener('click', (e) => {
+      // 若點擊來自 data-action 的 toggle 按鈕或來自 popover 內部，不做全域關閉
+      // 避免與 initDataActionDelegation 的 toggle 邏輯衝突（兩者都在 document 層級）
+      const actionEl = e.target.closest('[data-action]');
+      if (actionEl) {
+        const act = actionEl.dataset.action;
+        if (act === 'toggleRRadarInfo' || act === 'toggleBStatsHelp' ||
+            act === 'toggleWarningHelp' || act === 'closePopover' ||
+            act === 'closePanelOpen') return;
+      }
+      if (e.target.closest('.chart-popover')) return;
       document.querySelectorAll('.chart-popover.open').forEach(p => p.classList.remove('open'));
     });
   }
