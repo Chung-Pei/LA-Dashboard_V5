@@ -19,6 +19,11 @@ const AtRiskReportManager = (() => {
   let _warningData = null;
   let _warningSemester = null;
 
+  // ── 第5類：XGBoost feature importance（cross_analysis.json）──
+  // 重用既有 BehaviorLoader.load.crossAnalysis()（tab-behavior-cross.js
+  // 已在用，有LRU快取），不新增 loader，避免修改 behavior-loader.js。
+  let _featureImportance = [];
+
   // ── 內部工具 ────────────────────────────────────────────
   function _toFiniteNumber(value, fallback = 0) {
     const n = Number(value);
@@ -26,10 +31,6 @@ const AtRiskReportManager = (() => {
   }
 
   function _normalizeCohortSummary(cs) {
-    // BUG-ATRISK-5 FIX: 預設參數（cs = {}）只在引數為 undefined 時生效；
-    // 若 ETL JSON 明確給 null（常見於選填欄位缺漏的序列化結果），
-    // 預設參數不會套用，後方 cs.pass_count 等存取會直接拋出 TypeError。
-    // 改於函式內主動以 `|| {}` 防呆，同時涵蓋 undefined 與 null 兩種情況。
     cs = cs || {};
     const passCount      = Math.max(0, Math.round(_toFiniteNumber(cs.pass_count)));
     const failCount      = Math.max(0, Math.round(_toFiniteNumber(cs.fail_count)));
@@ -66,20 +67,39 @@ const AtRiskReportManager = (() => {
       { label: '及格人數',   value: safe.pass_count,       unit: '人', color: '#27ae60',        filter: safe.pass_count > 0 ? 'pass' : null },
       { label: '不及格率',   value: safe.fail_rate_pct,    unit: '%',  color: '#e67e22',        filter: null, empty: safe.fail_rate_pct == null },
     ];
-    el.innerHTML = cards.map(c => {
-      const clickable = c.filter !== null;
-      const clickAttr = clickable
-        ? `data-filter="${c.filter}" data-action="atRiskFilterRadarCard" title="點擊聚焦雷達圖" style="flex:1;min-width:120px;background:var(--card-bg,#fff);border:1px solid var(--border,#e0e0e0);border-radius:10px;padding:14px 16px;text-align:center;cursor:pointer;transition:box-shadow .15s,opacity .15s"`
-        : `style="flex:1;min-width:120px;background:var(--card-bg,#fff);border:1px solid var(--border,#e0e0e0);border-radius:10px;padding:14px 16px;text-align:center"`;
+    el.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    cards.forEach(c => {
+      const card = document.createElement('div');
+      card.className = 'r-cohort-card' + (c.filter !== null ? ' r-cohort-card--clickable' : '');
+      card.style.setProperty('--card-accent', c.color);
+      if (c.filter !== null) {
+        card.dataset.filter = c.filter;
+        card.dataset.action  = 'atRiskFilterRadarCard';
+        card.title           = '點擊聚焦雷達圖';
+      }
       const displayValue = c.empty
         ? '–'
         : (typeof c.value === 'number' ? c.value.toLocaleString() : c.value);
       const displayUnit = c.empty ? '' : ` ${c.unit}`;
-      return `<div ${clickAttr}>
-        <div style="font-size:22px;font-weight:700;color:${c.color}">${displayValue}<span style="font-size:13px;font-weight:400">${displayUnit}</span></div>
-        <div style="font-size:11px;color:var(--text-dim,#888);margin-top:4px">${c.label}</div>
-      </div>`;
-    }).join('');
+
+      const valDiv = document.createElement('div');
+      valDiv.className = 'r-cohort-value';
+      valDiv.textContent = displayValue;
+      const unitSpan = document.createElement('span');
+      unitSpan.className = 'r-cohort-unit';
+      unitSpan.textContent = displayUnit;
+      valDiv.appendChild(unitSpan);
+
+      const labelDiv = document.createElement('div');
+      labelDiv.className = 'r-cohort-label';
+      labelDiv.textContent = c.label;
+
+      card.appendChild(valDiv);
+      card.appendChild(labelDiv);
+      frag.appendChild(card);
+    });
+    el.appendChild(frag);
   }
 
   // ── §5.2-b 雷達圖卡片聚焦 ───────────────────────────────
@@ -109,19 +129,19 @@ const AtRiskReportManager = (() => {
       chart.update('none');
     }
 
-    if (clearBtn) clearBtn.style.display = mode !== null ? '' : 'none';
+    if (clearBtn) clearBtn.style.setProperty('display', mode !== null ? '' : 'none');
 
     document.querySelectorAll('#rCohortSummary [data-filter]').forEach(el => {
       const f = el.dataset.filter;
       if (mode === null) {
-        el.style.opacity    = '1';
-        el.style.boxShadow  = '';
+        el.style.setProperty('opacity', '1');                        // CSP-V7-FIX
+        el.style.setProperty('box-shadow', '');
       } else if (f === mode) {
-        el.style.opacity    = '1';
-        el.style.boxShadow  = `0 0 0 2px ${f === 'pass' ? '#27ae60' : '#e74c3c'}`;
+        el.style.setProperty('opacity', '1');                        // CSP-V7-FIX
+        el.style.setProperty('box-shadow', `0 0 0 2px ${f === 'pass' ? '#27ae60' : '#e74c3c'}`);
       } else {
-        el.style.opacity    = '0.45';
-        el.style.boxShadow  = '';
+        el.style.setProperty('opacity', '0.45');                     // CSP-V7-FIX
+        el.style.setProperty('box-shadow', '');
       }
     });
   }
@@ -132,34 +152,30 @@ const AtRiskReportManager = (() => {
     const btns    = document.getElementById('rSemesterBtns');
     if (!wrapper || !btns || !semesters?.length) return;
 
-    const allBtn = `
-      <button data-sem="__all__" data-action="atRiskSwitchSemester"
-              style="font-size:12px;padding:4px 14px;border-radius:20px;
-                     border:1px solid var(--border,#ccc);background:var(--card-bg,#fff);
-                     color:var(--text,#333);cursor:pointer;transition:background .15s,color .15s">
-        全部
-      </button>`;
+    const _makeSemBtn = (sem, label) => {
+      const btn = document.createElement('button');
+      btn.className   = 'r-sem-btn';
+      btn.dataset.sem    = sem;
+      btn.dataset.action = 'atRiskSwitchSemester';
+      btn.textContent    = label;
+      return btn;
+    };
+    btns.innerHTML = '';
+    btns.appendChild(_makeSemBtn('__all__', '全部'));
+    semesters.forEach(sem => btns.appendChild(_makeSemBtn(sem, sem)));
 
-    btns.innerHTML = allBtn + semesters.map(sem => `
-      <button data-sem="${sem}" data-action="atRiskSwitchSemester"
-              style="font-size:12px;padding:4px 14px;border-radius:20px;
-                     border:1px solid var(--border,#ccc);background:var(--card-bg,#fff);
-                     color:var(--text,#333);cursor:pointer;transition:background .15s,color .15s">
-        ${sem}
-      </button>`).join('');
-
-    wrapper.style.display = 'flex';
+    wrapper.style.setProperty('display', 'flex');
     _highlightSemBtn(defaultSem);
   }
 
   function _highlightSemBtn(sem) {
     document.querySelectorAll('#rSemesterBtns [data-sem]').forEach(btn => {
       const active = btn.dataset.sem === sem;
-      btn.style.background  = active ? 'var(--accent,#4a90d9)' : 'var(--card-bg,#fff)';
-      btn.style.color       = active ? '#fff' : 'var(--text,#333)';
-      btn.style.borderColor = active ? 'var(--accent,#4a90d9)' : 'var(--border,#ccc)';
-      btn.style.fontWeight  = active ? '600' : '400';
-    });
+      btn.style.setProperty('background',   active ? 'var(--accent,#4a90d9)' : 'var(--card-bg,#fff)');
+      btn.style.setProperty('color',        active ? '#fff' : 'var(--text,#333)');
+      btn.style.setProperty('border-color', active ? 'var(--accent,#4a90d9)' : 'var(--border,#ccc)');
+      btn.style.setProperty('font-weight',  active ? '600' : '400');
+      });
   }
 
   // ── 學期切換 ────────────────────────────────────────────
@@ -180,24 +196,21 @@ const AtRiskReportManager = (() => {
       semData         = _currentSemData;
     }
 
-    // BUG-ATRISK-6 FIX: 原本 5 個渲染呼叫無 try-catch 保護，任一函式拋錯
-    // （例如資料異常）會讓後續區塊與下方的 clearBtn／卡片高亮重置全部跳過，
-    // 使 UI 卡在「半切換」的不一致狀態。改為攔截後記錄錯誤並繼續完成清理動作，
-    // 與 lazyInit() 的容錯哲學一致（不讓單一區塊失敗拖垮整個流程）。
     try {
       renderCohortSummary(semData.cohort_summary);
       renderRadarChart(semData.metrics_comparison);
       renderTemporalChart(semData.temporal_decay);
       renderRedFlags(semData.behavioral_markers, semData.temporal_decay);
       renderPrescriptions(semData.prescriptive_summary);
+      renderTopRiskFactors(_featureImportance);
     } catch (e) {
       console.error('[AtRiskReportManager] 學期切換渲染失敗：', sem, e);
     }
 
     const clearBtn = document.getElementById('rRadarClearBtn');
-    if (clearBtn) clearBtn.style.display = 'none';
+    if (clearBtn) clearBtn.style.setProperty('display', 'none');
     document.querySelectorAll('#rCohortSummary [data-filter]').forEach(el => {
-      el.style.opacity = '1'; el.style.boxShadow = '';
+      el.style.setProperty('opacity', '1'); el.style.setProperty('box-shadow', ''); // CSP-V13-FIX
     });
   }
 
@@ -211,8 +224,6 @@ const AtRiskReportManager = (() => {
     'pre_exam_intensity', 'learning_stability', 'audio_material_hours',
   ];
 
-  // BUG-ATRISK-2 FIX: 抽出主題色解析共用邏輯（原雷達圖內隱式邏輯）。
-  // Chart.js 將此處色碼直接指派給 Canvas 2D context 的 fillStyle/strokeStyle，
   // 而瀏覽器原生 Canvas API 並不會解析 CSS var()（var() 僅在 CSS cascade 中生效），
   // 因此「色碼必須先用 getComputedStyle 解析成實際色值字串」才能正確套用主題色。
   function _resolveThemeColors() {
@@ -231,9 +242,6 @@ const AtRiskReportManager = (() => {
     const existing = Chart.getChart(canvas);
     if (existing) existing.destroy();
 
-    // BUG-ATRISK-4 FIX: metrics_comparison 區塊若因 ETL 異常或資料不完整而缺失
-    // （null/undefined），原本 mc[k] 會直接拋出 TypeError 中斷整個雷達圖渲染。
-    // 缺失時退回空物件，六維度全部以 0 顯示，不中斷後續渲染流程。
     mc = mc || {};
 
     const passVals = RADAR_KEYS.map(k => mc[k]?.pass_median_normalized ?? 0);
@@ -300,8 +308,8 @@ const AtRiskReportManager = (() => {
   function renderTemporalChart(td) {
     const section = document.getElementById('rTemporalSection');
     if (!section) return;
-    if (!td?.available) { section.style.display = 'none'; return; }
-    section.style.display = '';
+    if (!td?.available) { section.style.setProperty('display', 'none'); return; }
+    section.style.setProperty('display', '');
 
     const canvas = document.getElementById('rTemporalChart');
     if (!canvas) return;
@@ -391,7 +399,7 @@ const AtRiskReportManager = (() => {
       canvas.parentNode.querySelectorAll('.__midterm-note').forEach(n => n.remove());
       const note = document.createElement('div');
       note.className = '__midterm-note';
-      note.style.cssText = 'font-size:11px;color:var(--text-dim,#888);text-align:right;margin-top:4px';
+      note.className = '__midterm-note ladash-midterm-note-style';
       note.textContent = `▲ 紅色虛線標注不可用。期中考：Week ${td.midterm_week_num}`;
       canvas.parentNode.appendChild(note);
     }
@@ -523,57 +531,158 @@ const AtRiskReportManager = (() => {
     const warningFlag = _buildWarningFlag();
     if (warningFlag) flags.push(warningFlag);
 
+    el.innerHTML = '';
     if (!flags.length) {
-      el.innerHTML = '<div style="color:var(--text-dim,#888);font-size:13px;padding:8px 0">✅ 本學期無重大紅旗警示。</div>';
+      const notice = document.createElement('div');
+      notice.className = 'r-empty-notice';
+      notice.textContent = '✅ 本學期無重大紅旗警示。';
+      el.appendChild(notice);
       return;
     }
+    const flagHeading = document.createElement('h3');
+    flagHeading.className = 'r-section-heading';
+    flagHeading.textContent = '🚩 紅旗警示';
+    el.appendChild(flagHeading);
 
-    // BUG-ATRISK-1 FIX: f.color / f.icon 均為程式內部常數（非用戶輸入），
-    // 不需 escapeHtml；escapeHtml(emoji) 在部分實作會產生 &#Nnnnn; 使 icon 無法顯示。
-    // f.title / f.body 來自程式內部字串（含格式碼），同樣無 XSS 風險。
-    el.innerHTML = `<h3 style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">🚩 紅旗警示</h3>` +
-      flags.map(f => `
-        <div style="display:flex;gap:10px;align-items:flex-start;background:var(--card-bg,#fff);
-                    border-left:4px solid ${f.color};border-radius:6px;
-                    padding:12px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08)">
-          <span style="font-size:20px;line-height:1.4;flex-shrink:0">${f.icon}</span>
-          <div style="min-width:0;flex:1">
-            <div style="font-size:13px;font-weight:700;color:${f.color};margin-bottom:6px">${f.title}</div>
-            <div style="font-size:12px;color:var(--text-mid,#555);line-height:1.75;${f.multiline ? 'white-space:pre-line' : ''}">${f.body}</div>
-          </div>
-        </div>`).join('');
+    flags.forEach(f => {
+      const card = document.createElement('div');
+      card.className = 'r-flag-card';
+      card.style.setProperty('--flag-color', f.color);
+
+      const icon = document.createElement('span');
+      icon.className   = 'r-flag-icon';
+      icon.textContent = f.icon;
+
+      const content = document.createElement('div');
+      content.className = 'r-flag-content';
+
+      const title = document.createElement('div');
+      title.className   = 'r-flag-title';
+      title.textContent = f.title;
+
+      const body = document.createElement('div');
+      body.className   = 'r-flag-body' + (f.multiline ? ' r-flag-body--multiline' : '');
+      body.textContent = f.body;
+
+      content.appendChild(title);
+      content.appendChild(body);
+      card.appendChild(icon);
+      card.appendChild(content);
+      el.appendChild(card);
+    });
   }
 
   // ── §5.6 處方性建議 ──────────────────────────────────────
   function renderPrescriptions(ps) {
     const el = document.getElementById('rPrescriptions');
     if (!el) return;
-    if (!ps?.length) {
-      el.innerHTML = '<div style="color:var(--text-dim,#888);font-size:13px;padding:8px 0">✅ 本學期無改善建議項目。</div>';
-      return;
-    }
     const severityLabel = { critical: '高優先', warning: '中優先', info: '建議' };
     const severityColor = { critical: '#e74c3c', warning: '#e67e22', info: '#3498db' };
     const FALLBACK_COLOR = '#6c757d';
-    el.innerHTML = `<h3 style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">💡 改善建議</h3>` +
-      ps.map((item, i) => {
-        const sev       = String(item.severity ?? '');
-        const sevColor  = severityColor[sev] ?? FALLBACK_COLOR;
-        // BUG-PRESC-1 FIX: sev 來自 ETL 產出的 JSON（非用戶輸入），
-        // 不需 escapeHtml；未知 severity 直接顯示原始值供除錯。
-        const sevLabel  = severityLabel[sev] || sev || '未知';
-        return `
-        <div style="background:var(--card-bg,#fff);border:1px solid var(--border,#e0e0e0);
-                    border-radius:8px;padding:12px 14px;margin-bottom:10px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            <span style="background:${sevColor};color:#fff;border-radius:4px;
-                         padding:2px 8px;font-size:11px;font-weight:600">${sevLabel}</span>
-            <span style="font-size:12px;color:var(--text-dim,#888)">#${i+1}</span>
-          </div>
-          <div style="font-size:13px;color:var(--text);margin-bottom:4px">📌 ${escapeHtml(item.finding ?? '')}</div>
-          <div style="font-size:12px;color:var(--text-dim,#888)">→ ${escapeHtml(item.action ?? '')}</div>
-        </div>`;
-      }).join('');
+    el.innerHTML = '';
+    if (!ps?.length) {
+      const notice = document.createElement('div');
+      notice.className = 'r-empty-notice';
+      notice.textContent = '✅ 本學期無改善建議項目。';
+      el.appendChild(notice);
+      return;
+    }
+
+    const prescHeading = document.createElement('h3');
+    prescHeading.className = 'r-section-heading';
+    prescHeading.textContent = '💡 改善建議';
+    el.appendChild(prescHeading);
+
+    ps.forEach((item, i) => {
+      const sev      = String(item.severity ?? '');
+      const sevColor = severityColor[sev] ?? FALLBACK_COLOR;
+      const sevLabel = severityLabel[sev] || sev || '未知';
+
+      const card = document.createElement('div');
+      card.className = 'r-presc-card';
+
+      const header = document.createElement('div');
+      header.className = 'r-presc-header';
+
+      const badge = document.createElement('span');
+      badge.className = 'r-presc-badge';
+      badge.style.setProperty('--sev-color', sevColor);
+      badge.textContent = sevLabel;
+
+      const idx = document.createElement('span');
+      idx.className   = 'r-presc-index';
+      idx.textContent = `#${i + 1}`;
+
+      header.appendChild(badge);
+      header.appendChild(idx);
+
+      const finding = document.createElement('div');
+      finding.className   = 'r-presc-finding';
+      finding.textContent = `📌 ${item.finding ?? ''}`;
+
+      const action = document.createElement('div');
+      action.className   = 'r-presc-action';
+      action.textContent = `→ ${item.action ?? ''}`;
+
+      card.appendChild(header);
+      card.appendChild(finding);
+      card.appendChild(action);
+      el.appendChild(card);
+    });
+  }
+
+  // ── §5.7 Top Risk Factors：XGBoost feature importance ──────
+  // 資料來源 cross_analysis.json 的 feature_importance（與 tab-behavior-cross.js
+  // 同一份資料，經 BehaviorLoader 快取，非獨立 xgb_feature_importance.json）。
+  // 規格書第10.3節：檔案/資料不存在時 fallback 空陣列，不報錯。
+  function renderTopRiskFactors(fi) {
+    const el = document.getElementById('rTopRiskFactors');
+    if (!el) return;
+    el.innerHTML = '';
+
+    if (!fi?.length) {
+      const notice = document.createElement('div');
+      notice.className = 'r-empty-notice';
+      notice.textContent = '尚無 XGBoost 預測特徵重要性資料（需 ETL 啟用 --enable-xgb 且訓練樣本充足）。';
+      el.appendChild(notice);
+      return;
+    }
+
+    const heading = document.createElement('h3');
+    heading.className = 'r-section-heading';
+    heading.textContent = '📊 Top Risk Factors（XGBoost 特徵重要性）';
+    el.appendChild(heading);
+
+    const top = fi.slice(0, 8);
+    const maxImp = Math.max(0, ...top.map((f) => f.importance || 0));
+
+    top.forEach((f) => {
+      const pct = maxImp > 0 ? Math.round(((f.importance || 0) / maxImp) * 100) : 0;
+
+      const row = document.createElement('div');
+      row.className = 'r-feat-row';
+
+      const name = document.createElement('div');
+      name.className = 'r-feat-name';
+      name.textContent = f.feature ?? '';
+      name.title = f.feature ?? '';
+
+      const barWrap = document.createElement('div');
+      barWrap.className = 'r-feat-bar';
+      const barFill = document.createElement('div');
+      barFill.className = 'r-feat-bar-fill';
+      barFill.style.setProperty('--bar-width', `${pct}%`);
+      barWrap.appendChild(barFill);
+
+      const val = document.createElement('div');
+      val.className = 'r-feat-val';
+      val.textContent = Number(f.importance ?? 0).toFixed(4);
+
+      row.appendChild(name);
+      row.appendChild(barWrap);
+      row.appendChild(val);
+      el.appendChild(row);
+    });
   }
 
   // ── §6.2 PDF 匯出 ────────────────────────────────────────
@@ -585,6 +694,8 @@ const AtRiskReportManager = (() => {
     document.getElementById('__rPrintStyle')?.remove();
     const style = document.createElement('style');
     style.id = '__rPrintStyle';
+    const _nonce = document.querySelector('meta[name=csp-nonce]')?.content || '';
+    if (_nonce) style.setAttribute('nonce', _nonce);
     style.textContent = `
       @media print {
         body > *:not(#panelR) { display: none !important; }
@@ -599,38 +710,234 @@ const AtRiskReportManager = (() => {
     setTimeout(() => document.getElementById('__rPrintStyle')?.remove(), 1000);
   };
 
-  // @public — HTML onclick 呼叫點（同上）
+  // @public — main.js actionMap 呼叫（data-action="toggleRRadarInfo"）
+  // MOBILE-FIX: 改為 position:fixed 定位（對稱 warningHelpPanel），
+  // 避免 position:absolute 在手機上被父元素寬度限制或 overflow 截斷。
   window.toggleRRadarInfo = function(e) {
-    e.stopPropagation();
-    document.getElementById('rRadarInfoPanel')?.classList.toggle('open');
+    // main.js STOP_PROPAGATION_ACTIONS 已 stopPropagation，此處不需重複
+    const panel = document.getElementById('rRadarInfoPanel');
+    const btn   = document.getElementById('rRadarInfoBtn');
+    if (!panel || !btn) return;
+    const isOpen = panel.classList.contains('open');
+    panel.classList.toggle('open', !isOpen);
+    if (!isOpen) {
+      // 切換為 position:fixed 並計算座標（同 ui-toggles.js positionFixed 邏輯）
+      const rect = btn.getBoundingClientRect();
+      const vpW  = window.innerWidth;
+      const vpH  = window.innerHeight;
+      const maxW = parseInt(panel.dataset.maxw || '360', 10);
+      const popW = panel.offsetWidth || Math.min(vpW * 0.92, maxW);
+      const popH = panel.offsetHeight || 360;
+      let left = rect.left;
+      if (left + popW > vpW - 8) left = vpW - popW - 8;
+      if (left < 8) left = 8;
+      let top = rect.bottom + 6;
+      if (top + popH > vpH - 8) {
+        top = rect.top - popH - 6;
+        if (top < 8) top = 8;
+      }
+      panel.style.setProperty('position', 'fixed');
+      panel.style.setProperty('top',  top  + 'px');
+      panel.style.setProperty('left', left + 'px');
+      panel.style.setProperty('width', Math.min(vpW * 0.92, maxW) + 'px');
+    }
   };
 
-  // @public — HTML onclick 呼叫點（同上）
+  // @public — at-risk-report.js 暴露，main.js actionMap 呼叫
   window.toggleBStatsHelp = function(e) {
-    e.stopPropagation();
+    // main.js STOP_PROPAGATION_ACTIONS 已 stopPropagation
     const panel = document.getElementById('bStatsHelpPanel');
     if (!panel) return;
-    panel.style.display = panel.style.display === 'none' ? '' : 'none';
+    panel.style.setProperty('display', panel.style.getPropertyValue('display') === 'none' ? '' : 'none');
   };
 
   document.addEventListener('click', function(e) {
-    // bStats 說明面板：點外部關閉
-    const bPanel = document.getElementById('bStatsHelpPanel');
-    const bBtn   = document.getElementById('bStatsHelpBtn');
-    if (bPanel && bPanel.style.display !== 'none' &&
-        !bPanel.contains(e.target) && e.target !== bBtn) {
-      bPanel.style.display = 'none';
-    }
-    // 雷達圖說明 popover：點外部關閉
+    // bStatsHelpPanel 外部關閉：由 ui-toggles.js 的 MutationObserver 模式管理，
+    // 此處僅保留 rRadarInfoPanel 的外部關閉（chart-popover position:fixed 模式）
     const rPanel = document.getElementById('rRadarInfoPanel');
     const rBtn   = document.getElementById('rRadarInfoBtn');
     if (rPanel && rPanel.classList.contains('open') &&
-        !rPanel.contains(e.target) && e.target !== rBtn) {
+        !rPanel.contains(e.target) && !rBtn?.contains(e.target)) {
       rPanel.classList.remove('open');
     }
   });
 
   // ── 主要初始化（lazyInit 模式） ──────────────────────────
+  // ── §0 模組樣式注入（CSP 合規：adoptedStyleSheets，無 <style> 標籤） ──
+  // adoptedStyleSheets 屬於 JS DOM API（script-src 管轄），
+  // 完全不觸發 style-src 'unsafe-inline' 限制。
+  // 使用 document.getElementById('__atRiskStyles') 作為注入守衛，
+  // 避免多次呼叫 lazyInit 時重複掛載（例如 tab 切換回來觸發 resize 路徑之外的重入）。
+  function _injectModuleStyles() {
+    if (document.getElementById('__atRiskStyles')) return;
+    const guard = document.createElement('meta');
+    guard.id = '__atRiskStyles';
+    document.head.appendChild(guard);
+
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(`
+      /* ── §5.2 班級概況卡片 ─────────────────────────────── */
+      .r-cohort-card {
+        flex: 1;
+        min-width: 120px;
+        background: var(--card-bg, #fff);
+        border: 1px solid var(--border, #e0e0e0);
+        border-radius: 10px;
+        padding: 14px 16px;
+        text-align: center;
+      }
+      .r-cohort-card--clickable {
+        cursor: pointer;
+        transition: box-shadow .15s, opacity .15s;
+      }
+      .r-cohort-value {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--card-accent);
+      }
+      .r-cohort-unit {
+        font-size: 13px;
+        font-weight: 400;
+      }
+      .r-cohort-label {
+        font-size: 11px;
+        color: var(--text-dim, #888);
+        margin-top: 4px;
+      }
+
+      /* ── §5.1 學期篩選按鈕 ─────────────────────────────── */
+      .r-sem-btn {
+        font-size: 12px;
+        padding: 4px 14px;
+        border-radius: 20px;
+        border: 1px solid var(--border, #ccc);
+        background: var(--card-bg, #fff);
+        color: var(--text, #333);
+        cursor: pointer;
+        transition: background .15s, color .15s;
+      }
+
+      /* ── §5.5 / §5.6 共用 ──────────────────────────────── */
+      .r-empty-notice {
+        color: var(--text-dim, #888);
+        font-size: 13px;
+        padding: 8px 0;
+      }
+      .r-section-heading {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 8px;
+      }
+
+      /* ── §5.5 紅旗警示卡片 ─────────────────────────────── */
+      .r-flag-card {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        background: var(--card-bg, #fff);
+        border-left: 4px solid var(--flag-color);
+        border-radius: 6px;
+        padding: 12px 16px;
+        margin-bottom: 12px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      }
+      .r-flag-icon {
+        font-size: 20px;
+        line-height: 1.4;
+        flex-shrink: 0;
+      }
+      .r-flag-content {
+        min-width: 0;
+        flex: 1;
+      }
+      .r-flag-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--flag-color);
+        margin-bottom: 6px;
+      }
+      .r-flag-body {
+        font-size: 12px;
+        color: var(--text-mid, #555);
+        line-height: 1.75;
+      }
+      .r-flag-body--multiline {
+        white-space: pre-line;
+      }
+
+      /* ── §5.6 處方性建議卡片 ───────────────────────────── */
+      .r-presc-card {
+        background: var(--card-bg, #fff);
+        border: 1px solid var(--border, #e0e0e0);
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+      }
+      .r-presc-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+      .r-presc-badge {
+        background: var(--sev-color);
+        color: #fff;
+        border-radius: 4px;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .r-presc-index {
+        font-size: 12px;
+        color: var(--text-dim, #888);
+      }
+      .r-presc-finding {
+        font-size: 13px;
+        color: var(--text);
+        margin-bottom: 4px;
+      }
+      .r-presc-action {
+        font-size: 12px;
+        color: var(--text-dim, #888);
+      }
+
+      /* ── §5.7 Top Risk Factors（XGBoost feature importance）──── */
+      .r-feat-row {
+        display: grid;
+        grid-template-columns: 150px 1fr 64px;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+        font-size: 12px;
+      }
+      .r-feat-name {
+        color: var(--text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .r-feat-bar {
+        height: 8px;
+        border-radius: 4px;
+        background: var(--border, #e0e0e0);
+        overflow: hidden;
+      }
+      .r-feat-bar-fill {
+        height: 100%;
+        width: var(--bar-width, 0%);
+        background: var(--accent, #3498db);
+        border-radius: 4px;
+      }
+      .r-feat-val {
+        color: var(--text-dim, #888);
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+    `);
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+  }
+
   async function lazyInit() {
     if (_initialized) {
       requestAnimationFrame(() => {
@@ -642,19 +949,20 @@ const AtRiskReportManager = (() => {
       return;
     }
 
+    _injectModuleStyles();
+
     const rLoading = document.getElementById('rLoading');
     const rNoData  = document.getElementById('rNoData');
     const rContent = document.getElementById('rContent');
 
     if (!rLoading || !rNoData || !rContent) return;
 
-    rLoading.style.display  = '';
-    rNoData.style.display   = 'none';
-    rContent.style.display  = 'none';
+    rLoading.style.setProperty('display', '');
+    rNoData.style.setProperty('display', 'none');
+    rContent.style.setProperty('display', 'none');
 
     try {
-      // BUG-1 FIX: 改用 BehaviorLoader 統一 LRU 快取，移除直接 fetch
-      _data = await BehaviorLoader.load.atRisk();
+        _data = await BehaviorLoader.load.atRisk();
 
       // 第4類紅旗資料源（不影響主流程，失敗則靜默跳過）
       try {
@@ -668,6 +976,16 @@ const AtRiskReportManager = (() => {
         }
       } catch (e) {
         console.warn('[AtRiskReportManager] 提前預警資料載入失敗（不影響主流程）:', e);
+      }
+
+      // 第5類資料源：XGBoost feature importance（不影響主流程，失敗則靜默跳過）
+      try {
+        if (typeof BehaviorLoader !== 'undefined' && BehaviorLoader.load?.crossAnalysis) {
+          const cross = await BehaviorLoader.load.crossAnalysis();
+          _featureImportance = Array.isArray(cross?.feature_importance) ? cross.feature_importance : [];
+        }
+      } catch (e) {
+        console.warn('[AtRiskReportManager] feature_importance 載入失敗（不影響主流程）:', e);
       }
 
       if (!_data.schema_version || parseFloat(_data.schema_version) < 2.0) {
@@ -689,6 +1007,7 @@ const AtRiskReportManager = (() => {
         renderTemporalChart(_currentSemData.temporal_decay);
         renderRedFlags(_currentSemData.behavioral_markers, _currentSemData.temporal_decay);
         renderPrescriptions(_currentSemData.prescriptive_summary);
+        renderTopRiskFactors(_featureImportance);
 
       // schema 2.x：降級單學期
       } else {
@@ -697,16 +1016,17 @@ const AtRiskReportManager = (() => {
         renderTemporalChart(_data.temporal_decay);
         renderRedFlags(_data.behavioral_markers, _data.temporal_decay);
         renderPrescriptions(_data.prescriptive_summary);
+        renderTopRiskFactors(_featureImportance);
       }
 
-      rLoading.style.display  = 'none';
-      rContent.style.display  = '';
+      rLoading.style.setProperty('display', 'none');
+      rContent.style.setProperty('display', '');
       _initialized = true;
 
     } catch(e) {
-      rLoading.style.display  = 'none';
+      rLoading.style.setProperty('display', 'none');
       if (rNoData) {
-        rNoData.style.display   = '';
+        rNoData.style.setProperty('display', '');
         const msgEl = document.getElementById('rNoDataMsg');
         if (msgEl) msgEl.textContent = `無法載入報告資料：${e.message}`;
       }

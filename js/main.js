@@ -19,6 +19,26 @@ function escapeHtml(s) {
 const safeSvgAttr = escapeHtml;
 
 // ══════════════════════════════════════════════════════════
+// CSP-COMPLIANT SVG UTILITY STYLES
+// .ladash-svg-block → replaces SVG style="display:block"
+// .ladash-svg-responsive → responsive SVG; height/min-width applied via DOM API post-process
+// ══════════════════════════════════════════════════════════
+(function _injectSvgUtilStyles() {
+  try {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync('.ladash-svg-block{display:block}');
+    document.adoptedStyleSheets = [...(document.adoptedStyleSheets || []), sheet];
+  } catch (_) {
+    // Fallback: nonce-aware <style> injection for older browsers
+    const s = document.createElement('style');
+    const nonce = document.querySelector('meta[name=csp-nonce]')?.content || '';
+    if (nonce) s.setAttribute('nonce', nonce);
+    s.textContent = '.ladash-svg-block{display:block}';
+    document.head.appendChild(s);
+  }
+})();
+
+// ══════════════════════════════════════════════════════════
 // DATA & STATE
 // ══════════════════════════════════════════════════════════
 let DATA = null;
@@ -246,9 +266,9 @@ function prepareScrollableChart(canvas, config) {
   }
   const fitWidth = estimateChartMinWidth(config, availableChartWidth(wrap));
   applyAdaptiveChartOptions(config, fitWidth);
-  inner.style.width = `${fitWidth}px`;
-  inner.style.minWidth = '0';
-  inner.style.maxWidth = '100%';
+  inner.style.setProperty('width', `${fitWidth}px`);
+  inner.style.setProperty('min-width', '0');
+  inner.style.setProperty('max-width', '100%');
 }
 
 function resizeAllCharts() {
@@ -309,7 +329,7 @@ function mkChart(id, config) {
 const svgTip = document.getElementById('svgTooltip') ?? (() => {
   const el = document.createElement('div');
   el.id = 'svgTooltip';
-  el.style.display = 'none';
+  el.style.setProperty('display', 'none');
   document.body.appendChild(el);
   return el;
 })();
@@ -337,7 +357,7 @@ function showSvgTip(evt, text) {
     }
     svgTip.appendChild(span);
   });
-  svgTip.style.display = 'block';
+  svgTip.style.setProperty('display', 'block');
   moveSvgTip(evt);
 }
 function moveSvgTip(evt) {
@@ -346,16 +366,16 @@ function moveSvgTip(evt) {
   let x = evt.clientX + margin, y = evt.clientY + margin;
   if (x + tw > window.innerWidth  - 8) x = evt.clientX - tw - margin;
   if (y + th > window.innerHeight - 8) y = evt.clientY - th - margin;
-  svgTip.style.left = x + 'px';
-  svgTip.style.top  = y + 'px';
+  svgTip.style.setProperty('left', x + 'px');
+  svgTip.style.setProperty('top', y + 'px');
 }
 function hideSvgTip() {
-  svgTipTimer = setTimeout(() => { svgTip.style.display = 'none'; }, 80);
+  svgTipTimer = setTimeout(() => { svgTip.style.setProperty('display', 'none'); }, 80);
 }
 
 document.addEventListener('touchstart', e => {
-  if (svgTip.style.display === 'none') return;
-  if (!e.target.closest('[data-svgtip]')) svgTip.style.display = 'none';
+  if (svgTip.style.getPropertyValue('display') === 'none') return;
+  if (!e.target.closest('[data-svgtip]')) svgTip.style.setProperty('display', 'none');
 }, { passive: true });
 
 // ══════════════════════════════════════════════════════════
@@ -785,9 +805,9 @@ function attachInfoButtons() {
         <span>${info.title}</span>
         <button class="chart-popover-close" data-action="closePopover">✕</button>
       </div>
-      <div style="color:var(--text-mid);font-size:11px;margin-bottom:6px">${info.desc}</div>
+      <div class="ladash-popover-desc">${info.desc}</div>
       <ul>${pointsHtml}</ul>
-      ${info.use ? `<div style="margin-top:8px;font-size:10px;color:var(--accent3);border-top:1px solid var(--border);padding-top:6px">💡 ${info.use}</div>` : ''}
+      ${info.use ? `<div class="ladash-popover-use">💡 ${info.use}</div>` : ''}
     `;
 
     chartTitleActions(titleEl).appendChild(btn);
@@ -837,7 +857,7 @@ function addSvgTooltip(svgEl, selector, contentFn) {
   });
   svgEl.addEventListener('mouseleave', () => {
     clearTimeout(svgTipTimer);
-    svgTip.style.display = 'none';
+    svgTip.style.setProperty('display', 'none');
   });
   svgEl.addEventListener('mouseout', e => {
     if (!e.target.closest(selector)) hideSvgTip();
@@ -846,7 +866,7 @@ function addSvgTooltip(svgEl, selector, contentFn) {
     const target = e.changedTouches[0];
     const el = document.elementFromPoint(target.clientX, target.clientY);
     const match = el?.closest(selector);
-    if (!match) { svgTip.style.display='none'; return; }
+    if (!match) { svgTip.style.setProperty('display','none'); return; }
     const html = contentFn(match);
     if (html) {
       showSvgTip({ clientX: target.clientX, clientY: target.clientY }, html);
@@ -1270,7 +1290,7 @@ function onAFilterChange(changedField) {
   if (emptyCheck.empty) {
     _showAEmptyHint(emptyCheck.reason);
     document.getElementById('aStats').innerHTML =
-      `<div class="empty-state" style="padding:12px;color:var(--red)">⚠ ${emptyCheck.reason}</div>`;
+      `<div class="empty-state ladash-empty-error">⚠ ${escapeHtml(emptyCheck.reason)}</div>`;
     return;
   }
   _hideAEmptyHint();
@@ -1294,7 +1314,7 @@ function _applyProgramDisabledState(sem) {
     const v = opt.value;
     if (v === 'all') return;
     opt.disabled = disabled.includes(v);
-    opt.style.color = disabled.includes(v) ? 'var(--text-dim)' : '';
+    opt.style.setProperty('color', disabled.includes(v) ? 'var(--text-dim)' : ''); // CSP-V5-FIX
     opt.title = disabled.includes(v) ? (TOOLTIPS[v] || '') : '';
   });
   if (disabled.includes(sel.value)) {
@@ -1358,12 +1378,12 @@ function _showAResetHint(changedField, resetFields) {
   if (!hint || !text) return;
   text.textContent =
     `已自動調整：${resetFields.join('、')} 已重置（因 ${FIELD_LABELS[changedField] || changedField} 變更）`;
-  hint.style.display = 'flex';
+  hint.style.setProperty('display', 'flex');
 }
 
 function _hideAResetHint() {
   const hint = document.getElementById('aResetHint');
-  if (hint) hint.style.display = 'none';
+  if (hint) hint.style.setProperty('display', 'none');
 }
 
 function undoAFilterReset() {
@@ -1409,12 +1429,12 @@ function _showAEmptyHint(reason) {
   const el = document.getElementById('aEmptyHint');
   if (!el) return;
   el.textContent = `⚠ 查無資料：${reason}`;
-  el.style.display = 'block';
+  el.style.setProperty('display', 'block');
 }
 
 function _hideAEmptyHint() {
   const el = document.getElementById('aEmptyHint');
-  if (el) el.style.display = 'none';
+  if (el) el.style.setProperty('display', 'none');
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1434,31 +1454,32 @@ function renderA() {
 
   const passColor = cls.pass_rate >= 0.9 ? 'var(--green)' : cls.pass_rate >= 0.7 ? 'var(--accent3)' : 'var(--red)';
   document.getElementById('aStats').innerHTML = `
-    <div class="stat-card" style="--accent-color:var(--accent)">
+    <div class="stat-card" data-ac="var(--accent)">
       <div class="val">${cls.count}</div>
       <div class="lbl">人數 Students</div>
     </div>
-    <div class="stat-card" style="--accent-color:var(--accent2)">
+    <div class="stat-card" data-ac="var(--accent2)">
       <div class="val">${cls.avg_semester ?? '–'}</div>
       <div class="lbl">學期平均 Avg Score</div>
     </div>
-    <div class="stat-card" style="--accent-color:${passColor}">
+    <div class="stat-card" data-ac="${passColor}">
       <div class="val">${cls.pass_rate != null ? (cls.pass_rate*100).toFixed(1)+'%' : '–'}</div>
       <div class="lbl">及格率 Pass Rate</div>
     </div>
-    <div class="stat-card" style="--accent-color:var(--accent4)">
+    <div class="stat-card" data-ac="var(--accent4)">
       <div class="val">${cls.retaker_rate != null ? (cls.retaker_rate*100).toFixed(1)+'%' : '–'}</div>
       <div class="lbl">重修率 Retaker Rate</div>
     </div>
-    <div class="stat-card" style="--accent-color:var(--accent3)">
+    <div class="stat-card" data-ac="var(--accent3)">
       <div class="val">${cls.avg_midterm ?? '–'}</div>
       <div class="lbl">期中平均 Midterm Avg</div>
     </div>
-    <div class="stat-card" style="--accent-color:var(--accent)">
+    <div class="stat-card" data-ac="var(--accent)">
       <div class="val">${cls.avg_final ?? '–'}</div>
       <div class="lbl">期末平均 Final Avg</div>
     </div>
   `;
+  _applyAccentColors(document.getElementById('aStats'));
 
   const dist = cls.score_distribution;
   const labels = ['0-9','10-19','20-29','30-39','40-49','50-59','60-69','70-79','80-89','90-99','100'];
@@ -1523,9 +1544,9 @@ function renderA() {
 
   const trendCard = document.getElementById('chartTrend')?.closest('.chart-card');
   if (sheet === 'all') {
-    if (trendCard) trendCard.style.display = 'none';
+    if (trendCard) trendCard.style.setProperty('display', 'none');
   } else {
-    if (trendCard) trendCard.style.display = '';
+    if (trendCard) trendCard.style.setProperty('display', '');
     renderTrend();
   }
 
@@ -1643,23 +1664,23 @@ function switchCView(view) {
   );
 
   const isGeneral = view === 'general';
-  document.getElementById('cFilterGeneral').style.display = isGeneral ? '' : 'none';
-  document.getElementById('cFilterRetake').style.display  = isGeneral ? 'none' : '';
-  document.getElementById('cResetBtn').style.display      = '';
+  document.getElementById('cFilterGeneral').style.setProperty('display', isGeneral ? '' : 'none');
+  document.getElementById('cFilterRetake').style.setProperty('display', isGeneral ? 'none' : '');
+  document.getElementById('cResetBtn').style.setProperty('display', '');
 
   if (isGeneral) {
     _resetCGeneralFilters();
   } else {
     _resetCRetakeFilters();
-    document.getElementById('cPanelRetake').style.display  = '';
-    document.getElementById('cPanelGeneral').style.display = 'none';
+    document.getElementById('cPanelRetake').style.setProperty('display', '');
+    document.getElementById('cPanelGeneral').style.setProperty('display', 'none');
     document.getElementById('cStats').innerHTML = '';
     document.getElementById('bStats').innerHTML = '';
     return;
   }
 
-  document.getElementById('cPanelGeneral').style.display = '';
-  document.getElementById('cPanelRetake').style.display  = 'none';
+  document.getElementById('cPanelGeneral').style.setProperty('display', '');
+  document.getElementById('cPanelRetake').style.setProperty('display', 'none');
   renderCView();
 }
 
@@ -1680,7 +1701,7 @@ function _applyCProgramDisabledState(sem) {
   Array.from(sel.options).forEach(opt => {
     if (opt.value === 'all') return;
     opt.disabled     = disabled.includes(opt.value);
-    opt.style.color  = disabled.includes(opt.value) ? 'var(--text-dim)' : '';
+    opt.style.setProperty('color', disabled.includes(opt.value) ? 'var(--text-dim)' : ''); // CSP-V5-FIX
     opt.title        = disabled.includes(opt.value) ? (TOOLTIPS[opt.value] || '') : '';
   });
   if (disabled.includes(sel.value)) sel.value = 'all';
@@ -1703,19 +1724,19 @@ function onCGeneralFilterChange(changedField) {
       const btn = document.getElementById(id);
       if (!btn) return;
       btn.classList.toggle('active', id === 'cTypeTheory');
-      if (id === 'cTypePrac') { btn.disabled = true; btn.style.opacity = '0.4'; }
-      else { btn.disabled = false; btn.style.opacity = ''; }
+      if (id === 'cTypePrac') { btn.disabled = true;  btn.style.setProperty('opacity', '0.4'); } // CSP-V7-FIX
+      else                   { btn.disabled = false; btn.style.setProperty('opacity', ''); }   // CSP-V7-FIX
     });
     if (lockHint) {
       lockHint.textContent = '此學制不開設實驗課，課程類型已鎖定為正課';
-      lockHint.style.display = 'block';
+      lockHint.style.setProperty('display', 'block');
     }
   } else {
     ['cTypeAll','cTypeTheory','cTypePrac'].forEach(id => {
       const btn = document.getElementById(id);
-      if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+      if (btn) { btn.disabled = false; btn.style.setProperty('opacity', ''); } // CSP-V7-FIX
     });
-    if (lockHint) lockHint.style.display = 'none';
+    if (lockHint) lockHint.style.setProperty('display', 'none');
   }
 
   // 學制切換後同步重修生開關狀態（重修生學制須鎖定為包含）
@@ -1769,7 +1790,7 @@ function resetCFilters() {
     document.getElementById('cStats').innerHTML = '';
     document.getElementById('bStats').innerHTML = '';
     const hint = document.getElementById('cRetakeSearchHint');
-    if (hint) hint.style.display = '';
+    if (hint) hint.style.setProperty('display', '');
   } else {
     _resetCGeneralFilters();
     renderCView();
@@ -1802,15 +1823,15 @@ function _resetCGeneralFilters() {
   if (searchBox) { searchBox.classList.remove('open'); searchBox.innerHTML = ''; }
   // 清除學生成績輪廓區塊與搜尋提示
   const profileWrap = document.getElementById('profileWrap');
-  if (profileWrap) { profileWrap.innerHTML = ''; profileWrap.style.marginBottom = ''; }
+  if (profileWrap) { profileWrap.innerHTML = ''; profileWrap.style.setProperty('margin-bottom', ''); } // CSP-V5-FIX
   const searchHint = document.getElementById('cSearchHint');
-  if (searchHint) searchHint.style.display = '';
+  if (searchHint) searchHint.style.setProperty('display', '');
   ['cTypePrac'].forEach(id => {
     const btn = document.getElementById(id);
-    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+    if (btn) { btn.disabled = false; btn.style.setProperty('opacity', ''); } // CSP-V7-FIX
   });
   const lockHint = document.getElementById('cTypeLockHint');
-  if (lockHint) lockHint.style.display = 'none';
+  if (lockHint) lockHint.style.setProperty('display', 'none');
   _hideCEmptyHint();
 }
 
@@ -1835,10 +1856,10 @@ function onCRetakeSearch() {
 
   if (q.length < 2) {
     if (box) { box.classList.remove('open'); box.innerHTML = ''; }
-    if (hint) hint.style.display = '';
+    if (hint) hint.style.setProperty('display', '');
     return;
   }
-  if (hint) hint.style.display = 'none';
+  if (hint) hint.style.setProperty('display', 'none');
 
   const results = [];
   const pat = q.replace(/\*/g, '.*').replace(/\?/g, '.');
@@ -1877,11 +1898,11 @@ function selectRetakeStudent(sid) {
 
 function _showCEmptyHint(reason) {
   const el = document.getElementById('cEmptyHint');
-  if (el) { el.textContent = `⚠ 查無資料：${reason}`; el.style.display = 'block'; }
+  if (el) { el.textContent = `⚠ 查無資料：${reason}`; el.style.setProperty('display', 'block'); }
 }
 function _hideCEmptyHint() {
   const el = document.getElementById('cEmptyHint');
-  if (el) el.style.display = 'none';
+  if (el) el.style.setProperty('display', 'none');
 }
 
 function renderCView() {
@@ -2029,16 +2050,16 @@ function renderCStats() {
   const examLabel = { semester_score:'學期', midterm:'期中', final:'期末' }[cCurrentExam] || '學期';
   const passColor = parseFloat(passRate) >= 90 ? 'var(--green)' : parseFloat(passRate) >= 70 ? 'var(--accent3)' : 'var(--red)';
   document.getElementById('cStats').innerHTML = `
-    <div class="stat-card" style="--accent-color:var(--accent)">
+    <div class="stat-card" data-ac="var(--accent)">
       <div class="val">${uniqueStudents}</div><div class="lbl">學生人數 Students</div>
     </div>
-    <div class="stat-card" style="--accent-color:var(--accent4)">
+    <div class="stat-card" data-ac="var(--accent4)">
       <div class="val">${scores.length}</div><div class="lbl">記錄筆數 Records</div>
     </div>
-    <div class="stat-card" style="--accent-color:var(--accent2)">
+    <div class="stat-card" data-ac="var(--accent2)">
       <div class="val">${avg}</div><div class="lbl">${examLabel}平均分 Avg</div>
     </div>
-    <div class="stat-card" style="--accent-color:${passColor}">
+    <div class="stat-card" data-ac="${passColor}">
       <div class="val">${passRate}%</div><div class="lbl">及格率 Pass Rate</div>
     </div>
   `;
@@ -2051,16 +2072,16 @@ function renderCRetakeStats() {
   const worsened = allDeltas.filter(d=>d<0).length;
   const avgDelta = allDeltas.length ? (allDeltas.reduce((a,b)=>a+b,0)/allDeltas.length).toFixed(1) : '–';
   document.getElementById('cStats').innerHTML = `
-    <div class="stat-card" style="--accent-color:var(--accent4)">
+    <div class="stat-card" data-ac="var(--accent4)">
       <div class="val">${retakers.length}</div><div class="lbl">重修學生</div>
     </div>
-    <div class="stat-card" style="--accent-color:var(--green)">
+    <div class="stat-card" data-ac="var(--green)">
       <div class="val">${improved}</div><div class="lbl">進步 Δ &gt; 0</div>
     </div>
-    <div class="stat-card" style="--accent-color:var(--red)">
+    <div class="stat-card" data-ac="var(--red)">
       <div class="val">${worsened}</div><div class="lbl">退步 Δ &lt; 0</div>
     </div>
-    <div class="stat-card" style="--accent-color:var(--accent3)">
+    <div class="stat-card" data-ac="var(--accent3)">
       <div class="val">${avgDelta}</div><div class="lbl">平均 Δ</div>
     </div>
   `;
@@ -2086,21 +2107,21 @@ function renderB() {
   const avgDelta = allDeltas.length ? (allDeltas.reduce((a,b)=>a+b,0)/allDeltas.length).toFixed(1) : '–';
 
   document.getElementById('bStats').innerHTML = `
-    <div class="stat-card" style="--accent-color:var(--accent4)">
+    <div class="stat-card" data-ac="var(--accent4)">
       <div class="val">${retakers.length}</div>
       <div class="lbl">重修學生 Retakers</div>
     </div>
-    <div class="stat-card" style="--accent-color:var(--green)">
+    <div class="stat-card" data-ac="var(--green)">
       <div class="val">${improved}</div>
       <div class="lbl">進步 Improved</div>
       <div class="sub">Δ &gt; 0</div>
     </div>
-    <div class="stat-card" style="--accent-color:var(--red)">
+    <div class="stat-card" data-ac="var(--red)">
       <div class="val">${worsened}</div>
       <div class="lbl">退步 Declined</div>
       <div class="sub">Δ &lt; 0</div>
     </div>
-    <div class="stat-card" style="--accent-color:var(--accent3)">
+    <div class="stat-card" data-ac="var(--accent3)">
       <div class="val">${avgDelta}</div>
       <div class="lbl">平均 Δ Avg Delta</div>
       <div class="sub">首修 → 重修</div>
@@ -2129,7 +2150,7 @@ function renderSlope(retakers) {
   const gridCol  = isDark ? '#1c2030' : '#e0e4f0';
 
   if (retakers.length === 0) {
-    svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="${dimCol}" font-size="12">無重修資料</text>`;
+    svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="${dimCol}" font-size="12">無重修資料</text>`; // AUDIT-V5: dimCol is internal computed value, no user input
     return;
   }
 
@@ -2171,8 +2192,8 @@ function renderSlope(retakers) {
     svgHtml += `
       <line x1="${x1}" y1="${y1s}" x2="${x2}" y2="${y2s}"
         stroke="${color}" stroke-width="1.5" stroke-opacity="0.6"/>
-      <circle ${tipAttr} cx="${x1}" cy="${y1s}" r="5" fill="${color}" opacity="0.8" style="cursor:pointer"/>
-      <circle ${tipAttr} cx="${x2}" cy="${y2s}" r="5" fill="${color}" opacity="0.8" style="cursor:pointer"/>
+      <circle ${tipAttr} cx="${x1}" cy="${y1s}" r="5" fill="${color}" opacity="0.8" cursor="pointer"/>
+      <circle ${tipAttr} cx="${x2}" cy="${y2s}" r="5" fill="${color}" opacity="0.8" cursor="pointer"/>
     `;
   });
 
@@ -2232,8 +2253,8 @@ function renderQuadrant() {
     }
   }
 
-  if (pairs.length < 3) { qCard.style.display = 'none'; return; }
-  qCard.style.display = 'block';
+  if (pairs.length < 3) { qCard.style.setProperty('display', 'none'); return; }
+  qCard.style.setProperty('display', 'block');
 
   mkChart('chartQuadrant', {
     type: 'scatter',
@@ -2293,15 +2314,15 @@ function searchStudent() {
   }
 
   if (results.length === 0) {
-    box.innerHTML = '<div class="search-item" style="color:var(--text-dim)">無符合結果</div>';
+    box.innerHTML = '<div class="search-item text-muted">無符合結果</div>';
   } else {
     box.innerHTML = results.map(r => `
       <div class="search-item" data-sid="${escapeHtml(r.sid)}">
         <span>${escapeHtml(r.masked)}</span>
         <span class="s-info">
           ${r.rCount} 筆記錄
-          ${r.isRet ? '· <span style="color:var(--accent4)">重修</span>' : ''}
-          ${r.hasExc ? '· <span style="color:var(--yellow)">⚑</span>' : ''}
+          ${r.isRet ? '· <span class="ladash-accent4">重修</span>' : ''}
+          ${r.hasExc ? '· <span class="ladash-yellow">⚑</span>' : ''}
         </span>
       </div>
     `).join('');
@@ -2314,9 +2335,12 @@ function searchStudent() {
 
 function selectStudent(sid) {
   document.getElementById('searchResults').classList.remove('open');
-  document.getElementById('cSearch').value = DATA.students[sid].name_masked;
+  // BUG-1 FIX (V12): guard against sid not in DATA.students (race between search index and data load)
+  const _stu = DATA.students?.[sid];
+  if (!_stu) return;
+  document.getElementById('cSearch').value = _stu.name_masked;
   const hint = document.getElementById('cSearchHint');
-  if (hint) hint.style.display = 'none';
+  if (hint) hint.style.setProperty('display', 'none'); // CSP-V5-FIX
   renderProfile(sid);
 }
 
@@ -2324,8 +2348,8 @@ function renderProfile(sid) {
   const data = DATA.students[sid];
   const wrap = document.getElementById('profileWrap');
 
-  if (!data) { wrap.innerHTML = '<div class="empty-state">找不到學生資料</div>'; wrap.style.marginBottom = '14px'; return; }
-  wrap.style.marginBottom = '14px';
+  if (!data) { wrap.innerHTML = '<div class="empty-state">找不到學生資料</div>'; wrap.style.setProperty('margin-bottom', '14px'); return; } // CSP-V5-FIX
+  wrap.style.setProperty('margin-bottom', '14px'); // CSP-V5-FIX
 
   const isRetaker = data.records.some(r => r.is_retaker);
   const allExc    = data.records.flatMap(r => r.exceptions);
@@ -2333,8 +2357,8 @@ function renderProfile(sid) {
   allExc.forEach(e => excCounts[e.color] = (excCounts[e.color]||0)+1);
 
   let html = `
-    <div data-student-profile style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-      <div style="font-family:'Space Mono',monospace;font-size:20px;color:var(--text)">${escapeHtml(data.name_masked)}</div>
+    <div data-student-profile class="ladash-student-profile-hdr">
+      <div class="ladash-student-name">${escapeHtml(data.name_masked)}</div>
       ${isRetaker ? '<span class="tag tag-red">重修生 Retaker</span>' : ''}
       ${excCounts.red    ? `<span class="tag tag-red">🔴 ${excCounts.red} 重大違規</span>` : ''}
       ${excCounts.yellow ? `<span class="tag tag-yellow">🟡 ${excCounts.yellow} 態度異常</span>` : ''}
@@ -2363,7 +2387,7 @@ function renderProfile(sid) {
           ${r.midterm != null ? `<div class="tl-score"><span class="s-lbl">期中 Mid</span><span class="s-val ${scoreColor(r.midterm)}">${r.midterm}</span></div>` : ''}
           ${r.final   != null ? `<div class="tl-score"><span class="s-lbl">期末 Final</span><span class="s-val ${scoreColor(r.final)}">${r.final}</span></div>` : ''}
           ${r.semester_score != null ? `<div class="tl-score"><span class="s-lbl">學期 Sem</span><span class="s-val ${scoreColor(r.semester_score)}">${r.semester_score}</span></div>` : ''}
-          ${r.adjusted != null ? `<div class="tl-score"><span class="s-lbl">調整 Adj</span><span class="s-val" style="color:var(--accent3)">${r.adjusted}</span></div>` : ''}
+          ${r.adjusted != null ? `<div class="tl-score"><span class="s-lbl">調整 Adj</span><span class="s-val ladash-accent3">${r.adjusted}</span></div>` : ''}
           ${r.reading_pct != null ? `<div class="tl-score"><span class="s-lbl">閱讀% Read</span><span class="s-val">${r.reading_pct}%</span></div>` : ''}
         </div>
         ${r.exceptions.length ? `<div class="tl-tags">${r.exceptions.map(e =>
@@ -2374,17 +2398,18 @@ function renderProfile(sid) {
   html += '</div>';
 
   html += `
-    <div class="chart-card" style="margin-top:14px">
-      <div class="chart-title" style="--accent-color:var(--accent)">
+    <div class="chart-card ladash-mt14">
+      <div class="chart-title" data-ac="var(--accent)">
         <div class="dot"></div>成績軌跡 Score Trajectory
       </div>
-      <div class="chart-wrap" style="height:180px">
+      <div class="chart-wrap ladash-h180">
         <canvas id="chartProfile"></canvas>
       </div>
     </div>
   `;
 
   wrap.innerHTML = html;
+  _applyAccentColors();
 
   const theory    = sorted.filter(r => r.type === 'theory');
   const practicum = sorted.filter(r => r.type === 'practicum');
@@ -2844,7 +2869,7 @@ function renderHeatmap(filtered) {
   const dimCol='#6b748f';
   const bgCol=isDark?'#13161f':'#ffffff';
 
-  let svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" style="display:block">`;
+  let svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" class="ladash-svg-block">`;
   svg+=`<rect width="${W}" height="${H}" fill="${bgCol}" rx="8"/>`;
   sems.forEach((s,i)=>{
     svg+=`<text x="${labelW+i*cellW+cellW/2}" y="${headerH-8}" text-anchor="middle" fill="${dimCol}" font-size="9" font-family="monospace">${safeSvgAttr(semLabel(s))}</text>`;
@@ -2861,7 +2886,7 @@ function renderHeatmap(filtered) {
       const tipData = v!=null
         ? `data-svgtip="1" data-cls="${safeSvgAttr(cls)}" data-sem="${safeSvgAttr(sem)}" data-avg="${v.toFixed(1)}" data-pass="${rec.pass_rate!=null?(rec.pass_rate*100).toFixed(1)+'%':'–'}" data-n="${rec.count}"`
         : `data-svgtip="1" data-cls="${safeSvgAttr(cls)}" data-sem="${safeSvgAttr(sem)}" data-avg="無資料"`;
-      svg+=`<rect ${tipData} x="${labelW+ci*cellW+1}" y="${y+1}" width="${cellW-2}" height="${cellH-2}" fill="${fill}" rx="3" style="cursor:crosshair"/>`;
+      svg+=`<rect ${tipData} x="${labelW+ci*cellW+1}" y="${y+1}" width="${cellW-2}" height="${cellH-2}" fill="${fill}" rx="3" cursor="crosshair"/>`;
       if(v!=null) svg+=`<text pointer-events="none" x="${labelW+ci*cellW+cellW/2}" y="${y+cellH/2+4}" text-anchor="middle" fill="${txtFill}" font-size="10" font-weight="600" font-family="monospace">${v.toFixed(1)}</text>`;
     });
   });
@@ -2894,7 +2919,7 @@ function renderBoxPlot(allClasses, filterProg) {
   // 讀取容器實際高度（展開後會變大）；fallback 240
   // 縮小狀態時先清除 SVG 殘留的 height style，讓容器回到 CSS 預設高度再量測
   const existingSvg = wrap.querySelector('svg');
-  if (existingSvg) existingSvg.style.height = '';
+  if (existingSvg) existingSvg.style.setProperty('height', '');
   const isExpanded = wrap.closest('.chart-card')?.classList.contains('chart-expanded');
   const containerH = isExpanded
     ? (wrap.clientHeight > 60 ? wrap.clientHeight : 240)
@@ -2907,7 +2932,7 @@ function renderBoxPlot(allClasses, filterProg) {
   const gridCol=isDark?'#242840':'#e0e4f0';
 
   // viewBox + width:100% 讓 SVG 隨容器縮放；min-width 防止過窄
-  let svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" style="display:block;min-width:${W}px;height:100%">`;
+  let svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" class="ladash-svg-block ladash-svg-responsive" data-minw="${W}">`;
   svg+=`<rect width="${W}" height="${H}" fill="${bgCol}" rx="8"/>`;
 
   [0,25,50,60,75,100].forEach(v=>{
@@ -2937,10 +2962,10 @@ function renderBoxPlot(allClasses, filterProg) {
     svg+=`<line x1="${x}" y1="${scaleY(q3)}" x2="${x}" y2="${scaleY(hi)}" stroke="${col}" stroke-width="1.5"/>`;
     svg+=`<line x1="${x-bw/3}" y1="${scaleY(lo)}" x2="${x+bw/3}" y2="${scaleY(lo)}" stroke="${col}" stroke-width="1.5"/>`;
     svg+=`<line x1="${x-bw/3}" y1="${scaleY(hi)}" x2="${x+bw/3}" y2="${scaleY(hi)}" stroke="${col}" stroke-width="1.5"/>`;
-    svg+=`<rect ${tipAttr} x="${x-bw/2}" y="${scaleY(q3)}" width="${bw}" height="${scaleY(q1)-scaleY(q3)}" fill="${col}33" stroke="${col}" stroke-width="1.5" rx="2" style="cursor:crosshair"/>`;
+    svg+=`<rect ${tipAttr} x="${x-bw/2}" y="${scaleY(q3)}" width="${bw}" height="${scaleY(q1)-scaleY(q3)}" fill="${col}33" stroke="${col}" stroke-width="1.5" rx="2" cursor="crosshair"/>`;
     svg+=`<line x1="${x-bw/2}" y1="${scaleY(med)}" x2="${x+bw/2}" y2="${scaleY(med)}" stroke="${col}" stroke-width="2.5"/>`;
     outliers.forEach(v=>{
-      svg+=`<circle ${tipAttr} cx="${x}" cy="${scaleY(v)}" r="4" fill="${col}" opacity="0.5" style="cursor:crosshair"/>`;
+      svg+=`<circle ${tipAttr} cx="${x}" cy="${scaleY(v)}" r="4" fill="${col}" opacity="0.5" cursor="crosshair"/>`;
     });
     svg+=`<text x="${x}" y="${H-pad.b+14}" text-anchor="middle" fill="${textCol}" font-size="9" font-family="sans-serif">${PROGRAM_LABELS[p].slice(0,4)}</text>`;
     svg+=`<text x="${x}" y="${H-pad.b+24}" text-anchor="middle" fill="${textCol}" font-size="8" font-family="monospace" opacity="0.7">n=${scores.length}</text>`;
@@ -2949,6 +2974,8 @@ function renderBoxPlot(allClasses, filterProg) {
   wrap.innerHTML=svg;
 
   const svgEl=wrap.querySelector('svg');
+  if (svgEl?.dataset.minw) svgEl.style.setProperty('min-width', svgEl.dataset.minw + 'px');
+  svgEl?.style.setProperty('height', '100%');
   addSvgTooltip(svgEl,'[data-svgtip]', el=>{
     const d=el.dataset;
     return `<b>${d.prog}</b>（n=${d.n}）\n中位數：<b>${d.med}</b>\nQ1：${d.q1}　Q3：${d.q3}\nIQR：${(d.q3-d.q1).toFixed(1)}\n最小值：${d.lo}　最大值：${d.hi}\n平均值：${d.avg}\n離群值：${d.out} 個`;
@@ -3116,16 +3143,12 @@ function renderCorrelation(filtered) {
     if (anchor) {
       const btnContainer = document.createElement('div');
       btnContainer.id = 'corrToggleAllRegBtn';
-      btnContainer.style.cssText = 'text-align:right;margin-bottom:6px;';
+      btnContainer.className = 'ladash-text-right ladash-mb6';
       const btn = document.createElement('button');
       btn.textContent = _corrShowAllReg ? '▶ 隱藏全體回歸線' : '▷ 顯示全體回歸線';
-      btn.style.cssText = [
-        'font-size:11px', 'padding:3px 10px', 'border-radius:4px', 'cursor:pointer',
-        'border:1px solid rgba(247,164,79,0.6)',
-        _corrShowAllReg ? 'background:rgba(247,164,79,0.18)' : 'background:transparent',
-        _corrShowAllReg ? 'color:rgba(247,164,79,1)' : 'color:var(--text-dim,#9aa0b8)',
-        'transition:background 0.15s,color 0.15s',
-      ].join(';');
+      btn.className = 'ladash-corr-regbtn';
+      btn.style.setProperty('background', _corrShowAllReg ? 'rgba(247,164,79,0.18)' : 'transparent');
+      btn.style.setProperty('color', _corrShowAllReg ? 'rgba(247,164,79,1)' : 'var(--text-dim,#9aa0b8)');
       btn.addEventListener('click', () => { _corrShowAllReg = !_corrShowAllReg; renderD(); });
       btnContainer.appendChild(btn);
       anchor.insertBefore(btnContainer, anchor.firstChild);
@@ -3170,24 +3193,24 @@ function _renderEnrollmentSummary(programs, optData) {
 
     if (opt.available) {
       const clamped  = opt.in_range ? '' :
-        `<span style="color:var(--text-dim);font-size:10px"> →夾緊至 ${opt.optimal_count_clamped} 人</span>`;
+        `<span class="ladash-dim-xs"> →夾緊至 ${opt.optimal_count_clamped} 人</span>`;
       const inRange  = opt.in_range
-        ? '<span style="color:#64d4a8">✓</span>'
-        : '<span style="color:#f0c85b">⚠</span>';
+        ? '<span class="ladash-color-success">✓</span>'
+        : '<span class="ladash-color-warn">⚠</span>';
       return `<tr>
-        <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px"></span>${label}</td>
-        <td style="text-align:center">${opt.optimal_count_clamped} 人${clamped}</td>
-        <td style="text-align:center">${opt.optimal_passrate}%</td>
-        <td style="text-align:center">${opt.n} 筆</td>
-        <td style="text-align:center">${opt.x_min}–${opt.x_max}</td>
-        <td style="text-align:center">${inRange}</td>
+        <td><span class="ladash-color-dot" data-bg="${color}"></span>${label}</td>
+        <td class="ladash-td-c">${opt.optimal_count_clamped} 人${clamped}</td>
+        <td class="ladash-td-c">${opt.optimal_passrate}%</td>
+        <td class="ladash-td-c">${opt.n} 筆</td>
+        <td class="ladash-td-c">${opt.x_min}–${opt.x_max}</td>
+        <td class="ladash-td-c">${inRange}</td>
       </tr>`;
     } else {
       const reason = reasonText[opt.reason] ?? escapeHtml(opt.reason ?? '–');
-      return `<tr style="opacity:0.55">
-        <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px"></span>${label}</td>
-        <td colspan="4" style="color:var(--text-dim);font-style:italic">⚠ ${reason}</td>
-        <td style="text-align:center">${opt.n ?? '–'} 筆</td>
+      return `<tr class="ladash-tr-dim">
+        <td><span class="ladash-color-dot" data-bg="${color}"></span>${label}</td>
+        <td colspan="4" class="ladash-td-note">⚠ ${reason}</td>
+        <td class="ladash-td-c">${opt.n ?? '–'} 筆</td>
       </tr>`;
     }
   }).join('');
@@ -3205,6 +3228,9 @@ function _renderEnrollmentSummary(programs, optData) {
         <tbody>${rows}</tbody>
       </table>`
     : '';
+  el.querySelectorAll('[data-bg]').forEach(function(span) {
+    if (span.dataset.bg) span.style.setProperty('background', span.dataset.bg);
+  });
 }
 
 // ══════════════════════════════════════════════════════════
@@ -3240,7 +3266,7 @@ function switchTab(tab) {
   if (tab === 'R') {
     if (typeof AtRiskReportManager !== 'undefined') AtRiskReportManager.lazyInit();
   }
-  if (tab === 'P') renderPrintPanel();
+  if (tab === 'P' && window.PrintPanel) window.PrintPanel.renderPanel();
   requestAnimationFrame(() => {
     attachInfoButtons();
     attachChartExpandButtons();
@@ -3306,7 +3332,7 @@ function toggleTheme() {
     if (tabId === 'A') { renderA(); renderTrend(); }
     if (tabId === 'C') renderCView();
     if (tabId === 'D') renderD();
-    if (tabId === 'P') renderPrintPanel();
+    if (tabId === 'P' && window.PrintPanel) window.PrintPanel.renderPanel();
     if (tabId === 'R' && typeof AtRiskReportManager !== 'undefined' && AtRiskReportManager.reRenderRadar) {
       AtRiskReportManager.reRenderRadar();
     }
@@ -3354,8 +3380,8 @@ function setDType(t) {
     const btn = document.getElementById(id);
     if (btn) {
       btn.disabled = noMidFin;
-      btn.style.opacity = noMidFin ? '0.35' : '1';
-      btn.style.cursor = noMidFin ? 'not-allowed' : 'pointer';
+      btn.style.setProperty('opacity', noMidFin ? '0.35' : '1');    // CSP-V7-FIX
+      btn.style.setProperty('cursor',  noMidFin ? 'not-allowed' : 'pointer'); // CSP-V7-FIX
       btn.title = noMidFin ? '實驗課不支援期中／期末成績' : '';
     }
   });
@@ -3458,7 +3484,7 @@ function _applyFilterCollapse(panel) {
   });
 
   if (collapseBar) {
-    collapseBar.style.display = collapsed ? 'flex' : 'none';
+    collapseBar.style.setProperty('display', collapsed ? 'flex' : 'none');
     const icon = collapseBar.querySelector('.collapse-icon');
     if (icon) icon.textContent = collapsed ? '▶' : '▼';
   }
@@ -3515,11 +3541,8 @@ function initDSemFilter() {
 
   const wrap = document.getElementById('dSemMultiWrap');
   wrap.innerHTML = sems.map(s => `
-    <button class="sem-capsule" data-sem="${escapeHtml(s)}"
-            data-action="toggleDSemCapsule"
-            style="padding:3px 10px;border-radius:14px;border:1px solid var(--border2);
-                   background:var(--surface2);color:var(--text-dim);font-size:10px;
-                   font-family:'JetBrains Mono',monospace;cursor:pointer;transition:all 0.15s">
+    <button class="sem-capsule ladash-sem-cap-btn" data-sem="${escapeHtml(s)}"
+            data-action="toggleDSemCapsule">
       ${escapeHtml(semLabel(s))}
     </button>`).join('');
 
@@ -3530,9 +3553,9 @@ function setDSemMode(mode) {
   dSemMode = mode;
   document.getElementById('dSemModeRange').classList.toggle('active', mode === 'range');
   document.getElementById('dSemModeMulti').classList.toggle('active', mode === 'multi');
-  document.getElementById('dSemRangeWrap').style.display  = mode === 'range' ? 'flex'   : 'none';
-  document.getElementById('dSemMultiWrap').style.display  = mode === 'multi' ? 'flex'   : 'none';
-  document.getElementById('dSemMultiCount').style.display = mode === 'multi' ? 'inline' : 'none';
+  document.getElementById('dSemRangeWrap').style.setProperty('display', mode === 'range' ? 'flex' : 'none');
+  document.getElementById('dSemMultiWrap').style.setProperty('display', mode === 'multi' ? 'flex' : 'none');
+  document.getElementById('dSemMultiCount').style.setProperty('display', mode === 'multi' ? 'inline' : 'none');
 
   if (mode === 'multi' && dSemSelected.size === 0 && DATA) {
     const sems = DATA.meta.semesters;
@@ -3542,13 +3565,13 @@ function setDSemMode(mode) {
 
   const hint = document.getElementById('dModeHint');
   if (mode === 'multi') {
-    hint.innerHTML = '📊 <strong style="color:var(--accent)">多選模式</strong> — 點選學期膠囊（最多 5 個）進行並排長條圖比較。';
+    hint.innerHTML = '📊 <strong class="text-accent">多選模式</strong> — 點選學期膠囊（最多 5 個）進行並排長條圖比較。';
   } else {
-    hint.innerHTML = '📈 <strong style="color:var(--accent)">範圍模式</strong> — 顯示連續趨勢折線；超過 6 個學制時自動合併為總平均。';
+    hint.innerHTML = '📈 <strong class="text-accent">範圍模式</strong> — 顯示連續趨勢折線；超過 6 個學制時自動合併為總平均。';
   }
 
-  document.getElementById('dProgramBarWrap').style.display = mode === 'multi' ? 'block' : 'none';
-  document.getElementById('dPassRateWrap').style.display   = mode === 'range' ? 'block' : 'none';
+  document.getElementById('dProgramBarWrap').style.setProperty('display', mode === 'multi' ? 'block' : 'none');
+  document.getElementById('dPassRateWrap').style.setProperty('display', mode === 'range' ? 'block' : 'none');
 
   renderD();
 }
@@ -3602,18 +3625,18 @@ function _updateDSemRangeLabel() {
 
   if (dView === 'class' && count > 12) {
     document.getElementById('dSemRangeCount').innerHTML =
-      `${count} 個學期 <span style="color:var(--accent3)">⚠ 各班獨立模式下線條可能過多</span>`;
+      `${count} 個學期 <span class="ladash-accent3">⚠ 各班獨立模式下線條可能過多</span>`;
   }
 }
 
 function _syncCapsuleStyles() {
   document.querySelectorAll('#dSemMultiWrap .sem-capsule').forEach(btn => {
     const active = dSemSelected.has(btn.dataset.sem);
-    btn.style.background    = active ? 'var(--accent)'    : 'var(--surface2)';
-    btn.style.color         = active ? '#fff'             : 'var(--text-dim)';
-    btn.style.borderColor   = active ? 'var(--accent)'    : 'var(--border2)';
-    btn.style.fontWeight    = active ? '700'              : '400';
-  });
+    btn.style.setProperty('background',   active ? 'var(--accent)'  : 'var(--surface2)');
+    btn.style.setProperty('color',        active ? '#fff'            : 'var(--text-dim)');
+    btn.style.setProperty('border-color', active ? 'var(--accent)'  : 'var(--border2)');
+    btn.style.setProperty('font-weight',  active ? '700'            : '400');
+    });
 }
 
 function _updateMultiCount() {
@@ -3712,6 +3735,14 @@ function getEnvAnnotations(sems) {
   return annotations;
 }
 
+// CSP-FIX: CSS custom property injection via DOM API (not style-src governed).
+// Call after any innerHTML assignment containing [data-ac] elements.
+function _applyAccentColors(root) {
+  (root || document).querySelectorAll('[data-ac]').forEach(function(el) {
+    el.style.setProperty('--accent-color', el.dataset.ac);
+  });
+}
+
 function renderD() {
   if (!DATA) return;
 
@@ -3722,7 +3753,7 @@ function renderD() {
 
   if (sems.length === 0) {
     document.getElementById('dStats').innerHTML =
-      '<div class="empty-state" style="padding:16px;color:var(--text-dim)">請至少選擇一個學期</div>';
+      '<div class="empty-state ladash-empty-dim">請至少選擇一個學期</div>';
     return;
   }
 
@@ -3764,39 +3795,40 @@ function renderD() {
   const programs = [...new Set(filtered.map(c => c.program))];
 
   document.getElementById('dStats').innerHTML = `
-    <div class="stat-card" style="--accent-color:var(--accent)">
+    <div class="stat-card" data-ac="var(--accent)">
       <div class="val">${totalStudents.toLocaleString()}</div>
       <div class="lbl">總人次 Total</div>
     </div>
-    <div class="stat-card" style="--accent-color:var(--accent2)">
+    <div class="stat-card" data-ac="var(--accent2)">
       <div class="val">${avgScore ?? '–'}</div>
       <div class="lbl">學期均分 Avg Score</div>
     </div>
-    <div class="stat-card" style="--accent-color:${avgPass != null && avgPass >= 0.9 ? 'var(--green)' : avgPass != null && avgPass >= 0.7 ? 'var(--accent3)' : 'var(--red)'}">
+    <div class="stat-card" data-ac="${avgPass != null && avgPass >= 0.9 ? 'var(--green)' : avgPass != null && avgPass >= 0.7 ? 'var(--accent3)' : 'var(--red)'}">
       <div class="val">${avgPass != null ? (avgPass * 100).toFixed(1) + '%' : '–'}</div>
       <div class="lbl">及格率 Pass Rate</div>
     </div>
-    <div class="stat-card" style="--accent-color:var(--accent4)">
+    <div class="stat-card" data-ac="var(--accent4)">
       <div class="val">${avgRetake != null ? (avgRetake * 100).toFixed(1) + '%' : '–'}</div>
       <div class="lbl">重修率 Retaker Rate</div>
     </div>
-    <div class="stat-card" style="--accent-color:var(--accent3)">
+    <div class="stat-card" data-ac="var(--accent3)">
       <div class="val">${avgMidterm ?? '–'}</div>
       <div class="lbl">期中均分 Midterm Avg</div>
     </div>
-    <div class="stat-card" style="--accent-color:var(--accent)">
+    <div class="stat-card" data-ac="var(--accent)">
       <div class="val">${avgFinal ?? '–'}</div>
       <div class="lbl">期末均分 Final Avg</div>
     </div>
-    <div class="stat-card" style="--accent-color:var(--accent4)">
+    <div class="stat-card" data-ac="var(--accent4)">
       <div class="val">${sems.length}</div>
       <div class="lbl">學期數 Semesters</div>
     </div>
-    <div class="stat-card" style="--accent-color:var(--accent)">
+    <div class="stat-card" data-ac="var(--accent)">
       <div class="val">${programs.length}</div>
       <div class="lbl">學制數 Programs</div>
     </div>
   `;
+  _applyAccentColors(document.getElementById('dStats'));
 
   document.getElementById('dChartTitle').textContent =
     (filterProg === 'all' ? '全部學制' : PROGRAM_LABELS[filterProg]) +
@@ -3818,10 +3850,10 @@ function renderD() {
 
   const tableCard = document.getElementById('dClassTable');
   if (dView === 'class') {
-    tableCard.style.display = 'block';
+    tableCard.style.setProperty('display', 'block');
     renderDTable(filtered);
   } else {
-    tableCard.style.display = 'none';
+    tableCard.style.setProperty('display', 'none');
   }
 
   renderHeatmap(filtered);
@@ -3911,7 +3943,7 @@ function renderDTrendClass(filtered, sems, allClasses) {
   if (classes.length > MAX_LINES) {
     document.getElementById('dModeHint').innerHTML =
       `⚠️ 各班獨立模式：班級數（${classes.length}）超過上限（${MAX_LINES}），` +
-      `已自動切換為 <strong style="color:var(--accent)">合併總平均</strong>。請縮小學期範圍或指定學制。`;
+      `已自動切換為 <strong class="text-accent">合併總平均</strong>。請縮小學期範圍或指定學制。`;
     renderDTrendMerge(filtered, sems, allClasses);
     return;
   }
@@ -4101,19 +4133,26 @@ function renderDTable(filtered) {
     a.semester.localeCompare(b.semester) || compareSheetNames(a.sheet_name, b.sheet_name)
   );
   tbody.innerHTML = rows.map((c, i) => `
-    <tr style="background:${i%2?'var(--surface2)':'var(--surface)'}">
-      <td style="padding:7px 10px;border-bottom:1px solid var(--border)">${escapeHtml(semLabel(c.semester))}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid var(--border);font-weight:600">${escapeHtml(c.sheet_name)}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid var(--border)">
+    <tr data-row-bg="${i%2?'surface2':'surface'}" class="ladash-tr-alt">
+      <td class="ladash-td-std">${escapeHtml(semLabel(c.semester))}</td>
+      <td class="ladash-td-std ladash-fw6">${escapeHtml(c.sheet_name)}</td>
+      <td class="ladash-td-std">
         <span class="program-badge prog-${escapeHtml(c.program.replace(/_/g,'-'))}">${escapeHtml(PROGRAM_LABELS[c.program] ?? c.program)}</span>
       </td>
-      <td style="padding:7px 10px;border-bottom:1px solid var(--border);text-align:right">${c.count}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid var(--border);text-align:right;font-family:'JetBrains Mono',monospace">${c.avg_midterm ?? '–'}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid var(--border);text-align:right;font-family:'JetBrains Mono',monospace">${c.avg_final ?? '–'}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid var(--border);text-align:right;font-family:'JetBrains Mono',monospace;font-weight:600;color:${c.avg_semester>=60?'var(--green)':'var(--red)'}">${c.avg_semester ?? '–'}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid var(--border);text-align:right;color:${c.pass_rate>=0.8?'var(--green)':c.pass_rate>=0.6?'var(--accent3)':'var(--red)'}">${c.pass_rate!=null?(c.pass_rate*100).toFixed(1)+'%':'–'}</td>
+      <td class="ladash-td-std ladash-td-r">${c.count}</td>
+      <td class="ladash-td-std ladash-td-r ladash-mono">${c.avg_midterm ?? '–'}</td>
+      <td class="ladash-td-std ladash-td-r ladash-mono">${c.avg_final ?? '–'}</td>
+      <td class="ladash-td-std ladash-td-r ladash-mono">${c.avg_semester ?? '–'}</td>
+      <td class="ladash-td-std ladash-td-r" data-td-clr="${c.pass_rate>=0.8?'var(--green)':c.pass_rate>=0.6?'var(--accent3)':'var(--red)'}">${c.pass_rate!=null?(c.pass_rate*100).toFixed(1)+'%':'–'}</td>
     </tr>
   `).join('');
+  // BUG-1 FIX (V13): querySelectorAll calls were outside the function due to misplaced closing brace
+  tbody.querySelectorAll('[data-row-bg]').forEach(function(tr) {
+    tr.style.setProperty('background', tr.dataset.rowBg === 'surface2' ? 'var(--surface2)' : 'var(--surface)');
+  });
+  tbody.querySelectorAll('[data-td-clr]').forEach(function(td) {
+    if (td.dataset.tdClr) td.style.setProperty('color', td.dataset.tdClr);
+  });
 }
 
 // ══════════════════════════════════════════════════════════
@@ -4170,7 +4209,7 @@ function showUpdateBanner(worker) {
 
   const close = document.createElement('button');
   close.textContent = '×';
-  close.style.cssText = 'background:none;border:none;color:rgba(255,255,255,0.7);font-size:16px;cursor:pointer;padding:0 4px';
+  close.className = 'ladash-banner-close';
   close.addEventListener('click', () => banner.remove());
 
   banner.append(msg, btn, close);
@@ -4219,8 +4258,8 @@ function showIOSInstallBanner() {
 
   setTimeout(() => {
     if (banner.parentNode) {
-      banner.style.transition = 'opacity 0.5s';
-      banner.style.opacity = '0';
+      banner.style.setProperty('transition', 'opacity 0.5s'); // CSP-V7-FIX
+      banner.style.setProperty('opacity',    '0');            // CSP-V7-FIX
       setTimeout(() => banner.remove(), 500);
     }
   }, 8000);
@@ -4235,78 +4274,14 @@ if (isIOS && isSafari && !isStandalone) {
 }
 
 // ══════════════════════════════════════════════════════════
-// PRINT PANEL
+// PRINT DATA HELPERS — consumed by print-panel.js via window.*
+// (UI/rendering for the print panel itself lives entirely in
+// print-panel.js; these are the only pieces it still borrows
+// from main.js, since they need direct access to DATA/render*.)
 // ══════════════════════════════════════════════════════════
-const PRINT_ITEMS = [
-  // ── Panel D：整屆分析 ──
-  { id: 'chartCohortTrend',      label: '整屆跨學期趨勢',           tab: 'D', type: 'canvas', checked: true },
-  { id: 'chartProgramBar',       label: '各學期學制比較',           tab: 'D', type: 'canvas', checked: true },
-  { id: 'chartPassRate',         label: '及格率比較',               tab: 'D', type: 'canvas', checked: true },
-  { id: 'chartPassRateRange',    label: '及格率趨勢折線',           tab: 'D', type: 'canvas', checked: false },
-  { id: 'heatmapWrap',           label: '學期 × 班級成績熱力圖',     tab: 'D', type: 'svg',    checked: true },
-  { id: 'boxplotWrap',           label: '學制成績分布箱形圖',       tab: 'D', type: 'svg',    checked: true },
-  { id: 'chartCorrelation',      label: '人數 vs 及格率相關性',      tab: 'D', type: 'canvas', checked: false },
-  // ── Panel A：班級分析 ──
-  { id: 'chartDist',             label: '成績分布直方圖',           tab: 'A', type: 'canvas', checked: false },
-  { id: 'chartMidFinal',         label: '期中/期末指標對比',         tab: 'A', type: 'canvas', checked: false },
-  { id: 'chartTrend',            label: '班級跨屆趨勢',             tab: 'A', type: 'canvas', checked: false },
-  { id: 'chartNormalOverlay',    label: '常態分布曲線疊加',         tab: 'A', type: 'canvas', checked: false },
-  { id: 'chartRegression',       label: '期中 → 期末線性迴歸',       tab: 'A', type: 'canvas', checked: false },
-  { id: 'chartVariance',         label: '與前次同班比較 Δ',          tab: 'A', type: 'canvas', checked: false },
-  // ── Panel C：個案 / 重修 ──
-  // cChartDist：個案成績分布（canvas，由 renderCAnomalyAndDist 繪製）
-  { id: 'cChartDist',            label: '個案成績分布',             tab: 'C', type: 'canvas', checked: false },
-  { id: 'chartAnomalyDensity',   label: '異常事件密度',             tab: 'C', type: 'canvas', checked: false },
-  { id: 'chartRetakerFirstDist', label: '重修生首修成績分布',       tab: 'C', type: 'canvas', checked: false },
-  { id: 'slopeChart',            label: '首修 → 重修進退步坡度圖',   tab: 'C', type: 'svg',    checked: false },
-  { id: 'chartDelta',            label: '重修 Δ 分布',              tab: 'C', type: 'canvas', checked: false },
-  { id: 'chartQuadrant',         label: '正課 × 實驗四象限',         tab: 'C', type: 'canvas', checked: false },
-  { id: 'chartDeltaByProgram',   label: '重修改善率依學制',         tab: 'C', type: 'canvas', checked: false },
-  { id: 'chartRetakeCount',      label: '重修次數分布',             tab: 'C', type: 'canvas', checked: false },
-  { id: 'chartFirstVsDelta',     label: '首修成績 vs 重修進步',     tab: 'C', type: 'canvas', checked: false },
-  // ── Panel L：學習行為 ──
-  { id: 'radarChart',            label: '學習行為資源使用雷達圖',   tab: 'L', type: 'canvas', checked: false },
-  // corrHeatmap 為 HTML table，無法截圖；改為擷取 scatterChart canvas
-  { id: 'scatterChart',          label: '行為相關性散佈圖',         tab: 'L', type: 'canvas', checked: false },
-  { id: 'weeklyQuizChart',       label: '各週題庫作答強度',         tab: 'L', type: 'canvas', checked: false },
-  { id: 'preExamChart',          label: '平時及考前學習強度',       tab: 'L', type: 'canvas', checked: false },
-  { id: 'timeSlotChart',         label: '學習時段分布',             tab: 'L', type: 'canvas', checked: false },
-  // studyHeatmapWrap 為 SVG 渲染進 div，使用 svg type 取得 getPrintableSvgHtml
-  { id: 'studyHeatmapWrap',      label: '學習規律熱力圖',           tab: 'L', type: 'svg',    checked: false },
-  // hourlyLineWrap 為 div 包 canvas，直接指向 canvas id
-  { id: 'hourlyLineChart',       label: '24小時學習活躍度趨勢',     tab: 'L', type: 'canvas', checked: false },
-];
-
-const PRINT_TAB_LABELS = { D: '整屆', A: '班級', C: '個案 / 重修', L: '學習行為' };
-
 function printYears() {
   if (!DATA?.meta?.semesters?.length) return [];
   return [...new Set(DATA.meta.semesters.map(s => String(s).slice(0, 3)))].sort((a,b) => b-a);
-}
-
-function populatePrintYearFilters() {
-  const start = document.getElementById('printYearStart');
-  const end = document.getElementById('printYearEnd');
-  if (!start || !end) return;
-  const years = printYears();
-  const options = years.map(y => `<option value="${y}">${y} 年</option>`).join('');
-  const prevStart = start.value;
-  const prevEnd = end.value;
-  start.innerHTML = options;
-  end.innerHTML = options;
-  start.value = years.includes(prevStart) ? prevStart : years[years.length - 1] || '';
-  end.value   = years.includes(prevEnd)   ? prevEnd   : years[0] || '';
-  syncPrintYearRange();
-}
-
-function syncPrintYearRange() {
-  const start = document.getElementById('printYearStart');
-  const end = document.getElementById('printYearEnd');
-  if (!start || !end || !start.value || !end.value) return;
-  if (Number(start.value) > Number(end.value)) {
-    if (document.activeElement === start) end.value = start.value;
-    else start.value = end.value;
-  }
 }
 
 function getPrintYearRange() {
@@ -4324,50 +4299,6 @@ function getPrintSemesters() {
   }));
 }
 
-function updatePrintChoiceState() {
-  const selectedCount = getSelectedPrintItems().length;
-  document.querySelectorAll('.print-choice').forEach(label => {
-    const cb = label.querySelector('input[type="checkbox"]');
-    label.classList.toggle('selected', !!cb?.checked);
-  });
-  const summary = document.getElementById('printSummary');
-  if (summary) summary.textContent = `已選擇 ${selectedCount} 個列印項目`;
-}
-
-function renderPrintPanel() {
-  const container = document.getElementById('printSelections');
-  if (!container) return;
-  populatePrintYearFilters();
-  container.innerHTML = '';
-  PRINT_ITEMS.forEach(item => {
-    const label = document.createElement('label');
-    label.className = 'print-choice';
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.id = 'print_' + item.id;
-    cb.checked = item.checked !== false;
-    cb.addEventListener('change', updatePrintChoiceState);
-    const tabBadge = document.createElement('span');
-    tabBadge.className = 'print-tab';
-    tabBadge.textContent = PRINT_TAB_LABELS[item.tab] || item.tab;
-    const labelText = document.createElement('span');
-    labelText.className = 'print-label';
-    labelText.textContent = item.label;
-    label.appendChild(cb);
-    label.appendChild(tabBadge);
-    label.appendChild(labelText);
-    container.appendChild(label);
-  });
-  updatePrintChoiceState();
-}
-
-function getSelectedPrintItems() {
-  return PRINT_ITEMS.filter(item => {
-    const cb = document.getElementById('print_' + item.id);
-    return cb && cb.checked;
-  });
-}
-
 function withPrintablePanelsVisible(task) {
   const panels = [...document.querySelectorAll('.panel')].filter(p => p.id !== 'panelP' && p.id !== 'panelR');
   const originals = panels.map(p => ({
@@ -4381,22 +4312,30 @@ function withPrintablePanelsVisible(task) {
     pointerEvents: p.style.pointerEvents,
   }));
   panels.forEach(p => {
-    p.style.display = 'block';
-    p.style.visibility = 'hidden';
-    p.style.position = 'absolute';
-    p.style.left = '-10000px';
-    p.style.top = '0';
-    p.style.width = '1200px';
-    p.style.pointerEvents = 'none';
+    p.style.setProperty('display',        'block');
+    p.style.setProperty('visibility',     'hidden');
+    p.style.setProperty('position',       'absolute');
+    p.style.setProperty('left',           '-10000px');
+    p.style.setProperty('top',            '0');
+    p.style.setProperty('width',          '1200px');
+    p.style.setProperty('pointer-events', 'none');
   });
   const subPanes = [...document.querySelectorAll('.behavior-sub-pane')];
   const subPaneOriginals = subPanes.map(p => ({ el: p, display: p.style.display }));
-  subPanes.forEach(p => { p.style.display = 'block'; });
+  subPanes.forEach(p => { p.style.setProperty('display', 'block'); });
   try {
     return task();
   } finally {
-    originals.forEach(({ el, ...style }) => Object.assign(el.style, style));
-    subPaneOriginals.forEach(({ el, display }) => { el.style.display = display; });
+    originals.forEach(({ el, display, visibility, position, left, top, width, pointerEvents }) => {
+      el.style.setProperty('display',        display        ?? '');
+      el.style.setProperty('visibility',     visibility     ?? '');
+      el.style.setProperty('position',       position       ?? '');
+      el.style.setProperty('left',           left           ?? '');
+      el.style.setProperty('top',            top            ?? '');
+      el.style.setProperty('width',          width          ?? '');
+      el.style.setProperty('pointer-events', pointerEvents  ?? '');
+    });
+    subPaneOriginals.forEach(({ el, display }) => { el.style.setProperty('display', display ?? ''); });
   }
 }
 
@@ -4467,203 +4406,6 @@ function renderPrintCharts() {
   });
 }
 
-function getPrintableSvgHtml(item) {
-  const el = document.getElementById(item.id);
-  if (!el) return '';
-  const svg = el.tagName?.toLowerCase() === 'svg' ? el : el.querySelector('svg');
-  if (!svg) return '';
-  const copy = svg.cloneNode(true);
-  // 若無 viewBox，從 width/height 屬性補全，確保縮放不裁切
-  if (!copy.getAttribute('viewBox')) {
-    const w = parseFloat(svg.getAttribute('width') || svg.getBoundingClientRect().width) || 800;
-    const h = parseFloat(svg.getAttribute('height') || svg.getBoundingClientRect().height) || 400;
-    copy.setAttribute('viewBox', `0 0 ${w} ${h}`);
-  }
-  copy.removeAttribute('width');
-  copy.removeAttribute('height');
-  copy.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-  copy.style.width = '100%';
-  copy.style.height = 'auto';
-  copy.style.display = 'block';
-  return copy.outerHTML;
-}
-
-function captureCanvasAtSize(canvas, targetW, targetH) {
-  // 優先從 charts{} map 取，再查 Chart.js 全域 registry（涵蓋 ChartRegistry 模組）
-  const chart = charts[canvas.id] || (typeof Chart !== 'undefined' && Chart.getChart(canvas));
-  // 儲存原始 CSS style（Chart.resize 修改的是 CSS，非 canvas.width/height 屬性）
-  const origStyleW = canvas.style.width;
-  const origStyleH = canvas.style.height;
-  try {
-    if (chart) {
-      chart.stop();
-      chart.resize(targetW, targetH);
-      chart.update('none');
-    }
-    // 若 canvas 完全空白（未初始化）則回傳 null，由呼叫端顯示提示
-    const dataUrl = canvas.toDataURL('image/png');
-    // 偵測純白/純透明空白 canvas（未初始化的圖表）
-    const isBlank = (() => {
-      try {
-        const ctx2 = canvas.getContext('2d');
-        if (!ctx2) return false;
-        const px = ctx2.getImageData(0, 0, Math.min(canvas.width, 4), Math.min(canvas.height, 4)).data;
-        // 若所有像素 alpha=0 或 rgb 全為 255（純白）則視為空白
-        for (let i = 0; i < px.length; i += 4) {
-          if (px[i+3] > 0 && !(px[i] === 255 && px[i+1] === 255 && px[i+2] === 255)) return false;
-        }
-        return true;
-      } catch(e) { return false; }
-    })();
-    return isBlank ? null : dataUrl;
-  } finally {
-    if (chart) {
-      // 用 CSS style 復原（與 resize 對應），再讓 Chart.js 依容器重新自適應
-      canvas.style.width = origStyleW;
-      canvas.style.height = origStyleH;
-      chart.resize();
-      chart.update('none');
-    }
-  }
-}
-
-function getPrintableItemHTML(item) {
-  const title = `<div class="print-card-title">${escapeHtml(item.label)}</div>`;
-  const empty = `<div style="color:#777;font-size:12px;padding:18px 0">此項目目前沒有可列印圖表</div>`;
-  const figImg = (dataUrl, label) =>
-    `<div class="print-figure"><img src="${dataUrl}" alt="${escapeHtml(label)}" style="width:100%;height:auto;max-width:100%;display:block;" /></div>`;
-  if (item.type === 'svg') {
-    const svgHtml = getPrintableSvgHtml(item);
-    return title + (svgHtml ? `<div class="print-figure">${svgHtml}</div>` : empty);
-  }
-  if (item.type === 'div') {
-    const container = document.getElementById(item.id);
-    if (!container) return title + empty;
-    const innerCanvas = container.querySelector('canvas');
-    if (innerCanvas) {
-      try {
-        const dataUrl = captureCanvasAtSize(innerCanvas, 800, 380);
-        if (dataUrl) return title + figImg(dataUrl, item.label);
-        return title + `<div style="color:#777;font-size:12px;padding:18px 0">⚠ 圖表未初始化，請先切換至對應頁籤後再預覽列印</div>`;
-      } catch(e) { }
-    }
-    const svgHtml = getPrintableSvgHtml(item);
-    if (svgHtml) return title + `<div class="print-figure">${svgHtml}</div>`;
-    return title + empty;
-  }
-  const canvas = document.getElementById(item.id);
-  if (!canvas) return title + empty;
-  try {
-    const dataUrl = captureCanvasAtSize(canvas, 800, 380);
-    if (!dataUrl) return title + `<div style="color:#777;font-size:12px;padding:18px 0">⚠ 圖表未初始化，請先切換至對應頁籤後再預覽列印</div>`;
-    return title + figImg(dataUrl, item.label);
-  } catch(e) {
-    return title + `<div style="color:#777;font-size:12px;padding:18px 0">⚠ 圖表擷取失敗（${escapeHtml(String(e?.message||e))}）</div>`;
-  }
-}
-
-function buildPrintHTML(items) {
-  let itemHtml = '';
-  withPrintDataRange(() => {
-    withPrintablePanelsVisible(() => {
-      renderPrintCharts();
-      itemHtml = items.map(item =>
-        `<div class="print-card">${getPrintableItemHTML(item)}</div>`
-      ).join('');
-    });
-  });
-
-  const range = getPrintYearRange();
-  const rangeLabel = range.start && range.end ? `${range.start} 年至 ${range.end} 年` : '全部年份';
-  let html = `<style>
-    .print-report { font-family:sans-serif;background:#fff;color:#000;padding:20px; }
-    .print-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start; }
-    .print-card { break-inside:avoid;border:1px solid #ddd;border-radius:8px;padding:12px;background:#fff;margin-bottom:4px; }
-    .print-card-title { font-size:12px;font-weight:600;color:#444;margin-bottom:8px; }
-    .print-figure { width:100%;overflow:visible; }
-    .print-figure img { width:100%;height:auto;max-width:100%;display:block;object-fit:contain; }
-    .print-figure svg { width:100%;height:auto;max-width:100%;display:block; }
-    @media print { .print-card { page-break-inside:avoid; } }
-  </style><div class="print-report">
-    <div style="border-bottom:2px solid #333;padding-bottom:10px;margin-bottom:20px">
-      <h1 style="font-size:18px;margin:0">學習分析儀表板</h1>`;
-  const subj = document.getElementById('subjectInput')?.textContent?.trim();
-  if (subj) html += `<div style="font-size:13px;color:#555;margin-top:4px">科目：${escapeHtml(subj)}</div>`;
-  html += `<div style="font-size:12px;color:#555;margin-top:4px">輸出年份：${escapeHtml(rangeLabel)}</div>`;
-  const meta = document.getElementById('metaInfo')?.textContent;
-  if (meta) html += `<div style="font-size:11px;color:#888;margin-top:2px">${escapeHtml(meta)}</div>`;
-  html += `</div><div class="print-grid">`;
-  html += itemHtml;
-  html += `</div></div>`;
-  return html;
-}
-
-/**
- * doPrint — 使用 Blob URL 開新視窗列印（不需 inline script）
- */
-function doPrint() {
-  const items = getSelectedPrintItems();
-  if (!items.length) { alert('請至少選擇一個圖表'); return; }
-  const html = buildPrintHTML(items);
-
-  const docHtml = `<!DOCTYPE html><html><head>
-    <meta charset="UTF-8">
-    <title>學習分析儀表板 - 列印</title>
-    <style>
-      body { margin: 0; padding: 20px; background: #fff; }
-      @page { size: A4 landscape; margin: 15mm; }
-      @media print {
-        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      }
-    </style>
-  </head><body>${html}</body></html>`;
-
-  const blob = new Blob([docHtml], { type: 'text/html' });
-  const blobUrl = URL.createObjectURL(blob);
-  const printWin = window.open(blobUrl, '_blank', 'noopener,noreferrer');
-
-  if (printWin) {
-    printWin.addEventListener('load', () => {
-      const imgs = Array.from(printWin.document.images);
-      if (!imgs.length) {
-        printWin.print();
-        URL.revokeObjectURL(blobUrl);
-        return;
-      }
-      let loaded = 0;
-      const tryPrint = () => {
-        if (++loaded >= imgs.length) {
-          printWin.print();
-          URL.revokeObjectURL(blobUrl);
-        }
-      };
-      imgs.forEach(img => {
-        if (img.complete) tryPrint();
-        else { img.onload = img.onerror = tryPrint; }
-      });
-    });
-  } else {
-    // Fallback：popup 被封鎖時下載 HTML 檔
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = '學習分析報表.html';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-  }
-}
-
-function doPrintPreview() {
-  const items = getSelectedPrintItems();
-  if (!items.length) { alert('請至少選擇一個圖表'); return; }
-  const area = document.getElementById('printPreviewArea');
-  const content = document.getElementById('printPreviewContent');
-  content.innerHTML = buildPrintHTML(items);
-  area.style.display = 'block';
-  area.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
 // ══════════════════════════════════════════════════════════
 // data-action 事件委派系統
 // 取代靜態 HTML 中所有 onclick 屬性
@@ -4672,7 +4414,7 @@ function initDataActionDelegation() {
   // Actions that toggle a popover/panel open and must stop propagation,
   // otherwise the same click immediately bubbles to the global "close" listener.
   const STOP_PROPAGATION_ACTIONS = new Set([
-    'toggleBStatsHelp', 'toggleRRadarInfo',
+    'toggleBStatsHelp', 'toggleRRadarInfo', 'toggleWarningHelp',
     'closePopover', 'closePanelOpen', 'hidePanel',
   ]);
 
@@ -4735,6 +4477,10 @@ function initDataActionDelegation() {
       toggleRRadarInfo: () => {
         if (typeof window.toggleRRadarInfo === 'function') window.toggleRRadarInfo(e);
       },
+      // Warning help — exposed by ui-toggles.js (MutationObserver + positionFixed)
+      toggleWarningHelp: () => {
+        if (typeof window.toggleWarningHelp === 'function') window.toggleWarningHelp(e);
+      },
       // At-risk report
       atRiskFilterRadar: () => {
         if (typeof AtRiskReportManager !== 'undefined')
@@ -4752,14 +4498,14 @@ function initDataActionDelegation() {
         if (typeof window.exportAtRiskPDF === 'function') window.exportAtRiskPDF();
       },
       // Print
-      doPrintPreview: () => doPrintPreview(),
-      doPrint:        () => doPrint(),
+      doPrintPreview: () => { if (window.PrintPanel) window.PrintPanel.doPreview(); },
+      doPrint:        () => { if (window.PrintPanel) window.PrintPanel.doPrint(); },
       // Panel C retake search result selection
       selectRetakeStudent: () => selectRetakeStudent(el.dataset.sid),
       // Panel / popover close
       hidePanel: () => {
         const panel = document.getElementById(el.dataset.target);
-        if (panel) panel.style.display = 'none';
+        if (panel) panel.style.setProperty('display', 'none');
       },
       closePanelOpen: () => {
         document.getElementById(el.dataset.target)?.classList.remove('open');
@@ -4792,8 +4538,6 @@ function bindStaticHandlers() {
   byId('cFilterSem')      ?.addEventListener('change', () => onCGeneralFilterChange('semester'));
   byId('cFilterProgram')  ?.addEventListener('change', () => onCGeneralFilterChange('program'));
   byId('dFilterProgram')  ?.addEventListener('change', () => { _syncRetakerBtn('D'); renderD(); });
-  byId('printYearStart')  ?.addEventListener('change', () => syncPrintYearRange());
-  byId('printYearEnd')    ?.addEventListener('change', () => syncPrintYearRange());
 
   // oninput
   byId('cSearch')         ?.addEventListener('input', () => searchStudent());

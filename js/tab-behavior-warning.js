@@ -62,6 +62,16 @@ const BehaviorWarningTab = (() => {
     .ladash-w-stat-sub{font-size:.72rem;color:var(--text-dim,#888)}
     .ladash-w-no-student{font-size:.8rem;color:var(--text-dim,#888);padding:8px}
     .ladash-w-scroll{overflow-x:auto}
+    .ladash-w-val-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:10px}
+    .ladash-w-metric-card{padding:8px 10px;border-radius:6px;background:rgba(255,255,255,.04);border:1px solid var(--border2,#2a2f45)}
+    .ladash-w-metric-label{font-size:.68rem;color:var(--text-dim,#888);margin-bottom:3px}
+    .ladash-w-metric-value{font-size:1rem;font-weight:700;color:var(--text,#eee)}
+    .ladash-w-metric-sub{font-size:.65rem;color:var(--text-dim,#888);margin-top:2px}
+    .ladash-w-auc-badge{display:inline-block;padding:1px 7px;border-radius:8px;font-size:.68rem;font-weight:600;margin-left:5px;vertical-align:middle}
+    .ladash-w-coverage{display:inline-block;padding:1px 8px;border-radius:8px;font-size:.68rem;background:rgba(52,152,219,.15);color:#3498db;margin-left:6px;font-weight:600}
+    .ladash-w-val-section{margin-top:10px}
+    .ladash-w-val-section-title{font-size:.72rem;font-weight:600;color:var(--text-dim,#888);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+    .ladash-w-precision-pill{display:inline-block;padding:1px 6px;border-radius:8px;font-size:.7rem;font-weight:600;margin-left:4px}
   `;
 
   function _injectStyleOnce() {
@@ -146,6 +156,27 @@ const BehaviorWarningTab = (() => {
     const cross = crossResult.data;
     const semester = _getIncompleteSemester(cross);
     if (!semester) return null;
+
+    // 防線3（flat-file path）：優先嘗試 validated 版本，對齊 BehaviorLoader 邏輯
+    try {
+      const validatedResult = await _fetchFirstJson(_jsonCandidates(`warning_${semester}_validated.json`));
+      if (validatedResult?.data) {
+        const cal = validatedResult.data?.meta?.validation_summary?.calibration;
+        const validationDate = validatedResult.data?.meta?.validation_date;
+        if (cal && validationDate) {
+          const highErr = cal.HIGH?.calibration_error;
+          window._latestWarningValidation = {
+            semester,
+            date: new Date(validationDate).toLocaleDateString("zh-TW"),
+            highErrorPp: highErr != null ? `${highErr >= 0 ? "+" : ""}${(highErr * 100).toFixed(1)}` : "N/A",
+          };
+        }
+        return { semester, data: validatedResult.data };
+      }
+    } catch (_) {
+      // validated 版本不存在，繼續 fallback
+    }
+
     const warningResult = await _fetchFirstJson(_jsonCandidates(`warning_${semester}.json`));
     return { semester, data: warningResult.data };
   }
@@ -252,37 +283,106 @@ const BehaviorWarningTab = (() => {
 
     let validationHtml = "";
     if ("validation_date" in m) {
-      const cal = m.validation_summary?.calibration || {};
-      const auc = m.validation_summary?.auc;
+      const cal  = m.validation_summary?.calibration || {};
+      const auc  = m.validation_summary?.auc;
+      const nWithActual = m.validation_summary?.n_with_actual ?? 0;
       const date = new Date(m.validation_date).toLocaleDateString("zh-TW");
+
+      // 前端計算各組命中率（precision）與整體 recall
+      // precision[level] = 該組 actual FAIL 數 / 該組總人數（含非預警者）
+      // recall = (HIGH+MEDIUM 中的 FAIL) / 全體 FAIL
+      const students = _warningData.students || [];
+      const levelCounts = { HIGH: { fail: 0, total: 0 }, MEDIUM: { fail: 0, total: 0 }, LOW: { fail: 0, total: 0 } };
+      let totalFail = 0, warnedFail = 0;
+      students.forEach(s => {
+        const lvl = s.risk_level;
+        if (s.actual_outcome === "FAIL") {
+          totalFail++;
+          if (lvl === "HIGH" || lvl === "MEDIUM") warnedFail++;
+        }
+        if (levelCounts[lvl]) {
+          levelCounts[lvl].total++;
+          if (s.actual_outcome === "FAIL") levelCounts[lvl].fail++;
+        }
+      });
+      const recall = totalFail > 0 ? warnedFail / totalFail : null;
+      const coveragePct = nWithActual > 0 && (m.total_students ?? 0) > 0
+        ? Math.round(nWithActual / m.total_students * 100) : null;
+
+      // AUC 等級標籤
+      function _aucLabel(v) {
+        if (v == null) return { text: "無法計算", color: "#888" };
+        if (v >= 0.80) return { text: "優良", color: "#2ecc71" };
+        if (v >= 0.70) return { text: "良好", color: "#3498db" };
+        if (v >= 0.60) return { text: "尚可", color: "#e67e22" };
+        return { text: "偏低", color: "#e74c3c" };
+      }
+      const aucInfo = _aucLabel(auc);
+
       const calRows = ["HIGH", "MEDIUM", "LOW"].map((level) => {
         const row = cal[level] || {};
         const err = row.calibration_error;
         const sign = err != null && err >= 0 ? "+" : "";
         const errPp = err != null ? `${sign}${(err * 100).toFixed(1)}pp` : "--";
         const errColor = err != null && Math.abs(err) > 0.05 ? "#e74c3c" : "#2ecc71";
+        const prec = levelCounts[level].total > 0
+          ? levelCounts[level].fail / levelCounts[level].total : null;
+        const precStr = prec != null ? `${(prec * 100).toFixed(1)}%` : "--";
+        const precColor = prec != null && prec >= 0.40 ? "#e74c3c" : "#e67e22";
+        const n = row.n ?? levelCounts[level].total;
         return `<tr>
           <td class="ladash-val-td">${level}</td>
+          <td class="ladash-val-td">${n > 0 ? n : "--"}</td>
           <td class="ladash-val-td">${_pct(row.predicted_fail_rate)}</td>
           <td class="ladash-val-td">${_pct(row.actual_fail_rate)}</td>
           <td class="ladash-val-td" data-clr="${errColor}">${errPp}</td>
+          <td class="ladash-val-td" data-clr="${precColor}">${precStr}</td>
         </tr>`;
       }).join("");
+
       validationHtml = `
         <div class="ladash-w-val-box">
           <div class="ladash-w-val-hdr">
-            驗證資料：${_safeText(date)}，目標學期 ${_safeText(_semester)}
+            ✅ 前瞻性驗證結果（${_safeText(date)}，目標學期 ${_safeText(_semester)}）
+            ${coveragePct != null ? `<span class="ladash-w-coverage">覆蓋率 ${coveragePct}%</span>` : ""}
           </div>
-          <table class="ladash-w-val-tbl">
-            <thead><tr class="ladash-w-th-dim">
-              <th class="ladash-w-th">風險</th>
-              <th class="ladash-w-th">預測不及格率</th>
-              <th class="ladash-w-th">實際不及格率</th>
-              <th class="ladash-w-th">差距</th>
-            </tr></thead>
-            <tbody>${calRows}</tbody>
-          </table>
-          <div class="ladash-w-val-note">AUC = ${auc != null ? Number(auc).toFixed(3) : "--"}</div>
+
+          <div class="ladash-w-val-section">
+            <div class="ladash-w-val-section-title">分組校準度</div>
+            <table class="ladash-w-val-tbl">
+              <thead><tr class="ladash-w-th-dim">
+                <th class="ladash-w-th">風險組</th>
+                <th class="ladash-w-th">人數</th>
+                <th class="ladash-w-th">預測不及格率</th>
+                <th class="ladash-w-th">實際不及格率</th>
+                <th class="ladash-w-th">校準誤差</th>
+                <th class="ladash-w-th">命中率</th>
+              </tr></thead>
+              <tbody>${calRows}</tbody>
+            </table>
+            <div class="ladash-w-val-note">命中率 = 各組實際不及格人數 / 該組總人數；校準誤差 &gt;5pp 為橘紅色</div>
+          </div>
+
+          <div class="ladash-w-val-metrics">
+            <div class="ladash-w-metric-card">
+              <div class="ladash-w-metric-label">模型區辨力 AUC</div>
+              <div class="ladash-w-metric-value" data-auc-clr="${aucInfo.color}">
+                ${auc != null ? Number(auc).toFixed(3) : "N/A"}
+                <span class="ladash-w-auc-badge" data-auc-badge-clr="${aucInfo.color}">${_safeText(aucInfo.text)}</span>
+              </div>
+              <div class="ladash-w-metric-sub">以 BAS 分數排序（越低→風險越高）</div>
+            </div>
+            <div class="ladash-w-metric-card">
+              <div class="ladash-w-metric-label">整體召回率（Recall）</div>
+              <div class="ladash-w-metric-value">${recall != null ? `${(recall * 100).toFixed(1)}%` : "--"}</div>
+              <div class="ladash-w-metric-sub">HIGH+MEDIUM 預警涵蓋的不及格學生比例（共 ${totalFail} 位不及格）</div>
+            </div>
+            <div class="ladash-w-metric-card">
+              <div class="ladash-w-metric-label">驗證人數</div>
+              <div class="ladash-w-metric-value">${nWithActual}</div>
+              <div class="ladash-w-metric-sub">共 ${m.total_students ?? "--"} 位學生，${coveragePct != null ? coveragePct + "%" : "--"} 有期末成績</div>
+            </div>
+          </div>
         </div>`;
     }
 
@@ -297,8 +397,14 @@ const BehaviorWarningTab = (() => {
           ${cards}
         </div>
         <div class="ladash-w-stat-sub">
-          規則：${_safeText(m.primary_rule || "")} |
+          主規則：${_safeText(m.primary_rule || "")}
+          ${Array.isArray(m.secondary_rules) && m.secondary_rules.length
+            ? ` | 輔助規則：${m.secondary_rules.map(r => `<span class="warning-rule-badge">${_safeText(String(r))}</span>`).join(" ")}`
+            : ""}
+        </div>
+        <div class="ladash-w-stat-sub" style="margin-top:3px">
           參考資料：${_safeText(m.reference_data || "")}
+          ${m.generated_at ? ` | 預測產生：${_safeText(new Date(m.generated_at).toLocaleString("zh-TW"))}` : ""}
         </div>
         ${validationHtml}
       </div>`;
@@ -312,6 +418,15 @@ const BehaviorWarningTab = (() => {
     wrap.querySelectorAll(".ladash-val-td[data-clr]").forEach(td => {
       if (td.dataset.clr) td.style.setProperty("color", td.dataset.clr);
       td.style.setProperty("font-weight", "600");
+    });
+    // CSP-WARN-6 FIX: AUC metric value and badge colors via DOM API
+    wrap.querySelectorAll("[data-auc-clr]").forEach(el => {
+      el.style.setProperty("color", el.dataset.aucClr);
+    });
+    wrap.querySelectorAll(".ladash-w-auc-badge[data-auc-badge-clr]").forEach(el => {
+      const c = el.dataset.aucBadgeClr;
+      el.style.setProperty("color", c);
+      el.style.setProperty("background", "rgba(150,150,150,.15)"); // neutral bg; color carries meaning
     });
   }
 
