@@ -71,6 +71,9 @@
   --card-bg:   #13161f;
 }
 
+/* CSP-V5: utility class replaces inline display:none for JS-toggled elements */
+.is-hidden { display: none !important; }
+
 /* ── 淺色模式 Light Mode ── */
 body.light {
   --bg:        #f0f2f8;
@@ -1310,7 +1313,7 @@ body.light .behavior-range-badge {
   <div class="header-sep"></div>
   <div class="header-title">學習分析儀表板</div>
   <span class="year-range-badge" id="yearRangeBadge">—</span>
-  <span class="year-range-badge behavior-range-badge" id="behaviorRangeBadge" style="display:none">行為 —</span>
+  <span class="year-range-badge behavior-range-badge is-hidden" id="behaviorRangeBadge">行為 —</span><!-- CSP-V5-FIX: display:none→CSS class -->
   <div class="subject-field" id="subjectMeta">
     <span class="year-range-badge behavior-range-badge" id="subjectInput"></span>
   </div>
@@ -1508,7 +1511,7 @@ body.light .behavior-range-badge {
 </div>
 
 <!-- bFilterType: 隱藏的課別選單，供 renderB() 讀取 -->
-<select id="bFilterType" style="display:none" aria-hidden="true" tabindex="-1"><option value="theory">正課</option><option value="practicum">實驗</option></select>
+<select id="bFilterType" hidden aria-hidden="true" tabindex="-1"><option value="theory">正課</option><option value="practicum">實驗</option></select><!-- CSP-V5-FIX: style→hidden -->
 
 <!-- ══ PANEL C ══ (整合：全體學生 + 重修分析) -->
 <div class="panel" id="panelC" role="tabpanel" aria-labelledby="tab-btn-C">
@@ -2549,6 +2552,14 @@ body.light .behavior-range-badge {
           <div id="crossSummaryCard" style="padding:10px 4px"></div>
         </div>
 
+        <!-- XGBoost Prediction Performance 卡（資料不存在/未啟用時由JS隱藏整張卡） -->
+        <div class="chart-card" id="crossXgbCardWrap" style="margin-bottom:12px;display:none">
+          <div class="chart-title" style="--accent-color:var(--accent2)">
+            <span class="dot"></span>XGBoost 預測效能（Week 12 早期預警模型）
+          </div>
+          <div id="crossXgbCard" style="padding:10px 4px"></div>
+        </div>
+
         <!-- Alert Card -->
         <div class="chart-card" style="margin-bottom:12px">
           <div class="chart-title" style="--accent-color:var(--accent2)">
@@ -2620,9 +2631,141 @@ body.light .behavior-range-badge {
 
         <!-- 摘要橫幅 -->
         <div class="chart-card" style="margin-bottom:12px">
-          <div class="chart-title" style="--accent-color:var(--accent2)">
+          <div class="chart-title" style="--accent-color:var(--accent2);display:flex;align-items:center;gap:8px;margin-bottom:0;position:relative">
             <span class="dot"></span>預警摘要
+            <!-- 說明按鈕（data-action 走 main.js 委派，stopPropagation 由 STOP_PROPAGATION_ACTIONS 處理） -->
+            <button type="button" id="warningHelpBtn" class="hover-accent-btn"
+              data-action="toggleWarningHelp"
+              style="width:20px;height:20px;border-radius:50%;border:1px solid var(--border2);
+                     background:var(--surface2);color:var(--text-dim);font-size:11px;font-weight:700;
+                     cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;
+                     flex-shrink:0;transition:all 0.15s;padding:0;margin-left:2px"
+              title="說明各指標含義與計算方式">?</button>
           </div>
+
+          <!-- 說明彈出面板 -->
+          <div id="warningHelpPanel" data-maxw="400"
+            style="display:none;position:fixed;z-index:9000;
+                   background:var(--surface);border:1px solid var(--border2);border-radius:10px;
+                   padding:14px 16px;width:min(92vw,400px);
+                   box-shadow:0 8px 28px rgba(0,0,0,0.22);font-size:12px;line-height:1.6;
+                   max-height:82vh;overflow-y:auto">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <span style="font-size:12px;font-weight:700;color:var(--text)">📊 預警指標說明</span>
+              <button type="button" data-action="hidePanel" data-target="warningHelpPanel"
+                style="background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;
+                       line-height:1;padding:0 4px" title="關閉">×</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px;color:var(--text-dim)">
+
+              <!-- BAS -->
+              <div style="border-left:3px solid var(--accent);padding-left:10px">
+                <div style="font-weight:700;color:var(--text);margin-bottom:2px">BAS — 行為分析分數</div>
+                <div>綜合衡量學生在課程期間的線上學習投入程度。</div>
+                <div style="margin-top:4px;padding:6px 8px;border-radius:6px;background:var(--surface2);font-family:monospace;font-size:11px;color:var(--text-mid)">
+                  BAS = w₁×活躍天數比 + w₂×閱讀深度 + w₃×QMI + w₄×期中分數 + w₅×被動指數（對數正規化）
+                </div>
+                <div style="margin-top:4px">分數越低代表行為投入越少、不及格風險越高（範圍 0–1）。</div>
+              </div>
+
+              <!-- QMI -->
+              <div style="border-left:3px solid var(--accent2);padding-left:10px">
+                <div style="font-weight:700;color:var(--text);margin-bottom:2px">QMI — 題庫精熟指數</div>
+                <div>反映學生在題庫練習上的「答對品質」與「持續投入」。</div>
+                <div style="margin-top:4px;padding:6px 8px;border-radius:6px;background:var(--surface2);font-family:monospace;font-size:11px;color:var(--text-mid)">
+                  QMI = (加權正確率 × 0.6) + (作答週數覆蓋比 × 0.4)
+                </div>
+                <div style="margin-top:4px">範圍 0–1；QMI &lt; 0.45 視為精熟度偏低的風險訊號。</div>
+              </div>
+
+              <!-- 風險等級 -->
+              <div style="border-left:3px solid var(--accent3);padding-left:10px">
+                <div style="font-weight:700;color:var(--text);margin-bottom:2px">風險等級（HIGH / MEDIUM / LOW）</div>
+                <div>依 BAS 與 QMI 門檻組合，對照訓練集歷史資料所得：</div>
+                <div style="margin-top:5px;display:flex;flex-direction:column;gap:4px">
+                  <div style="display:flex;align-items:flex-start;gap:8px">
+                    <span style="min-width:10px;height:10px;border-radius:50%;background:#e74c3c;margin-top:4px;flex-shrink:0;display:inline-block"></span>
+                    <div><span style="color:#e74c3c;font-weight:600">HIGH</span> — BAS 低且 QMI 偏低；歷史不及格率約 33%</div>
+                  </div>
+                  <div style="display:flex;align-items:flex-start;gap:8px">
+                    <span style="min-width:10px;height:10px;border-radius:50%;background:#e67e22;margin-top:4px;flex-shrink:0;display:inline-block"></span>
+                    <div><span style="color:#e67e22;font-weight:600">MEDIUM</span> — 部分指標偏低；歷史不及格率約 23%</div>
+                  </div>
+                  <div style="display:flex;align-items:flex-start;gap:8px">
+                    <span style="min-width:10px;height:10px;border-radius:50%;background:#2ecc71;margin-top:4px;flex-shrink:0;display:inline-block"></span>
+                    <div><span style="color:#2ecc71;font-weight:600">LOW</span> — 整體表現良好；歷史不及格率約 13%</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 驗證區塊分隔 -->
+              <div style="border-top:1px solid var(--border2);padding-top:10px;margin-top:2px">
+                <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px">✅ 前瞻性驗證指標</div>
+              </div>
+
+              <!-- AUC -->
+              <div style="border-left:3px solid var(--blue);padding-left:10px">
+                <div style="font-weight:700;color:var(--text);margin-bottom:2px">AUC — 模型區辨力</div>
+                <div>衡量 BAS 分數能否將「最終不及格」和「及格」的學生正確排序的能力。</div>
+                <div style="margin-top:4px;padding:6px 8px;border-radius:6px;background:var(--surface2);font-family:monospace;font-size:11px;color:var(--text-mid)">
+                  計算方式：以 −BAS 為預測分數，對 actual_outcome（FAIL=1）做 ROC 梯形積分
+                </div>
+                <div style="margin-top:5px;display:flex;flex-direction:column;gap:3px;font-size:11px">
+                  <div><span style="color:#2ecc71;font-weight:600">≥ 0.80 優良</span> — 能可靠地分辨高低風險</div>
+                  <div><span style="color:#3498db;font-weight:600">0.70–0.79 良好</span> — 有效區辨，少量誤判</div>
+                  <div><span style="color:#e67e22;font-weight:600">0.60–0.69 尚可</span> — 有參考價值但需輔助判斷</div>
+                  <div><span style="color:#e74c3c;font-weight:600">&lt; 0.60 偏低</span> — 區辨力不足，建議搭配人工審閱</div>
+                </div>
+                <div style="margin-top:4px">AUC = 0.5 代表與隨機猜測無異；1.0 代表完美區辨。</div>
+              </div>
+
+              <!-- 校準誤差 -->
+              <div style="border-left:3px solid var(--green);padding-left:10px">
+                <div style="font-weight:700;color:var(--text);margin-bottom:2px">校準誤差（Calibration Error）</div>
+                <div>衡量各風險組的「預測不及格率」與「實際不及格率」的差距。</div>
+                <div style="margin-top:4px;padding:6px 8px;border-radius:6px;background:var(--surface2);font-family:monospace;font-size:11px;color:var(--text-mid)">
+                  校準誤差 = 實際不及格率 − 歷史預測不及格率（單位：百分點 pp）
+                </div>
+                <div style="margin-top:4px">
+                  <span style="color:var(--text-mid)">正值（+pp）</span>代表模型<em>低估</em>了該組風險（實際比預期更多人不及格）；
+                  負值（−pp）代表模型<em>高估</em>了風險。
+                  誤差 &gt; ±5pp 為橘紅色警示。
+                </div>
+              </div>
+
+              <!-- 命中率 Precision -->
+              <div style="border-left:3px solid var(--accent4);padding-left:10px">
+                <div style="font-weight:700;color:var(--text);margin-bottom:2px">命中率（Precision）</div>
+                <div>各風險組中，實際不及格學生所佔的比例。</div>
+                <div style="margin-top:4px;padding:6px 8px;border-radius:6px;background:var(--surface2);font-family:monospace;font-size:11px;color:var(--text-mid)">
+                  命中率 = 該組實際不及格人數 ÷ 該組總人數
+                </div>
+                <div style="margin-top:4px">HIGH 組命中率越高，代表高風險預警越精準（誤報越少）。</div>
+              </div>
+
+              <!-- 召回率 Recall -->
+              <div style="border-left:3px solid var(--yellow);padding-left:10px">
+                <div style="font-weight:700;color:var(--text);margin-bottom:2px">召回率（Recall）</div>
+                <div>全體實際不及格學生中，被 HIGH 或 MEDIUM 預警涵蓋的比例。</div>
+                <div style="margin-top:4px;padding:6px 8px;border-radius:6px;background:var(--surface2);font-family:monospace;font-size:11px;color:var(--text-mid)">
+                  召回率 = (HIGH+MEDIUM 組中實際不及格人數) ÷ 全體實際不及格人數
+                </div>
+                <div style="margin-top:4px">召回率越高代表「漏掉的真正高風險學生」越少；實務上召回率比命中率更重要。</div>
+              </div>
+
+              <!-- 覆蓋率 -->
+              <div style="border-left:3px solid var(--gray);padding-left:10px">
+                <div style="font-weight:700;color:var(--text);margin-bottom:2px">驗證覆蓋率</div>
+                <div>參與驗證的學生（有期末成績）佔預警名單總人數的比例。</div>
+                <div style="margin-top:4px;padding:6px 8px;border-radius:6px;background:var(--surface2);font-family:monospace;font-size:11px;color:var(--text-mid)">
+                  覆蓋率 = 有 actual_outcome 的人數 ÷ 預警名單總人數 × 100%
+                </div>
+                <div style="margin-top:4px">覆蓋率越接近 100%，驗證結果越具代表性；&lt; 80% 時各項統計數值僅供參考。</div>
+              </div>
+
+            </div><!-- /items -->
+          </div><!-- /warningHelpPanel -->
+
           <div id="warningSummaryBanner" style="padding:10px 4px"></div>
         </div>
 
@@ -2690,8 +2833,8 @@ body.light .behavior-range-badge {
         <button type="button" class="chart-info-btn" id="rRadarInfoBtn"
           data-action="toggleRRadarInfo"
           title="查看雷達圖說明">?</button>
-        <!-- 雷達圖說明 Popover -->
-        <div class="chart-popover" id="rRadarInfoPanel" style="width:360px;left:0;top:calc(100% + 6px)">
+        <!-- 雷達圖說明 Popover（position:fixed 由 toggleRRadarInfo 動態設定） -->
+        <div class="chart-popover" id="rRadarInfoPanel" data-maxw="360">
           <div class="chart-popover-title">📡 學習特徵雷達圖 — 分析原則
             <button type="button" class="chart-popover-close" data-action="closePanelOpen" data-target="rRadarInfoPanel">×</button>
           </div>
@@ -2747,6 +2890,9 @@ body.light .behavior-range-badge {
     <!-- §5.6 處方性建議 -->
     <div id="rPrescriptions" style="margin:16px 0"></div>
 
+    <!-- §5.7 Top Risk Factors（XGBoost 特徵重要性） -->
+    <div id="rTopRiskFactors" style="margin:16px 0"></div>
+
     <!-- 匯出按鈕（§6.2） -->
     <div style="padding:16px 0 32px;text-align:right">
       <button type="button" data-action="exportAtRiskPDF"
@@ -2797,29 +2943,29 @@ body.light .behavior-range-badge {
 </div>
 
 <!-- 核心篩選邏輯模組（Bug E fix: moved from <head> to guarantee defer order） -->
-<script defer src="js/filter-engine.js"></script>
+<script defer src="js/filter-engine.js?v=202506220005"></script>
 <!-- 主應用邏輯（依賴 filter-engine.js 與 CDN Chart.js） -->
-<script defer src="js/main.js"></script>
+<script defer src="js/main.js?v=202506220005"></script>
 
 <!-- ══ D3.js v7.9.0（LSA 有向圖，本地化：js/vendor/d3.min.js）══ -->
 <script src="js/vendor/d3.min.js"></script>
 
 <!-- ══ 學習行為模組（依賴 main.js 全域變數）══ -->
-<script defer src="js/chart-registry.js?v=202606261753"></script>
-<script defer src="js/behavior-loader.js?v=202606261753"></script>
-<script defer src="js/tab-behavior-radar.js?v=202606261753"></script>
-<script defer src="js/tab-behavior-correlation.js?v=202606261753"></script>
-<script defer src="js/tab-behavior-time.js?v=202606261753"></script>
-<script defer src="js/tab-behavior-lsa.js?v=202606261753"></script>
-<script defer src="js/tab-behavior-cross.js?v=202606261753"></script>
-<script defer src="js/tab-behavior-warning.js?v=202606261753"></script>
+<script defer src="js/chart-registry.js?v=202506220005"></script>
+<script defer src="js/behavior-loader.js?v=202506220005"></script>
+<script defer src="js/tab-behavior-radar.js?v=202506220005"></script>
+<script defer src="js/tab-behavior-correlation.js?v=202506220005"></script>
+<script defer src="js/tab-behavior-time.js?v=202506220005"></script>
+<script defer src="js/tab-behavior-lsa.js?v=202506220005"></script>
+<script defer src="js/tab-behavior-cross.js?v=202506220005"></script>
+<script defer src="js/tab-behavior-warning.js?v=202506220005"></script>
 
 <!-- ══ 行為初始化 + 高風險報告（依賴 behavior 模組）══ -->
-<script defer src="js/behavior-init.js?v=202606261753"></script>
-<script defer src="js/at-risk-report.js?v=202606261753"></script>
+<script defer src="js/behavior-init.js?v=202506220005"></script>
+<script defer src="js/at-risk-report.js?v=202506220005"></script>
 <!-- ══ 列印面板（依賴所有 behavior 模組與 ChartRegistry）══ -->
-<script defer src="js/print-panel.js?v=202606261753"></script>
-<script defer src="js/ui-toggles.js?v=202606261753"></script>
+<script defer src="js/print-panel.js?v=202506220005"></script>
+<script defer src="js/ui-toggles.js?v=202506220005"></script>
 
 <!-- R2 排除資料說明 popover（body 層，position:fixed 避免被 table overflow 裁切）-->
 <div id="r2ExcludePopover" data-maxw="360"
