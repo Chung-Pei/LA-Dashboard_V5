@@ -52,7 +52,7 @@ let _lastSlopeRetakers = null;
 
 // Panel D 學期篩選狀態
 let dSemMode     = 'range';   // 'range' | 'multi'
-let dSemRange    = [0, 29];   // [startIdx, endIdx]（索引對應 DATA.meta.semesters）
+let dSemRange    = [0, 0];    // [startIdx, endIdx]（索引對應 DATA.meta.semesters）；init() 的 initDSemFilter() 會重設為 [0, maxIdx]
 let dSemSelected = new Set(); // 多選模式：已選學期 value set
 
 // ══════════════════════════════════════════════════════════
@@ -101,6 +101,7 @@ function weightedAvg(rows, valFn, weightFn = c => Number(c.count) || 1) {
   }
   return sumW > 0 ? sumV / sumW : null;
 }
+
 
 function cssColor(name, fallback) {
   const value = getComputedStyle(document.body).getPropertyValue(name).trim();
@@ -363,9 +364,14 @@ function showSvgTip(evt, text) {
 function moveSvgTip(evt) {
   const margin = 14;
   const tw = svgTip.offsetWidth, th = svgTip.offsetHeight;
+  // 用 visualViewport 取得 PWA 實際可視區域（已扣除 safe area 與鍵盤）
+  const vw = (window.visualViewport?.width  ?? window.innerWidth)  - 8;
+  const vh = (window.visualViewport?.height ?? window.innerHeight) - 8;
   let x = evt.clientX + margin, y = evt.clientY + margin;
-  if (x + tw > window.innerWidth  - 8) x = evt.clientX - tw - margin;
-  if (y + th > window.innerHeight - 8) y = evt.clientY - th - margin;
+  if (x + tw > vw) x = evt.clientX - tw - margin;  // 超右 → 翻左
+  if (y + th > vh) y = evt.clientY - th - margin;  // 超下 → 翻上
+  x = Math.max(8, x);  // BUG-1: 左邊界保護
+  y = Math.max(8, y);  // BUG-1: 上邊界保護
   svgTip.style.setProperty('left', x + 'px');
   svgTip.style.setProperty('top', y + 'px');
 }
@@ -535,7 +541,7 @@ const CHART_INFO = {
   },
   chartDelta: {
     title: 'Δ 分佈直方圖',
-    desc: '所有重修生「重修成績 − 首修成績」（Δ）的分布。綠色=進步，紅色=退步。',
+    desc: '所有重修生「重修成績 − 首修成績」（Δ）的分布。正值=進步，負值=退步。',
     points: [
       '集中在 +10 至 +20 → 多數重修生進步約 10–20 分，機制有效',
       '分布以 0 對稱 → 重修成效不一，需個案分析',
@@ -555,7 +561,7 @@ const CHART_INFO = {
     use: '差異化輔導方向判斷，根據象限位置制定介入策略。',
   },
   chartDeltaByProgram: {
-    title: '重修改善率依學制比較',
+    title: '重修成績變化量依學制比較',
     desc: '各學制重修生的平均 Δ 值（進步幅度）比較。',
     points: [
       '某學制 Δ 顯著高 → 該學制對重修機制反應較佳',
@@ -580,7 +586,7 @@ const CHART_INFO = {
     points: [
       '左上角（首修低，Δ 大正值）→「低谷反彈型」，補救效果顯著',
       '右下角（首修高，Δ 為負值）→「高原退步型」，疏於準備',
-      '無明顯趨勢 → 個別差異大，首修成績無法預測改善幅度',
+      '無明顯趨勢 → 個別差異大，首修成績無法預測成績變化量',
     ],
     use: '判斷補救教學介入時機，Hover 可查看遮蔽學號。',
   },
@@ -831,14 +837,21 @@ function attachInfoButtons() {
         if (p !== pop) p.classList.remove('open');
       });
       pop.classList.toggle('open');
+      // BUG-5: 開啟後偵測是否超出右邊界，自動 flip
+      if (pop.classList.contains('open')) {
+        pop.classList.remove('flip-right');
+        const rect = pop.getBoundingClientRect();
+        if (rect.right > (window.visualViewport?.width ?? window.innerWidth) - 8) {
+          pop.classList.add('flip-right');
+        }
+      }
     });
   });
 
   if (!window.__chartInfoGlobalClickBound) {
     window.__chartInfoGlobalClickBound = true;
-    document.addEventListener('click', (e) => {
-      // 若點擊來自 data-action 的 toggle 按鈕或來自 popover 內部，不做全域關閉
-      // 避免與 initDataActionDelegation 的 toggle 邏輯衝突（兩者都在 document 層級）
+
+    function _closeAllPopovers(e) {
       const actionEl = e.target.closest('[data-action]');
       if (actionEl) {
         const act = actionEl.dataset.action;
@@ -848,7 +861,11 @@ function attachInfoButtons() {
       }
       if (e.target.closest('.chart-popover')) return;
       document.querySelectorAll('.chart-popover.open').forEach(p => p.classList.remove('open'));
-    });
+    }
+
+    // BUG-4: touchstart 在觸控裝置上比 click 更可靠，兩者都綁定以確保 PWA 正常關閉
+    document.addEventListener('click',      _closeAllPopovers);
+    document.addEventListener('touchstart', _closeAllPopovers, { passive: true });
   }
 }
 
@@ -1048,7 +1065,7 @@ function compareClassRecords(a, b) {
 }
 
 function mergeClassSummary(target, source) {
-  const weightedFields = ['avg_midterm', 'avg_final', 'avg_semester', 'pass_rate', 'retaker_rate'];
+  const weightedFields = ['avg_midterm', 'avg_final', 'avg_semester', 'pass_rate', 'retaker_ratio'];
   const sameSummary = target.count === source.count
     && weightedFields.every(k => target[k] === source[k]);
 
@@ -1127,6 +1144,24 @@ async function loadData() {
 
 function init() {
   const m = DATA.meta;
+
+  // ── 從 meta 建立全域常數，供全前端統一讀取，避免硬編碼 ──────────
+  // 及格線：同步自 ETL 的 FAIL_THRESHOLD（預設 60）
+  window.FAIL_THRESHOLD = m.fail_threshold ?? 60;
+
+  // UI 及格率顏色判斷閾值（ETL 可擴充至 meta 輸出；目前以常數定義）
+  // >= PASS_COLOR_HIGH → 綠色（優）; >= PASS_COLOR_MID → 橙色（普）; 其餘 → 紅色（警）
+  window.PASS_COLOR_HIGH = m.pass_color_high ?? 0.9;
+  window.PASS_COLOR_MID  = m.pass_color_mid  ?? 0.7;
+
+  // 疫情 / 108課綱學期範圍
+  // curriculum_sem_range[1]=null 代表「持續更新」，上界取 semesters 最後一筆
+  const lastSem = m.semesters[m.semesters.length - 1] ?? '9999';
+  window.SEM_COVID_START      = (m.covid_sem_range       ?? ['1082','1112'])[0];
+  window.SEM_COVID_END        = (m.covid_sem_range       ?? ['1082','1112'])[1];
+  window.SEM_CURRICULUM_START = (m.curriculum_sem_range  ?? ['1111', null])[0];
+  window.SEM_CURRICULUM_END   = (m.curriculum_sem_range  ?? ['1111', null])[1] ?? lastSem;
+  // ── End of global constants ─────────────────────────────────────
   document.getElementById('metaInfo').innerHTML =
     `${escapeHtml(String(m.semesters.length))} 學期 · 更新 ${escapeHtml((m.generated_at ?? '').slice(0,10))}`;
 
@@ -1201,9 +1236,13 @@ function populateFilters() {
 }
 
 function cloneClassSummary(c) {
+  // ETL 重跑前 data.json 仍有 retaker_rate（舊欄位名）；加 fallback 相容兩版本
+  const ratio = c.retaker_ratio ?? c.retaker_rate ?? null;
   return {
     ...c,
-    score_distribution: Array.isArray(c.score_distribution) ? [...c.score_distribution] : c.score_distribution
+    retaker_ratio:         ratio,
+    score_distribution:    Array.isArray(c.score_distribution)    ? [...c.score_distribution]    : c.score_distribution,
+    score_distribution_nr: Array.isArray(c.score_distribution_nr) ? [...c.score_distribution_nr] : c.score_distribution_nr,
   };
 }
 
@@ -1216,11 +1255,27 @@ function aggregateClassSummaries(rows, sem, sheet, type = 'all') {
   first.type = type;
   first.count = total || rows.reduce((a, c) => a + (c.count || 0), 0);
 
-  ['avg_midterm', 'avg_final', 'avg_semester', 'pass_rate', 'retaker_rate'].forEach(field => {
+  // 全體欄位加權合併
+  ['avg_midterm', 'avg_final', 'avg_semester', 'pass_rate', 'retaker_ratio'].forEach(field => {
     const weighted = rows
       .filter(c => c[field] != null)
       .reduce((acc, c) => {
         const w = Number(c.count) || 1;
+        acc.sum += c[field] * w;
+        acc.weight += w;
+        return acc;
+      }, { sum: 0, weight: 0 });
+    first[field] = weighted.weight ? +(weighted.sum / weighted.weight).toFixed(2) : null;
+  });
+
+  // _nr 欄位加權合併（以 count_nr 為權重）
+  const total_nr = rows.reduce((a, c) => a + (Number(c.count_nr) || 0), 0);
+  first.count_nr = total_nr;
+  ['avg_midterm_nr', 'avg_final_nr', 'avg_semester_nr', 'pass_rate_nr'].forEach(field => {
+    const weighted = rows
+      .filter(c => c[field] != null)
+      .reduce((acc, c) => {
+        const w = Number(c.count_nr) || 1;
         acc.sum += c[field] * w;
         acc.weight += w;
         return acc;
@@ -1233,6 +1288,13 @@ function aggregateClassSummaries(rows, sem, sheet, type = 'all') {
     rows.forEach(c => {
       if (!Array.isArray(c.score_distribution)) return;
       c.score_distribution.forEach((v, i) => { first.score_distribution[i] += v || 0; });
+    });
+  }
+  if (rows.some(c => Array.isArray(c.score_distribution_nr))) {
+    first.score_distribution_nr = Array(11).fill(0);
+    rows.forEach(c => {
+      if (!Array.isArray(c.score_distribution_nr)) return;
+      c.score_distribution_nr.forEach((v, i) => { first.score_distribution_nr[i] += v || 0; });
     });
   }
 
@@ -1259,7 +1321,23 @@ function getClassSummary(sem, sheet, type = 'all', includeRetaker = true, progra
   });
   if (!rows.length) return null;
   const normSheet = sheet === 'all' ? 'all' : normalizeSheet(sheet);
-  return rows.length === 1 ? cloneClassSummary(rows[0]) : aggregateClassSummaries(rows, sem, normSheet, type);
+  const cls = rows.length === 1
+    ? cloneClassSummary(rows[0])
+    : aggregateClassSummaries(rows, sem, normSheet, type);
+
+  // 若排除重修生，將 ETL 預算的 _nr 欄位覆蓋到主欄位
+  // 下游所有讀取 cls.count / cls.avg_semester 等的地方自動得到正確值
+  if (!includeRetaker && cls) {
+    cls.count              = cls.count_nr              ?? cls.count;
+    cls.avg_midterm        = cls.avg_midterm_nr        ?? null;
+    cls.avg_final          = cls.avg_final_nr          ?? null;
+    cls.avg_semester       = cls.avg_semester_nr       ?? null;
+    cls.pass_rate          = cls.pass_rate_nr          ?? null;
+    cls.fail_rate          = cls.fail_rate_nr          ?? null;
+    cls.score_distribution = cls.score_distribution_nr ?? cls.score_distribution;
+    cls.retaker_ratio      = null; // 排除跨屆重修生時，重修生佔比無意義
+  }
+  return cls;
 }
 
 function recordMatchesClass(r, sem, sheet, type = 'all') {
@@ -1485,18 +1563,23 @@ function renderA() {
   const sem     = document.getElementById('aFilterSem').value;
   const type    = document.getElementById('aFilterType').value;
   const program = document.getElementById('aFilterProgram').value;
-  const cls     = getClassSummary(sem, sheet, type, getIncludeRetaker('A'), program);
+  const inclRetakerA = getIncludeRetaker('A');
+  // class_summary 仍用於：score_distribution（直方圖）、retaker_ratio、比較學期功能
+  const cls     = getClassSummary(sem, sheet, type, inclRetakerA, program);
 
   if (!cls) {
     document.getElementById('aStats').innerHTML = '<div class="empty-state">無此班次資料</div>';
     return;
   }
 
-  const passColor = cls.pass_rate >= 0.9 ? 'var(--green)' : cls.pass_rate >= 0.7 ? 'var(--accent3)' : 'var(--red)';
+  // getClassSummary 已在 includeRetaker=false 時自動覆蓋 _nr 欄位
+  // cls.count/avg_semester/pass_rate/score_distribution 均為正確版本，直接讀取
+  const passColor = cls.pass_rate != null && cls.pass_rate >= PASS_COLOR_HIGH ? 'var(--green)'
+                  : cls.pass_rate != null && cls.pass_rate >= PASS_COLOR_MID  ? 'var(--accent3)' : 'var(--red)';
   document.getElementById('aStats').innerHTML = `
     <div class="stat-card" data-ac="var(--accent)">
       <div class="val">${cls.count}</div>
-      <div class="lbl">人數 Students</div>
+      <div class="lbl">${inclRetakerA ? '名冊人數 Enrolled' : '首修人數 First-Time'}</div>
     </div>
     <div class="stat-card" data-ac="var(--accent2)">
       <div class="val">${cls.avg_semester ?? '–'}</div>
@@ -1507,8 +1590,12 @@ function renderA() {
       <div class="lbl">及格率 Pass Rate</div>
     </div>
     <div class="stat-card" data-ac="var(--accent4)">
-      <div class="val">${cls.retaker_rate != null ? (cls.retaker_rate*100).toFixed(1)+'%' : '–'}</div>
-      <div class="lbl">重修率 Retaker Rate</div>
+      <div class="val">${cls.retaker_ratio != null ? (cls.retaker_ratio*100).toFixed(1)+'%' : '–'}</div>
+      <div class="lbl">重修生佔比 Retaker Ratio</div>
+    </div>
+    <div class="stat-card" data-ac="var(--red)" title="本班本學期不及格人數佔比，不及格者下學期須至他班重修">
+      <div class="val">${cls.fail_rate != null ? (cls.fail_rate*100).toFixed(1)+'%' : '–'}</div>
+      <div class="lbl">不及格率 Fail Rate <span style="font-size:9px;opacity:.7">（≈重修率）</span></div>
     </div>
     <div class="stat-card" data-ac="var(--accent3)">
       <div class="val">${cls.avg_midterm ?? '–'}</div>
@@ -1598,6 +1685,7 @@ function renderTrend() {
   const sheetName = document.getElementById('aTrendSheet').value;
   const type    = document.getElementById('aFilterType')?.value || 'all';
   const program = document.getElementById('aFilterProgram')?.value || 'all';
+  // getClassSummary 已自動覆蓋 _nr 欄位，直接傳入 inclRetaker 即可
   const relevant = DATA.meta.semesters
     .map(sem => getClassSummary(sem, sheetName, type, getIncludeRetaker('A'), program))
     .filter(Boolean);
@@ -1663,23 +1751,27 @@ function getRetakerRecords() {
   const retakers = [];
 
   for (const [sid, data] of Object.entries(DATA.students)) {
-    const recs = data.records.filter(r => r.is_retaker && r.type === type);
-    if (recs.length < 2) continue;
+    // 取該課型的所有記錄（含首修，is_retaker 可為 false）
+    const allRecs = data.records.filter(r => r.type === type);
+    // 必須含有至少一筆 is_retaker=true 才是重修生
+    if (!allRecs.some(r => r.is_retaker)) continue;
 
     if (bMode === 'sheet') {
+      // 依班級分組，每個班級的記錄獨立形成一個配對
       const bySheet = {};
-      recs.forEach(r => {
+      allRecs.forEach(r => {
         if (!bySheet[r.sheet_name]) bySheet[r.sheet_name] = [];
         bySheet[r.sheet_name].push(r);
       });
       for (const [sh, shRecs] of Object.entries(bySheet).sort(([a], [b]) => compareSheetNames(a, b))) {
-        if (shRecs.length >= 2) {
-          const sorted = [...shRecs].sort(compareClassRecords);
+        const sorted = [...shRecs].sort(compareClassRecords);
+        // 該班至少有一筆重修記錄才加入
+        if (sorted.some(r => r.is_retaker)) {
           retakers.push({ sid, masked: data.name_masked, recs: sorted, sheet: sh });
         }
       }
     } else {
-      const sorted = [...recs].sort(compareClassRecords);
+      const sorted = [...allRecs].sort(compareClassRecords);
       retakers.push({ sid, masked: data.name_masked, recs: sorted, sheet: '全部' });
     }
   }
@@ -1710,17 +1802,14 @@ function switchCView(view) {
 
   if (isGeneral) {
     _resetCGeneralFilters();
+    document.getElementById('cPanelGeneral').style.setProperty('display', '');
+    document.getElementById('cPanelRetake').style.setProperty('display', 'none');
   } else {
     _resetCRetakeFilters();
     document.getElementById('cPanelRetake').style.setProperty('display', '');
     document.getElementById('cPanelGeneral').style.setProperty('display', 'none');
-    document.getElementById('cStats').innerHTML = '';
-    document.getElementById('bStats').innerHTML = '';
-    return;
   }
 
-  document.getElementById('cPanelGeneral').style.setProperty('display', '');
-  document.getElementById('cPanelRetake').style.setProperty('display', 'none');
   renderCView();
 }
 
@@ -1825,6 +1914,8 @@ function setCExam(metric) {
 }
 
 function resetCFilters() {
+  _retakerState['C'] = true;
+  _syncRetakerBtn('C');
   if (cCurrentView === 'retake') {
     _resetCRetakeFilters();
     document.getElementById('cStats').innerHTML = '';
@@ -1964,8 +2055,6 @@ function renderCView() {
     renderCAnomalyAndDist();
     renderCStats();
   } else {
-    const retakeId = document.getElementById('cSearchRetake')?.value?.trim() || '';
-    if (!retakeId) return;
     renderCRetakeStats();
     renderB();
     renderRetakerFirstDist();
@@ -2032,8 +2121,8 @@ function getCFilteredRecords() {
       if (typeVal !== 'all' && r.type !== typeVal) return;
       if (!inclRetaker && r.is_retaker) return;
       const score = r[cCurrentExam];
-      if (passVal === 'pass' && (score == null || score < 60)) return;
-      if (passVal === 'fail' && (score == null || score >= 60)) return;
+      if (passVal === 'pass' && (score == null || score < FAIL_THRESHOLD)) return;
+      if (passVal === 'fail' && (score == null || score >= FAIL_THRESHOLD)) return;
       result.push({ ...r, masked: stu.name_masked, sid });
     });
   });
@@ -2084,14 +2173,14 @@ function renderCStats() {
   const scores = recs.map(r => r[cCurrentExam]).filter(s => !isNaN(s));
   if (!scores.length) { document.getElementById('cStats').innerHTML = ''; return; }
   const avg = (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1);
-  const pass = scores.filter(s=>s>=60).length;
+  const pass = scores.filter(s=>s>=FAIL_THRESHOLD).length;
   const passRate = ((pass/scores.length)*100).toFixed(1);
   const uniqueStudents = new Set(recs.map(r => r.sid)).size;
   const examLabel = { semester_score:'學期', midterm:'期中', final:'期末' }[cCurrentExam] || '學期';
-  const passColor = parseFloat(passRate) >= 90 ? 'var(--green)' : parseFloat(passRate) >= 70 ? 'var(--accent3)' : 'var(--red)';
+  const passColor = parseFloat(passRate) >= PASS_COLOR_HIGH*100 ? 'var(--green)' : parseFloat(passRate) >= PASS_COLOR_MID*100 ? 'var(--accent3)' : 'var(--red)';
   document.getElementById('cStats').innerHTML = `
     <div class="stat-card" data-ac="var(--accent)">
-      <div class="val">${uniqueStudents}</div><div class="lbl">學生人數 Students</div>
+      <div class="val">${uniqueStudents}</div><div class="lbl">有記錄學生數 Active Students</div>
     </div>
     <div class="stat-card" data-ac="var(--accent4)">
       <div class="val">${scores.length}</div><div class="lbl">記錄筆數 Records</div>
@@ -2101,6 +2190,10 @@ function renderCStats() {
     </div>
     <div class="stat-card" data-ac="${passColor}">
       <div class="val">${passRate}%</div><div class="lbl">及格率 Pass Rate</div>
+    </div>
+    <div class="stat-card" data-ac="var(--red)" title="不及格人數佔比，不及格者下學期須至他班重修">
+      <div class="val">${(100-parseFloat(passRate)).toFixed(1)}%</div>
+      <div class="lbl">不及格率 Fail Rate <span style="font-size:9px;opacity:.7">（≈重修率）</span></div>
     </div>
   `;
 }
@@ -2410,7 +2503,7 @@ function renderProfile(sid) {
   const sorted = [...data.records].sort(compareClassRecords);
   sorted.forEach(r => {
     const typeLabel = r.type === 'theory' ? 'Theory' : r.type === 'practicum' ? 'Practicum' : 'Summer';
-    const scoreColor = (s) => s == null ? '' : s >= 60 ? 'pass' : 'fail';
+    const scoreColor = (s) => s == null ? '' : s >= FAIL_THRESHOLD ? 'pass' : 'fail';
 
     html += `
       <div class="tl-item">
@@ -2623,6 +2716,7 @@ function renderVarianceBar(sem, sheet, program = 'all') {
   const selectedCompare = updateCompareFilter(sem, sheet, type, inclRetaker, program);
   const candidates = availableCompareSems(sem, sheet, type, inclRetaker, program);
   const prevSem = selectedCompare !== 'auto' ? selectedCompare : candidates[0];
+  // getClassSummary 已自動覆蓋 _nr 欄位，inclRetaker=false 時 cls.avg_semester 即為排除重修生版本
   const cur = getClassSummary(sem, sheet, type, inclRetaker, program);
   const prev = prevSem ? getClassSummary(prevSem, sheet, type, inclRetaker, program) : null;
 
@@ -2733,10 +2827,11 @@ function renderAnomalyDensity() {
 function renderRetakerFirstDist() {
   const bins = Array(11).fill(0);
   Object.values(DATA.students).forEach(s=>{
-    const retakerRecs = s.records.filter(r=>r.is_retaker);
-    if (!retakerRecs.length) return;
-    const sorted = [...retakerRecs].sort(compareClassRecords);
-    const first = sorted[0].semester_score;
+    if (!s.records.some(r=>r.is_retaker)) return; // 非重修生跳過
+    // 取首修記錄（is_retaker=false）中最早那筆
+    const firstRec = [...s.records.filter(r=>!r.is_retaker)]
+      .sort(compareClassRecords)[0];
+    const first = firstRec?.semester_score;
     if (first==null) return;
     const b = Math.min(Math.floor(first/10), 10);
     bins[b]++;
@@ -2777,7 +2872,7 @@ function renderDeltaByProgram(retakers) {
   mkChart('chartDeltaByProgram',{
     type:'bar',
     data:{ labels:progs.map(p=>PROGRAM_LABELS[p]), datasets:[{
-      label:'平均改善幅度 Δ',
+      label:'平均成績變化量 Δ',
       data:avgs,
       backgroundColor:avgs.map(v=>v>=0?'rgba(100,212,168,0.65)':'rgba(240,112,112,0.55)'),
       borderColor:avgs.map(v=>v>=0?'#64d4a8':'#f07070'),
@@ -2827,10 +2922,11 @@ function renderFirstVsDelta() {
   const type = document.getElementById('bFilterType').value;
   const pts=[];
   Object.values(DATA.students).forEach(s=>{
-    const recs=[...s.records.filter(r=>r.is_retaker&&r.type===type)].sort(compareClassRecords);
-    if(recs.length<2) return;
-    const first=recs[0].semester_score;
-    recs.slice(1).forEach(r=>{ if(r.delta!=null&&first!=null) pts.push({x:first,y:r.delta,m:s.name_masked}); });
+    const firstRec=[...s.records.filter(r=>!r.is_retaker&&r.type===type)].sort(compareClassRecords)[0];
+    const retakeRecs=[...s.records.filter(r=>r.is_retaker&&r.type===type)].sort(compareClassRecords);
+    if(!retakeRecs.length) return;
+    const first=firstRec?.semester_score;
+    retakeRecs.forEach(r=>{ if(r.delta!=null&&first!=null) pts.push({x:first,y:r.delta,m:s.name_masked}); });
   });
   mkChart('chartFirstVsDelta',{
     type:'scatter',
@@ -2846,7 +2942,7 @@ function renderFirstVsDelta() {
           callbacks:{label:ctx=>`${ctx.raw.m}  首修:${ctx.raw.x}  Δ:${ctx.raw.y>=0?'+':''}${ctx.raw.y}`}}},
       scales:{
         x:{...CHART_DEFAULTS.scales.x,min:0,max:100,title:{display:true,text:'首修學期成績',color:'var(--text-dim)'}},
-        y:{...CHART_DEFAULTS.scales.y,title:{display:true,text:'重修改善幅度 Δ',color:'var(--text-dim)'}}
+        y:{...CHART_DEFAULTS.scales.y,title:{display:true,text:'重修成績變化量 Δ',color:'var(--text-dim)'}}
       }
     }
   });
@@ -2975,9 +3071,9 @@ function renderBoxPlot(allClasses, filterProg) {
   let svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" class="ladash-svg-block ladash-svg-responsive" data-minw="${W}">`;
   svg+=`<rect width="${W}" height="${H}" fill="${bgCol}" rx="8"/>`;
 
-  [0,25,50,60,75,100].forEach(v=>{
+  [0,25,50,FAIL_THRESHOLD,75,100].forEach(v=>{
     const y=scaleY(v);
-    svg+=`<line x1="${pad.l}" y1="${y}" x2="${W-pad.r}" y2="${y}" stroke="${gridCol}" stroke-width="${v===60?1.5:0.5}" stroke-dasharray="${v===60?'4 3':''}"/>`;
+    svg+=`<line x1="${pad.l}" y1="${y}" x2="${W-pad.r}" y2="${y}" stroke="${gridCol}" stroke-width="${v===FAIL_THRESHOLD?1.5:0.5}" stroke-dasharray="${v===FAIL_THRESHOLD?'4 3':''}"/>`;
     svg+=`<text x="${pad.l-4}" y="${y+4}" text-anchor="end" fill="${textCol}" font-size="9" font-family="monospace">${v}</text>`;
   });
 
@@ -3478,7 +3574,7 @@ function _syncRetakerBtn(panel) {
   if (!btn) return;
   const included = _retakerState[panel];
   btn.className = 'retaker-switch' + (included ? ' active' : '');
-  btn.textContent = included ? '👤 包含重修生' : '👤 排除重修生';
+  btn.textContent = included ? '👤 含跨屆重修生' : '👤 排除跨屆重修生';
 
   const progEl = document.getElementById(
     panel === 'A' ? 'aFilterProgram' :
@@ -3491,10 +3587,10 @@ function _syncRetakerBtn(panel) {
   if (locked) {
     _retakerState[panel] = true;
     btn.classList.add('locked');
-    btn.title = '學制選為「重修生」時，必須包含重修生';
+    btn.title = '學制選為「重修生」時，必須包含跨屆重修生';
   } else {
     btn.classList.remove('locked');
-    btn.title = '切換是否包含重修生資料';
+    btn.title = '切換是否納入來自前幾屆不及格、跨班重修的學生資料';
   }
 }
 
@@ -3686,7 +3782,7 @@ function _updateMultiCount() {
 
 // ══════════════════════════════════════════════════════════
 // 大環境變數 Helper（Panel D）
-// 疫情：'1082'–'1112'　108課綱：'1111'–'1142'
+// 疫情/108課綱範圍由 DATA.meta.covid_sem_range / curriculum_sem_range 動態決定
 // ══════════════════════════════════════════════════════════
 
 /**
@@ -3695,8 +3791,8 @@ function _updateMultiCount() {
  * @returns {'normal'|'covid'|'curriculum'|'overlap'}
  */
 function getSemPeriod(sem) {
-  const isCovid      = sem >= '1082' && sem <= '1112';
-  const isCurriculum = sem >= '1111' && sem <= '1142';
+  const isCovid      = sem >= SEM_COVID_START && sem <= SEM_COVID_END;
+  const isCurriculum = sem >= SEM_CURRICULUM_START && sem <= SEM_CURRICULUM_END;
   if (isCovid && isCurriculum) return 'overlap';
   if (isCovid)                 return 'covid';
   if (isCurriculum)            return 'curriculum';
@@ -3728,7 +3824,7 @@ function getEnvAnnotations(sems) {
   const labelColor = chartTextDimColor(); // 深色:#9aa0b8 / 淺色:#6b748f
   const annotations = {};
 
-  const covidRange = boxRange('1082', '1112');
+  const covidRange = boxRange(SEM_COVID_START, SEM_COVID_END);
   if (covidRange) {
     annotations.covidBox = {
       type: 'box',
@@ -3750,7 +3846,7 @@ function getEnvAnnotations(sems) {
     };
   }
 
-  const curriculumRange = boxRange('1111', '1142');
+  const curriculumRange = boxRange(SEM_CURRICULUM_START, SEM_CURRICULUM_END);
   if (curriculumRange) {
     annotations.curriculumBox = {
       type: 'box',
@@ -3819,43 +3915,60 @@ function renderD() {
         return false;
       });
 
-  let _wScore = 0, _wScoreW = 0;
-  let _wPass  = 0, _wPassW  = 0;
-  let _wRetake = 0, _wRetakeW = 0;
-  let _wMid = 0, _wMidW = 0;
-  let _wFin = 0, _wFinW = 0;
+  const inclRetakerD = getIncludeRetaker('D');
+  // filtered 的 class_summary row 已含 _nr 欄位
+  // inclRetakerD=false 時讀 count_nr/avg_semester_nr 等；true 時讀 count/avg_semester 等
+  const _cntField  = inclRetakerD ? 'count'        : 'count_nr';
+  const _avgField  = inclRetakerD ? 'avg_semester'  : 'avg_semester_nr';
+  const _passField = inclRetakerD ? 'pass_rate'     : 'pass_rate_nr';
+  const _midField  = inclRetakerD ? 'avg_midterm'   : 'avg_midterm_nr';
+  const _finField  = inclRetakerD ? 'avg_final'     : 'avg_final_nr';
+
+  // 加權平均（以 count/_nr 為權重）
+  let _wScore=0,_wScoreW=0, _wPass=0,_wPassW=0, _wFail=0,_wFailW=0, _wRetake=0,_wRetakeW=0, _wMid=0,_wMidW=0, _wFin=0,_wFinW=0;
+  let totalStudents = 0;
+  const _failField = inclRetakerD ? 'fail_rate' : 'fail_rate_nr';
   filtered.forEach(c => {
-    const cnt = Number(c.count) || 0;
-    if (c.avg_semester != null) { _wScore  += c.avg_semester  * cnt; _wScoreW  += cnt; }
-    if (c.pass_rate    != null) { _wPass   += c.pass_rate     * cnt; _wPassW   += cnt; }
-    if (c.retaker_rate != null) { _wRetake += c.retaker_rate  * cnt; _wRetakeW += cnt; }
-    if (c.avg_midterm  != null) { _wMid    += c.avg_midterm   * cnt; _wMidW    += cnt; }
-    if (c.avg_final    != null) { _wFin    += c.avg_final     * cnt; _wFinW    += cnt; }
+    const cnt = Number(c[_cntField]) || 0;
+    totalStudents += cnt;
+    if (c[_avgField]  != null) { _wScore  += c[_avgField]  * cnt; _wScoreW  += cnt; }
+    if (c[_passField] != null) { _wPass   += c[_passField] * cnt; _wPassW   += cnt; }
+    // fail_rate_nr 不在舊 data.json，fallback 用 1-pass_rate_nr
+    const failVal = c[_failField] ?? (c[_passField] != null ? 1 - c[_passField] : null);
+    if (failVal    != null) { _wFail   += failVal   * cnt; _wFailW   += cnt; }
+    if (inclRetakerD && c.retaker_ratio != null) { _wRetake += c.retaker_ratio * cnt; _wRetakeW += cnt; }
+    if (c[_midField]  != null) { _wMid    += c[_midField]  * cnt; _wMidW    += cnt; }
+    if (c[_finField]  != null) { _wFin    += c[_finField]  * cnt; _wFinW    += cnt; }
   });
-  const totalStudents = filtered.reduce((a, c) => a + (Number(c.count) || 0), 0);
-  const avgScore    = _wScoreW  > 0 ? (_wScore  / _wScoreW).toFixed(2)  : null;
-  const avgPass     = _wPassW   > 0 ? (_wPass   / _wPassW)              : null;
-  const avgRetake   = _wRetakeW > 0 ? (_wRetake / _wRetakeW)            : null;
-  const avgMidterm  = _wMidW    > 0 ? (_wMid    / _wMidW).toFixed(2)   : null;
-  const avgFinal    = _wFinW    > 0 ? (_wFin    / _wFinW).toFixed(2)   : null;
+
+  const avgScore   = _wScoreW  > 0 ? (_wScore  / _wScoreW).toFixed(2)        : null;
+  const avgPass    = _wPassW   > 0 ? (_wPass   / _wPassW)                     : null;
+  const avgFail    = _wFailW   > 0 ? (_wFail   / _wFailW)                     : null;
+  const avgRetake  = _wRetakeW > 0 ? (_wRetake / _wRetakeW)                   : null;
+  const avgMidterm = _wMidW    > 0 ? (_wMid    / _wMidW).toFixed(2)           : null;
+  const avgFinal   = _wFinW    > 0 ? (_wFin    / _wFinW).toFixed(2)           : null;
   const programs = [...new Set(filtered.map(c => c.program))];
 
   document.getElementById('dStats').innerHTML = `
     <div class="stat-card" data-ac="var(--accent)">
       <div class="val">${totalStudents.toLocaleString()}</div>
-      <div class="lbl">總人次 Total</div>
+      <div class="lbl">${inclRetakerD ? '選課人次 Enrollments' : '首修人次 First-Time'}</div>
     </div>
     <div class="stat-card" data-ac="var(--accent2)">
       <div class="val">${avgScore ?? '–'}</div>
       <div class="lbl">學期均分 Avg Score</div>
     </div>
-    <div class="stat-card" data-ac="${avgPass != null && avgPass >= 0.9 ? 'var(--green)' : avgPass != null && avgPass >= 0.7 ? 'var(--accent3)' : 'var(--red)'}">
+    <div class="stat-card" data-ac="${avgPass != null && avgPass >= PASS_COLOR_HIGH ? 'var(--green)' : avgPass != null && avgPass >= PASS_COLOR_MID ? 'var(--accent3)' : 'var(--red)'}">
       <div class="val">${avgPass != null ? (avgPass * 100).toFixed(1) + '%' : '–'}</div>
       <div class="lbl">及格率 Pass Rate</div>
     </div>
     <div class="stat-card" data-ac="var(--accent4)">
       <div class="val">${avgRetake != null ? (avgRetake * 100).toFixed(1) + '%' : '–'}</div>
-      <div class="lbl">重修率 Retaker Rate</div>
+      <div class="lbl">重修生佔比 Retaker Ratio</div>
+    </div>
+    <div class="stat-card" data-ac="var(--red)" title="不及格人數佔比，不及格者下學期須至他班重修">
+      <div class="val">${avgFail != null ? (avgFail * 100).toFixed(1) + '%' : '–'}</div>
+      <div class="lbl">不及格率 Fail Rate <span style="font-size:9px;opacity:.7">（≈重修率）</span></div>
     </div>
     <div class="stat-card" data-ac="var(--accent3)">
       <div class="val">${avgMidterm ?? '–'}</div>
@@ -3881,30 +3994,53 @@ function renderD() {
     '【' + (dType === 'practicum' ? '實驗課' : '正課') + '】' +
     ' — ' + metricLabel(dMetric) + ' 跨學期趨勢';
 
+  // 若排除重修生，將各 class_summary row 的 _nr 欄位覆蓋到主欄位
+  // 讓折線圖/熱圖等所有圖表自動讀到正確版本，無須各圖表個別處理
+  function applyNrOverride(rows) {
+    if (inclRetakerD) return rows;
+    return rows.map(c => {
+      if (c.count_nr == null) return c;
+      return {
+        ...c,
+        count:              c.count_nr,
+        avg_semester:       c.avg_semester_nr       ?? null,
+        pass_rate:          c.pass_rate_nr          ?? null,
+        fail_rate:          c.fail_rate_nr          ?? null,
+        avg_midterm:        c.avg_midterm_nr        ?? null,
+        avg_final:          c.avg_final_nr          ?? null,
+        score_distribution: c.score_distribution_nr ?? c.score_distribution,
+        retaker_ratio:      null,
+      };
+    });
+  }
+
+  const chartFiltered = applyNrOverride(filtered);
+  const chartAll      = applyNrOverride(allClasses);
+
   if (dView === 'merge') {
-    renderDTrendMerge(filtered, sems, allClasses);
+    renderDTrendMerge(chartFiltered, sems, chartAll);
   } else {
-    renderDTrendClass(filtered, sems, allClasses);
+    renderDTrendClass(chartFiltered, sems, chartAll);
   }
 
   if (dSemMode === 'multi') {
-    renderDProgramBar(allClasses, sems, filterProg);
-    renderDPassRateBar(allClasses, sems, filterProg);
+    renderDProgramBar(chartAll, sems, filterProg);
+    renderDPassRateBar(chartAll, sems, filterProg);
   } else {
-    renderDPassRateLine(allClasses, sems, filterProg);
+    renderDPassRateLine(chartAll, sems, filterProg);
   }
 
   const tableCard = document.getElementById('dClassTable');
   if (dView === 'class') {
     tableCard.style.setProperty('display', 'block');
-    renderDTable(filtered);
+    renderDTable(chartFiltered);
   } else {
     tableCard.style.setProperty('display', 'none');
   }
 
-  renderHeatmap(filtered);
-  renderBoxPlot(allClasses, filterProg);
-  renderCorrelation(filtered);
+  renderHeatmap(chartFiltered);
+  renderBoxPlot(chartAll, filterProg);
+  renderCorrelation(chartFiltered);
 
   updateFilterSummary('D');
 }
@@ -4345,6 +4481,7 @@ function getPrintSemesters() {
   }));
 }
 
+// 以下三個函數由外部 PrintPanel 模組呼叫，非 main.js 內部使用
 function withPrintablePanelsVisible(task) {
   const panels = [...document.querySelectorAll('.panel')].filter(p => p.id !== 'panelP' && p.id !== 'panelR');
   const originals = panels.map(p => ({
@@ -4544,8 +4681,12 @@ function initDataActionDelegation() {
         if (typeof window.exportAtRiskPDF === 'function') window.exportAtRiskPDF();
       },
       // Print
-      doPrintPreview: () => { if (window.PrintPanel) window.PrintPanel.doPreview(); },
-      doPrint:        () => { if (window.PrintPanel) window.PrintPanel.doPrint(); },
+      doPrintPreview:   () => { if (window.PrintPanel) window.PrintPanel.doPreview(); },
+      doPrint:          () => { if (window.PrintPanel) window.PrintPanel.doPrint(); },
+      // 以下三個由外部 PrintPanel 模組攔截處理；加 noop 避免 console.warn
+      closePrintPreview: () => {},
+      printSelectAll:    () => {},
+      printClearAll:     () => {},
       // Panel C retake search result selection
       selectRetakeStudent: () => selectRetakeStudent(el.dataset.sid),
       // Panel / popover close
