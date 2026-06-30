@@ -112,8 +112,14 @@ const AtRiskReportManager = (() => {
     _radarFilter = mode;
 
     if (chart) {
-      chart.data.datasets.forEach((ds, i) => {
-        const isPass = (i === 0);
+      // ROOT CAUSE FIX：原本以 dataset index（i===0）判斷「及格組」，
+      // 但 renderRadarChart() 以 unshift() 疊加基準線後，及格/不及格組
+      // 的 index 會位移，導致此處誤判（基準線被當成不及格組著色）。
+      // 改以 dataset.label 前綴文字（穩定識別碼）判斷類別，不依賴順序。
+      chart.data.datasets.forEach((ds) => {
+        const isBenchmark = ds.label?.startsWith('及格群平均基準');
+        const isPass      = !isBenchmark && ds.label === '及格組';
+        if (isBenchmark) return; // 基準線固定樣式，不受篩選影響
         const active =
           mode === null ? true :
           mode === 'pass' ? isPass : !isPass;
@@ -236,6 +242,18 @@ const AtRiskReportManager = (() => {
     };
   }
 
+  // 取得「全年度及格群」基準線數值（固定不隨目前學期/篩選變動）
+  // 比照 tab-behavior-radar.js 的 pass_vs_fail._base fallback 邏輯
+  function _getAllSemPassBenchmark() {
+    const allMc = _data?.all_semesters?.metrics_comparison;
+    if (!allMc) return null;
+    const count = _data?.all_semesters?.cohort_summary?.pass_count ?? null;
+    return {
+      values: RADAR_KEYS.map(k => allMc[k]?.pass_median_normalized ?? 0),
+      count,
+    };
+  }
+
   function renderRadarChart(mc) {
     const canvas = document.getElementById('rRadarChart');
     if (!canvas) return;
@@ -249,30 +267,48 @@ const AtRiskReportManager = (() => {
 
     const { text: clrText, textDim: clrTextDim, border: clrBorder } = _resolveThemeColors();
 
+    const datasets = [
+      {
+        label: '及格組',
+        data: passVals,
+        backgroundColor:    'rgba(39,174,96,0.15)',
+        borderColor:        'rgba(39,174,96,0.85)',
+        borderWidth: 2,
+        pointBackgroundColor: 'rgba(39,174,96,0.85)',
+        pointRadius: 4,
+      },
+      {
+        label: '不及格組',
+        data: failVals,
+        backgroundColor:    'rgba(231,76,60,0.12)',
+        borderColor:        'rgba(231,76,60,0.85)',
+        borderWidth: 2,
+        pointBackgroundColor: 'rgba(231,76,60,0.85)',
+        pointRadius: 4,
+      },
+    ];
+
+    // ── 疊加「全年度及格群平均基準線」（灰色虛線，固定基準，不隨學期切換變動）──
+    const bench = _getAllSemPassBenchmark();
+    if (bench && _currentSem !== '__all__') {
+      datasets.unshift({
+        label: `及格群平均基準${bench.count != null ? `（n=${bench.count}）` : ''}`,
+        data: bench.values,
+        backgroundColor:    'rgba(156,163,175,0.07)',
+        borderColor:        'rgba(156,163,175,1)',
+        borderWidth: 1.5,
+        pointBackgroundColor: 'rgba(156,163,175,0.8)',
+        pointRadius: 3,
+        borderDash: [5, 5],
+        order: 99,
+      });
+    }
+
     new Chart(canvas, {
       type: 'radar',
       data: {
         labels: RADAR_LABELS,
-        datasets: [
-          {
-            label: '及格組',
-            data: passVals,
-            backgroundColor:    'rgba(39,174,96,0.15)',
-            borderColor:        'rgba(39,174,96,0.85)',
-            borderWidth: 2,
-            pointBackgroundColor: 'rgba(39,174,96,0.85)',
-            pointRadius: 4,
-          },
-          {
-            label: '不及格組',
-            data: failVals,
-            backgroundColor:    'rgba(231,76,60,0.12)',
-            borderColor:        'rgba(231,76,60,0.85)',
-            borderWidth: 2,
-            pointBackgroundColor: 'rgba(231,76,60,0.85)',
-            pointRadius: 4,
-          },
-        ],
+        datasets,
       },
       options: {
         responsive: true,
@@ -398,7 +434,6 @@ const AtRiskReportManager = (() => {
       // WARN-1 FIX: 清除舊備注節點，防止 switchSemester 重複 append
       canvas.parentNode.querySelectorAll('.__midterm-note').forEach(n => n.remove());
       const note = document.createElement('div');
-      note.className = '__midterm-note';
       note.className = '__midterm-note ladash-midterm-note-style';
       note.textContent = `▲ 紅色虛線標注不可用。期中考：Week ${td.midterm_week_num}`;
       canvas.parentNode.appendChild(note);
@@ -722,11 +757,18 @@ const AtRiskReportManager = (() => {
     panel.classList.toggle('open', !isOpen);
     if (!isOpen) {
       // 切換為 position:fixed 並計算座標（同 ui-toggles.js positionFixed 邏輯）
+      // ROOT CAUSE FIX：原本以 panel.offsetWidth（套用新寬度「前」的舊值/CSS
+      // 預設寬度）推算 left，但實際套用的寬度是後面才設定的
+      // Math.min(vpW*0.92, maxW)，兩者不一致時 left 會算錯，導致 PWA 手機
+      // 模式下面板向右超出視窗邊界（截圖實證：內容被裁切看不見）。
+      // 修正：先決定並套用目標寬度，再用該寬度反推 left，消除順序依賴。
       const rect = btn.getBoundingClientRect();
       const vpW  = window.innerWidth;
       const vpH  = window.innerHeight;
       const maxW = parseInt(panel.dataset.maxw || '360', 10);
-      const popW = panel.offsetWidth || Math.min(vpW * 0.92, maxW);
+      const targetW = Math.min(vpW * 0.92, maxW);
+      panel.style.setProperty('width', targetW + 'px');
+      const popW = targetW;
       const popH = panel.offsetHeight || 360;
       let left = rect.left;
       if (left + popW > vpW - 8) left = vpW - popW - 8;
@@ -739,7 +781,6 @@ const AtRiskReportManager = (() => {
       panel.style.setProperty('position', 'fixed');
       panel.style.setProperty('top',  top  + 'px');
       panel.style.setProperty('left', left + 'px');
-      panel.style.setProperty('width', Math.min(vpW * 0.92, maxW) + 'px');
     }
   };
 
