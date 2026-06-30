@@ -289,24 +289,22 @@ const FilterEngine = (() => {
    * @param {object} data  全域 DATA 物件
    */
   function buildIndex(data) {
-    if (!data?.students) { _classIndex = new Map(); return; }
+    if (!data?.class_summary) { _classIndex = new Map(); return; }
     const tmp = new Map();
-    Object.values(data.students).forEach(info => {
-      (info.records || []).forEach(rec => {
-        const sn = _normalizeSheetName(rec.sheet_name || '');
-        if (!sn) return;
-        const baseProgram = getProgram(sn);
-        const recProgram  = isRetakeStudent(rec, baseProgram) ? 'retake_student' : (baseProgram || 'unknown');
-        const recType     = rec.type || 'theory';
-        const sem         = String(rec.semester || '');
-        const key         = `${sem}|${sn}|${recType}`;
-        if (!tmp.has(key)) {
-          tmp.set(key, {
-            sheetName: sn, program: recProgram, type: recType,
-            semester: sem, count: 0, isRetaker: recProgram === 'retake_student',
-          });
-        }
-        tmp.get(key).count++;
+    Object.values(data.class_summary).forEach(c => {
+      const sn = _normalizeSheetName(c.sheet_name || '');
+      if (!sn) return;
+      const baseProgram = getProgram(sn);
+      const sem = String(c.semester || '');
+      const type = c.type || 'theory';
+      const key = `${sem}|${sn}|${type}`;
+      tmp.set(key, {
+        sheetName: sn,
+        program: baseProgram || 'unknown',
+        type: type,
+        semester: sem,
+        count: Number(c.count || 0),
+        isRetaker: baseProgram === 'retake_class' || baseProgram === 'retake_student'
       });
     });
     _classIndex = tmp;
@@ -354,26 +352,27 @@ const FilterEngine = (() => {
       return _sort(result);
     }
 
-    // ── 無索引：原始全量掃描 fallback ─────────────────────
-    if (!data?.students) return [];
+    // ── 無索引：原始掃描 fallback ─────────────────────
+    if (!data?.class_summary) return [];
     const classMap = new Map();
-    Object.values(data.students).forEach(info => {
-      (info.records || []).forEach(rec => {
-        const sn = _normalizeSheetName(rec.sheet_name || '');
-        if (!sn) return;
-        const baseProgram = getProgram(sn);
-        const recProgram = isRetakeStudent(rec, baseProgram) ? 'retake_student' : (baseProgram || 'unknown');
-        if (!includeRetaker && recProgram === 'retake_student') return;
-        if (semester && semester !== 'all' && String(rec.semester || '') !== String(semester)) return;
-        if (!isProgramAvailable(semester, recProgram)) return;
-        if (program && program !== 'all' && recProgram !== program) return;
-        const recType = rec.type || 'theory';
-        if (courseType && courseType !== 'all' && recType !== courseType) return;
-        if (!getTypeAvailability(recProgram)[recType]) return;
-        const key = `${sn}|${recType}`;
-        if (!classMap.has(key)) classMap.set(key, { sheetName: sn, program: recProgram, type: recType, count: 0 });
-        classMap.get(key).count++;
-      });
+    Object.values(data.class_summary).forEach(c => {
+      const sn = _normalizeSheetName(c.sheet_name || '');
+      if (!sn) return;
+      const baseProgram = getProgram(sn);
+      const type = c.type || 'theory';
+      const sem = String(c.semester || '');
+      const isRetaker = baseProgram === 'retake_class' || baseProgram === 'retake_student';
+
+      if (!includeRetaker && isRetaker) return;
+      if (semester && semester !== 'all' && sem !== semester) return;
+      if (!isProgramAvailable(semester, baseProgram)) return;
+      if (program && program !== 'all' && baseProgram !== program) return;
+      if (courseType && courseType !== 'all' && type !== courseType) return;
+      if (!getTypeAvailability(baseProgram)[type]) return;
+
+      const key = `${sn}|${type}`;
+      if (!classMap.has(key)) classMap.set(key, { sheetName: sn, program: baseProgram, type: type, count: 0 });
+      classMap.get(key).count += Number(c.count || 0);
     });
     return _sort([...classMap.values()]);
   }
@@ -387,17 +386,15 @@ const FilterEngine = (() => {
    * @returns {number}
    */
   function getClassCount(sheetName, semester, courseType, data) {
-    if (!data?.students) return 0;
+    if (!data?.class_summary) return 0;
     const normalizedTarget = _normalizeSheetName(sheetName);
     let count = 0;
-    Object.values(data.students).forEach(info => {
-      (info.records || []).forEach(rec => {
-        const sn = _normalizeSheetName(rec.sheet_name || '');
-        if (sn !== normalizedTarget) return;
-        if (semester && semester !== 'all' && String(rec.semester) !== String(semester)) return;
-        if (courseType && courseType !== 'all' && rec.type !== courseType) return;
-        count++;
-      });
+    Object.values(data.class_summary).forEach(c => {
+      const sn = _normalizeSheetName(c.sheet_name || '');
+      if (sn !== normalizedTarget) return;
+      if (semester && semester !== 'all' && String(c.semester) !== String(semester)) return;
+      if (courseType && courseType !== 'all' && c.type !== courseType) return;
+      count += Number(c.count || 0);
     });
     return count;
   }

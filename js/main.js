@@ -1256,7 +1256,7 @@ function aggregateClassSummaries(rows, sem, sheet, type = 'all') {
   first.count = total || rows.reduce((a, c) => a + (c.count || 0), 0);
 
   // 全體欄位加權合併
-  ['avg_midterm', 'avg_final', 'avg_semester', 'pass_rate', 'retaker_ratio'].forEach(field => {
+  ['avg_midterm', 'avg_final', 'avg_semester', 'pass_rate', 'fail_rate', 'retaker_ratio'].forEach(field => {
     const weighted = rows
       .filter(c => c[field] != null)
       .reduce((acc, c) => {
@@ -1271,7 +1271,7 @@ function aggregateClassSummaries(rows, sem, sheet, type = 'all') {
   // _nr 欄位加權合併（以 count_nr 為權重）
   const total_nr = rows.reduce((a, c) => a + (Number(c.count_nr) || 0), 0);
   first.count_nr = total_nr;
-  ['avg_midterm_nr', 'avg_final_nr', 'avg_semester_nr', 'pass_rate_nr'].forEach(field => {
+  ['avg_midterm_nr', 'avg_final_nr', 'avg_semester_nr', 'pass_rate_nr', 'fail_rate_nr'].forEach(field => {
     const weighted = rows
       .filter(c => c[field] != null)
       .reduce((acc, c) => {
