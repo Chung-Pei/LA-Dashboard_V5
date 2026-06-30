@@ -9,7 +9,7 @@
 
 const CACHE_PREFIX = 'la-dash-v10-docs4';
 const DATA_CACHE_PREFIX = 'la-dash-v10-docs4-data';
-const BUILD_VERSION = '202606301700';
+const BUILD_VERSION = '202606301735';
 
 const CACHE_VERSION = `${CACHE_PREFIX}-${BUILD_VERSION}`;
 const DATA_CACHE = `${DATA_CACHE_PREFIX}-${BUILD_VERSION}`;
@@ -27,21 +27,21 @@ const APP_SHELL = [
   './js/vendor/chart.umd.min.js',
   './js/vendor/chartjs-plugin-annotation.min.js',
   './js/frame-guard.js',
-  './js/filter-engine.js?v=202606301700',
-  './js/main.js?v=202606301700',
+  './js/filter-engine.js?v=202606301735',
+  './js/main.js?v=202606301735',
   './js/vendor/d3.min.js',
-  './js/chart-registry.js?v=202606301700',
-  './js/behavior-loader.js?v=202606301700',
-  './js/tab-behavior-radar.js?v=202606301700',
-  './js/tab-behavior-correlation.js?v=202606301700',
-  './js/tab-behavior-time.js?v=202606301700',
-  './js/tab-behavior-lsa.js?v=202606301700',
-  './js/tab-behavior-cross.js?v=202606301700',
-  './js/tab-behavior-warning.js?v=202606301700',
-  './js/behavior-init.js?v=202606301700',
-  './js/at-risk-report.js?v=202606301700',
-  './js/print-panel.js?v=202606301700',
-  './js/ui-toggles.js?v=202606301700',
+  './js/chart-registry.js?v=202606301735',
+  './js/behavior-loader.js?v=202606301735',
+  './js/tab-behavior-radar.js?v=202606301735',
+  './js/tab-behavior-correlation.js?v=202606301735',
+  './js/tab-behavior-time.js?v=202606301735',
+  './js/tab-behavior-lsa.js?v=202606301735',
+  './js/tab-behavior-cross.js?v=202606301735',
+  './js/tab-behavior-warning.js?v=202606301735',
+  './js/behavior-init.js?v=202606301735',
+  './js/at-risk-report.js?v=202606301735',
+  './js/print-panel.js?v=202606301735',
+  './js/ui-toggles.js?v=202606301735',
 ];
 
 self.addEventListener('install', (event) => {
@@ -98,12 +98,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (url.pathname.endsWith('.js') && url.searchParams.has('v')) {
+  if (url.pathname.includes('/js/vendor/')) {
     event.respondWith(cacheFirst(request));
     return;
   }
 
-  if (url.pathname.includes('/js/vendor/') || isStaticAsset(url)) {
+  if (isStaticAsset(url)) {
     event.respondWith(cacheFirst(request));
     return;
   }
